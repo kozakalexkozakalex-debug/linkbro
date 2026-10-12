@@ -5,8 +5,18 @@ import { createReportLink, revokeReportLink, saveProjectFilter, saveStoplist, se
 import CopyButton from "@/components/CopyButton";
 import { METRICS, type MetricFilter } from "@/lib/global";
 import { NICHES } from "@/lib/project";
+import { CURRENCIES } from "@/lib/money";
 
-type P = { id: string; name: string; niche: string; plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
+type P = {
+  id: string;
+  name: string;
+  niche: string;
+  client_site: string;
+  geo: string;
+  language: string;
+  monthly_budget: number | null;
+  budget_currency: string;
+  plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
 
 export default function Profile({
   project,
@@ -52,8 +62,34 @@ export default function Profile({
           </datalist>
         </div>
         <div className="field">
-          <label htmlFor="p-plan" className="lbl">План публікацій на місяць</label>
-          <input id="p-plan" name="plan" type="number" min={0} className="inp" defaultValue={project.plan_per_month} disabled={!isLead} />
+          <label htmlFor="p-site" className="lbl">Сайт клієнта</label>
+          <input id="p-site" name="client_site" className="inp" defaultValue={project.client_site} disabled={!isLead} maxLength={300} placeholder="client.com" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="field">
+            <label htmlFor="p-geo" className="lbl">GEO</label>
+            <input id="p-geo" name="geo" className="inp" defaultValue={project.geo} disabled={!isLead} maxLength={100} placeholder="UA, PL, US" />
+          </div>
+          <div className="field">
+            <label htmlFor="p-lang" className="lbl">Мова</label>
+            <input id="p-lang" name="language" className="inp" defaultValue={project.language} disabled={!isLead} maxLength={60} placeholder="українська, англійська" />
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_110px]">
+          <div className="field">
+            <label htmlFor="p-plan" className="lbl">План публікацій на місяць</label>
+            <input id="p-plan" name="plan" type="number" min={0} className="inp" defaultValue={project.plan_per_month} disabled={!isLead} />
+          </div>
+          <div className="field">
+            <label htmlFor="p-budget" className="lbl">Бюджет на місяць</label>
+            <input id="p-budget" name="monthly_budget" inputMode="decimal" className="inp" defaultValue={project.monthly_budget ?? ""} disabled={!isLead} placeholder="без ліміту" />
+          </div>
+          <div className="field">
+            <label htmlFor="p-cur" className="lbl">Валюта</label>
+            <select id="p-cur" name="budget_currency" className="inp" defaultValue={project.budget_currency || "USD"} disabled={!isLead}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="p-req" className="lbl">Вимоги до проєкту</label>

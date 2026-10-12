@@ -5,7 +5,7 @@ import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { fmtDateTime } from "@/lib/global";
-import { DONOR_COLUMNS, normalizeFilter, type CustomStatuses, type Project, type ProjectDonor } from "@/lib/project";
+import { DONOR_COLUMNS, PROJECT_COLUMNS, normalizeFilter, type CustomStatuses, type Project, type ProjectDonor } from "@/lib/project";
 import FromGlobal from "./FromGlobal";
 import Core from "./Core";
 import Comm, { type MedBusy } from "./Comm";
@@ -63,12 +63,12 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
   const { data: projectData } = await supabase
     .from("projects")
-    .select("id, name, niche, plan_per_month, requirements, notes, metric_filter, report_token, report_show_prices")
+    .select(PROJECT_COLUMNS + ", report_token, report_show_prices")
     .eq("id", id)
     .eq("team_id", team.id)
     .maybeSingle();
   if (!projectData) notFound();
-  const project = projectData as Project & { report_token: string | null; report_show_prices: boolean };
+  const project = projectData as unknown as Project & { report_token: string | null; report_show_prices: boolean };
 
   const donors = await fetchAll<ProjectDonor>((from, to) => {
     let query = supabase.from("project_donors").select(DONOR_COLUMNS).eq("project_id", id).eq("team_id", team.id);
@@ -183,7 +183,19 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
           <h1 className="flex flex-wrap items-center gap-2 font-display text-xl font-medium">
             {project.name}
             {project.niche && <span className="pill font-sans">{project.niche}</span>}
+            {project.geo && <span className="pill font-sans">{project.geo}</span>}
+            {project.language && <span className="pill font-sans">{project.language}</span>}
           </h1>
+          {project.client_site && (
+            <a
+              href={/^https?:\/\//.test(project.client_site) ? project.client_site : `https://${project.client_site}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-block font-mono text-sm underline"
+            >
+              {project.client_site}
+            </a>
+          )}
           <p className="mt-1 text-mute">From Global → Project Core → Communication → Guest Posting</p>
         </div>
         {tab !== "profile" && tab !== "history" && (

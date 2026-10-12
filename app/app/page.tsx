@@ -3,7 +3,7 @@ import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
 import { fetchAll } from "@/lib/fetchAll";
 import { hoursSince, isThisMonth, LINK_STATUS, type LinkStatus } from "@/lib/project";
-import { addTo, daysLeft, fmtMoney, payState, realCost, type ByCurrency } from "@/lib/money";
+import { addTo, daysLeft, fmtAmount, fmtMoney, payState, realCost, type ByCurrency } from "@/lib/money";
 
 type Search = Promise<{ project?: string }>;
 
@@ -24,21 +24,25 @@ type Row = {
   gp_currency: string;
   gp_commission: number;
   pay_status: string;
+  paid_at: string | null;
   link_status: LinkStatus;
   guarantee_until: string | null;
 };
 
-type Stats = { fromG: number; core: number; comm: number; gp: number; pub: number; paid: ByCurrency; due: ByCurrency };
+type Stats = { fromG: number; core: number; comm: number; gp: number; pub: number; paid: ByCurrency; due: ByCurrency; paidMonth: ByCurrency };
 
 function stats(rows: Row[]): Stats {
-  const s: Stats = { fromG: rows.length, core: 0, comm: 0, gp: 0, pub: 0, paid: {}, due: {} };
+  const s: Stats = { fromG: rows.length, core: 0, comm: 0, gp: 0, pub: 0, paid: {}, due: {}, paidMonth: {} };
   for (const r of rows) {
     if (r.fg_status === "core") s.core++;
     if (r.in_comm) s.comm++;
     if (r.in_gp) s.gp++;
     if (r.core_status === "Published" && isThisMonth(r.published_at)) s.pub++;
     const st = payState(r);
-    if (st === "paid") addTo(s.paid, r.gp_currency, realCost(r));
+    if (st === "paid") {
+      addTo(s.paid, r.gp_currency, realCost(r));
+      if (isThisMonth(r.paid_at)) addTo(s.paidMonth, r.gp_currency, realCost(r));
+    }
     else if (st === "due") addTo(s.due, r.gp_currency, realCost(r));
   }
   return s;
@@ -59,14 +63,24 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const sp = await searchParams;
   const { supabase, team } = await getTeamContext();
 
-  const { data: pData } = await supabase.from("projects").select("id, name, niche, plan_per_month").eq("team_id", team.id).order("created_at");
-  const projects = (pData ?? []) as { id: string; name: string; niche: string; plan_per_month: number }[];
+  const { data: pData } = await supabase.from("projects")
+    .select("id, name, niche, plan_per_month, monthly_budget, budget_currency")
+    .eq("team_id", team.id)
+    .order("created_at");
+  const projects = (pData ?? []) as {
+    id: string;
+    name: string;
+    niche: string;
+    plan_per_month: number;
+    monthly_budget: number | null;
+    budget_currency: string;
+  }[];
   const scope = projects.some((p) => p.id === sp.project) ? (sp.project as string) : "all";
 
   const all = await fetchAll<Row>((from, to) =>
     supabase
       .from("project_donors")
-      .select("id, project_id, domain, assignee, fg_status, core_status, published_at, in_comm, in_gp, gp_status, gp_price, indicator, indicator_at, gp_currency, gp_commission, pay_status, link_status, guarantee_until")
+      .select("id, project_id, domain, assignee, fg_status, core_status, published_at, in_comm, in_gp, gp_status, gp_price, indicator, indicator_at, gp_currency, gp_commission, pay_status, paid_at, link_status, guarantee_until")
       .eq("team_id", team.id)
       .order("id")
       .range(from, to),
@@ -208,7 +222,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
           <table className="tbl">
             <thead>
               <tr>
-                {["Проєкт", "План", "Опубліковано", "Виконання", "Core", "Communication", "Guest Posting", "Оплачено", "До оплати", ""].map((h, i) => (
+                {["Проєкт", "План", "Опубліковано", "Виконання", "Бюджет місяця", "Core", "Communication", "Guest Posting", "Оплачено", "До оплати", ""].map((h, i) => (
                   <th key={i}>{h}</th>
                 ))}
               </tr>
@@ -225,6 +239,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                     <td className="font-mono">{p.plan_per_month}</td>
                     <td className="font-mono">{x.pub}</td>
                     <td className="min-w-24"><Bar value={pct(x.pub, p.plan_per_month)} /></td>
+                    <td className="min-w-32">
+                      {p.monthly_budget ? (
+                        <>
+                          <span className="font-mono text-xs">
+                            {fmtAmount(x.paidMonth[p.budget_currency as keyof ByCurrency] ?? 0, p.budget_currency)} /{" "}
+                            {fmtAmount(p.monthly_budget, p.budget_currency)}
+                          </span>
+                          <Bar value={pct(x.paidMonth[p.budget_currency as keyof ByCurrency] ?? 0, p.monthly_budget)} />
+                        </>
+                      ) : (
+                        <span className="text-mute">—</span>
+                      )}
+                    </td>
                     <td className="font-mono">{x.core}</td>
                     <td className="font-mono">{x.comm}</td>
                     <td className="font-mono">{x.gp}</td>

@@ -85,6 +85,9 @@ export const LINK_STATUS: Record<LinkStatus, { label: string; tone: "ok" | "bad"
   blocked: { label: "не вдалося перевірити", tone: "warn" },
 };
 
+export const PROJECT_COLUMNS =
+  "id, name, niche, client_site, geo, language, monthly_budget, budget_currency, plan_per_month, requirements, notes, metric_filter";
+
 export const DONOR_COLUMNS =
   "id, domain, assignee, added_at, fg_status, core_status, published_at, category_page, in_comm, med_base, med_add, price_base, price_add, indicator, indicator_at, comm_status, dialog, in_gp, gp_med, gp_price, payments, article_link, page_url, anchors, pre_anchor, article_url, gp_status, gp_source, gp_currency, gp_commission, pay_status, paid_at, guarantee_until, link_status, link_note, link_checked_at, indexed, global_donors(price, dr, keywords, traffic, geo, topics, tf, cf)";
 
@@ -130,6 +133,11 @@ export type Project = {
   id: string;
   name: string;
   niche: string;
+  client_site: string;
+  geo: string;
+  language: string;
+  monthly_budget: number | null;
+  budget_currency: string;
   plan_per_month: number;
   requirements: string;
   notes: string;

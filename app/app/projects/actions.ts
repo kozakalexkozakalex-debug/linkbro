@@ -56,6 +56,15 @@ export async function updateProject(formData: FormData) {
   const patch = {
     name: String(formData.get("name") ?? "").trim() || "Проєкт",
     niche: String(formData.get("niche") ?? "").trim().slice(0, 60),
+    client_site: String(formData.get("client_site") ?? "").trim().slice(0, 300),
+    geo: String(formData.get("geo") ?? "").trim().slice(0, 100),
+    language: String(formData.get("language") ?? "").trim().slice(0, 60),
+    monthly_budget: (() => {
+      const t = String(formData.get("monthly_budget") ?? "").replace(/\s/g, "").replace(",", ".");
+      const n = t === "" ? null : Number(t);
+      return n != null && Number.isFinite(n) && n >= 0 ? n : null;
+    })(),
+    budget_currency: (CURRENCIES as readonly string[]).includes(String(formData.get("budget_currency"))) ? String(formData.get("budget_currency")) : "USD",
     plan_per_month: Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0),
     requirements: String(formData.get("requirements") ?? ""),
     notes: String(formData.get("notes") ?? ""),
