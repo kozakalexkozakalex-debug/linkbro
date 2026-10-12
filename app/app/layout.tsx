@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { signOut } from "@/app/actions/auth";
 import { switchTeam } from "@/app/actions/team";
+import NavLink from "@/components/NavLink";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +10,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { supabase, user, teams, team } = await getTeamContext();
   const { data } = await supabase.from("projects").select("id, name").eq("team_id", team.id).order("created_at");
   const projects = (data ?? []) as { id: string; name: string }[];
+  const isLead = team.role === "lead";
 
   return (
     <div className="app-shell">
-      <nav className="side">
+      <nav className="side" aria-label="Головне меню">
         <Link href="/app" className="font-display px-2 text-base font-bold">
           Link<span className="text-[#3fc7a4]">Bro</span>
         </Link>
@@ -28,36 +30,50 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <button type="submit" className="side-link">Перейти</button>
           </form>
         ) : (
-          <p className="side-team px-2 text-sm">{team.name}</p>
+          <p className="side-team side-team-name">{team.name}</p>
         )}
 
         <div className="side-group">
-          <span className="side-label">Робота</span>
-          <Link href="/app" className="side-link">Дашборд</Link>
-          <Link href="/app/tasks" className="side-link">Таски</Link>
-          <Link href="/app/finance" className="side-link">Фінанси</Link>
+          <p className="side-label">Робота</p>
+          <div className="side-sub">
+            <NavLink href="/app" exact>Дашборд</NavLink>
+            <NavLink href="/app/tasks">Таски</NavLink>
+            <NavLink href="/app/finance">Фінанси</NavLink>
+          </div>
         </div>
 
         <div className="side-group">
-          <span className="side-label">Донори</span>
-          <Link href="/app/input" className="side-link">Інпут</Link>
-          <Link href="/app/global" className="side-link">Глобальна база</Link>
-          <Link href="/app/intermediaries" className="side-link">База посередників</Link>
-          <Link href="/app/import" className="side-link">Імпорт CSV</Link>
+          <p className="side-label">Донори</p>
+          <div className="side-sub">
+            <NavLink href="/app/input">Інпут</NavLink>
+            <NavLink href="/app/global">Глобальна база</NavLink>
+            <NavLink href="/app/intermediaries">База посередників</NavLink>
+            <NavLink href="/app/import">Імпорт CSV</NavLink>
+          </div>
         </div>
 
         <div className="side-group">
-          <span className="side-label">Проєкти</span>
-          {projects.map((p) => (
-            <Link key={p.id} href={`/app/projects/${p.id}`} className="side-link truncate">{p.name}</Link>
-          ))}
-          {team.role === "lead" && <Link href="/app/projects/new" className="side-link side-add">+ Проєкт</Link>}
+          <p className="side-label">
+            <span>Проєкти</span>
+            {isLead && (
+              <Link href="/app/projects/new" className="side-plus" title="Новий проєкт" aria-label="Новий проєкт">+</Link>
+            )}
+          </p>
+          <div className="side-sub">
+            {projects.map((p) => (
+              <NavLink key={p.id} href={`/app/projects/${p.id}`} className="truncate">
+                {p.name}
+              </NavLink>
+            ))}
+            {projects.length === 0 && <span className="side-empty">{isLead ? "Натисніть +, щоб створити" : "Поки немає"}</span>}
+            {isLead && <NavLink href="/app/projects/new" className="side-add-mobile">+ Проєкт</NavLink>}
+          </div>
         </div>
 
         <div className="side-foot">
-          <Link href="/app/team" className="side-link">Команда</Link>
+          <NavLink href="/app/team">Команда</NavLink>
           <p className="truncate px-2 text-xs opacity-70">{user.email}</p>
-          <p className="px-2 text-xs opacity-70">{team.role === "lead" ? "Тімлід" : "Лінкбілдер"}</p>
+          <p className="px-2 text-xs opacity-70">{isLead ? "Тімлід" : "Лінкбілдер"}</p>
           <form action={signOut}>
             <button type="submit" className="side-link">Вийти</button>
           </form>

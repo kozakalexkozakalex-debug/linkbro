@@ -99,6 +99,7 @@ body {
   .app-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
   .side { background: var(--side); color: var(--side-ink); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px; }
   .side-group { display: flex; flex-direction: column; gap: 2px; }
+  .side-group + .side-group { padding-top: 14px; border-top: 1px solid #ffffff12; }
   .side-link { display: block; text-align: left; padding: 8px 10px; border-radius: 6px; color: var(--side-ink); white-space: nowrap; background: none; border: 0; cursor: pointer; }
   .side-link:hover { background: #ffffff14; }
   .side-soon { opacity: .4; cursor: default; }
@@ -142,9 +143,30 @@ body {
   .stsel-ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
   .stsel-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
   .stsel option, .stsel optgroup { background: var(--panel); color: var(--ink); }
-  .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; opacity: .55; padding: 0 10px 4px; }
-  .side-add { opacity: .7; }
+  /* Разделы меню: заметный заголовок, под ним пункты с отступом и линией слева */
+  .side-label {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+    color: #ffffff; padding: 0 6px 6px 10px; margin: 0;
+  }
+  .side-label::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: #3fc7a4; margin-right: 8px; flex: none; }
+  .side-label > span { flex: 1; }
+  .side-sub { display: flex; flex-direction: column; gap: 1px; margin-left: 13px; padding-left: 8px; border-left: 1px solid #ffffff1f; }
+  .side-sub .side-link { font-size: 13.5px; padding: 6px 10px; color: #c3d2cc; }
+  .side-sub .side-link:hover { color: #ffffff; }
+  .side-active, .side-sub .side-active { background: #3fc7a426; color: #ffffff; font-weight: 600; box-shadow: inset 2px 0 0 #3fc7a4; }
+  .side-plus {
+    display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+    border-radius: 6px; background: #ffffff14; color: #ffffff; font-size: 16px; font-weight: 500; line-height: 1;
+  }
+  .side-plus:hover { background: #3fc7a4; color: #06241c; }
+  .side-empty { font-size: 12px; opacity: .5; padding: 6px 10px; }
+  .side-add-mobile { display: none; }
+  .side-team-name { padding: 6px 10px; border-radius: 6px; background: #ffffff0d; font-size: 13px; font-weight: 600; }
   @media (max-width: 800px) {
     .side-label { display: none; }
+    .side-sub { flex-direction: row; margin-left: 0; padding-left: 0; border-left: 0; }
+    .side-add-mobile { display: block; }
+    .side-empty { display: none; }
   }
 }
