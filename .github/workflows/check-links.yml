@@ -18,12 +18,26 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "Додайте секрети APP_URL і CRON_SECRET у Settings → Secrets and variables → Actions"
+            echo "::error::Додайте секрети APP_URL і CRON_SECRET у Settings → Secrets and variables → Actions"
             exit 1
           fi
+          URL="${APP_URL%/}/api/cron/check-links"
+          echo "Адреса: $URL"
           for i in $(seq 1 50); do
-            out=$(curl -sS --fail-with-body -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/check-links")
-            echo "$out"
-            echo "$out" | grep -q '"remaining":0' && break
-            sleep 3
+            code=$(curl -sS -o body.txt -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$URL" || echo "000")
+            echo "HTTP $code: $(head -c 300 body.txt 2>/dev/null)"
+            case "$code" in
+              200) grep -q '"remaining":0' body.txt && exit 0; sleep 3 ;;
+              000) echo "::error::Сайт не відповідає. Перевірте APP_URL (має бути https://....vercel.app)"; exit 1 ;;
+              401)
+                if grep -q '"unauthorized"' body.txt; then
+                  echo "::error::CRON_SECRET у GitHub не збігається з CRON_SECRET у Vercel, або після додавання ключа у Vercel не зробили Redeploy"
+                else
+                  echo "::error::Vercel закриває цю адресу паролем (Deployment Protection). Візьміть основний домен з Settings → Domains"
+                fi
+                exit 1 ;;
+              404) echo "::error::Сторінку не знайдено: остання збірка у Vercel ще не готова або впала, або APP_URL неправильний"; exit 1 ;;
+              500) echo "::error::Помилка на сервері: найчастіше не додано SUPABASE_SECRET_KEY у Vercel або не зроблено Redeploy"; exit 1 ;;
+              *) echo "::error::Неочікувана відповідь $code"; exit 1 ;;
+            esac
           done
