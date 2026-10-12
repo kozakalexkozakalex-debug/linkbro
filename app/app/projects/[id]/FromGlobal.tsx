@@ -1,37 +1,19 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import Link from "next/link";
-import { setFgStatus } from "../actions";
-import { MetricCells, METRIC_HEADERS } from "@/components/MetricCells";
+import { updateDonorsBatch } from "../actions";
+import Sheet, { type SheetCol } from "@/components/Sheet";
+import { BulkButton } from "@/components/BulkTools";
+import { metricCols } from "@/components/MetricCols";
 import { fmtDate } from "@/lib/global";
-import type { FgStatus, ProjectDonor } from "@/lib/project";
+import type { ProjectDonor } from "@/lib/project";
 
-const FG = {
-  new: { label: "NEW", cls: "" },
-  core: { label: "Core", cls: "pill-ok" },
-  out: { label: "Out Geo/Topics", cls: "pill-bad" },
-} as const;
-
-function Actions({ d, projectId }: { d: ProjectDonor; projectId: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const go = (s: FgStatus) =>
-    start(async () => {
-      await setFgStatus(d.id, projectId, s);
-      router.refresh();
-    });
-  return (
-    <div className={`flex gap-1 ${pending ? "opacity-60" : ""}`}>
-      <button type="button" className="btn btn-sm" disabled={pending || d.fg_status === "core"} onClick={() => go("core")}>Core</button>
-      <button type="button" className="btn btn-sm" disabled={pending || d.fg_status === "out" || d.in_comm} onClick={() => go("out")}>Out</button>
-      {d.fg_status !== "new" && !d.in_comm && (
-        <button type="button" className="btn btn-sm" disabled={pending} onClick={() => go("new")} title="Повернути в NEW">↺</button>
-      )}
-    </div>
-  );
-}
+const FG_OPTS = [
+  { value: "new", label: "NEW" },
+  { value: "core", label: "Core" },
+  { value: "out", label: "Out Geo/Topics" },
+];
 
 export default function FromGlobal({
   projectId,
@@ -44,41 +26,50 @@ export default function FromGlobal({
   stopTools: number;
   stopGlobal: number;
 }) {
+  const columns: SheetCol<ProjectDonor>[] = useMemo(
+    () => [
+      { key: "domain", header: "Domain", kind: "readonly", width: 170, render: (d) => <span className="font-mono font-semibold whitespace-nowrap">{d.domain}</span> },
+      { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at) },
+      ...metricCols(),
+      {
+        key: "fg_status",
+        header: "GEO / Topics",
+        kind: "select",
+        width: 120,
+        options: FG_OPTS,
+        tone: (v) => (v === "core" ? "ok" : v === "out" ? "bad" : ""),
+      },
+    ],
+    [],
+  );
+
+  const setAll = (ids: string[], value: string) => updateDonorsBatch(projectId, ids.map((id) => ({ id, field: "fg_status", value })));
+
   return (
     <>
       <p className="text-sm text-mute">
         Сюди потрапляють донори зі статусом FIT, які пройшли фільтр проєкту і яких немає в стоп-листах. GEO і Topics перевіряйте вручну:
-        підходить → <b>Core</b>, ні → <b>Out</b>. Стоп-лист (інструменти): {stopTools} · Стоп-лист (Глобал): {stopGlobal} ·{" "}
-        <Link href={`/app/projects/${projectId}?tab=profile`} className="underline">налаштувати</Link>
+        підходить → <b>Core</b>, ні → <b>Out</b>. Можна вибрати кілька рядків галочками. Стоп-лист (інструменти): {stopTools} · Стоп-лист
+        (Глобал): {stopGlobal} · <Link href={`/app/projects/${projectId}?tab=profile`} className="underline">налаштувати</Link>
       </p>
-
-      {rows.length === 0 ? (
-        <div className="card text-center text-mute">
-          Донорів ще немає. Натисніть «Передати у проєкти» в{" "}
-          <Link href="/app/global?status=fit" className="underline">Глобальній базі</Link>.
-        </div>
-      ) : (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                {["Domain", "Date Added", ...METRIC_HEADERS, "Status", "GEO / Topics"].map((h) => <th key={h}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => (
-                <tr key={d.id}>
-                  <td className="font-mono font-semibold whitespace-nowrap">{d.domain}</td>
-                  <td className="font-mono whitespace-nowrap">{fmtDate(d.added_at)}</td>
-                  <MetricCells g={d.global_donors} />
-                  <td><span className={`pill ${FG[d.fg_status].cls}`}>{FG[d.fg_status].label}</span></td>
-                  <td><Actions d={d} projectId={projectId} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Sheet
+        rows={rows}
+        columns={columns}
+        onSave={(changes) => updateDonorsBatch(projectId, changes)}
+        bulk={(ids) => (
+          <>
+            <BulkButton label="→ Core" onApply={() => setAll(ids, "core")} />
+            <BulkButton label="→ Out" onApply={() => setAll(ids, "out")} />
+            <BulkButton label="↺ NEW" onApply={() => setAll(ids, "new")} />
+          </>
+        )}
+        empty={
+          <div className="card text-center text-mute">
+            Донорів ще немає. Натисніть «Передати у проєкти» в{" "}
+            <Link href="/app/global?status=fit" className="underline">Глобальній базі</Link>.
+          </div>
+        }
+      />
     </>
   );
 }

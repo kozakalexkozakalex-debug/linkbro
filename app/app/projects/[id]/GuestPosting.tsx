@@ -1,22 +1,23 @@
 "use client";
 
-import { setGpStatus } from "../actions";
-import DonorCell from "@/components/DonorCell";
-import StatusSelect from "@/components/StatusSelect";
+import { useMemo } from "react";
+import { updateDonorsBatch } from "../actions";
+import Sheet, { type SheetCol } from "@/components/Sheet";
+import { BulkSelect } from "@/components/BulkTools";
 import LinkCheck from "@/components/LinkCheck";
 import DupeBadge from "@/components/DupeBadge";
-import { DonorValueInput, DonorValueSelect } from "@/components/DonorValue";
 import { GP_STATUSES, type ProjectDonor } from "@/lib/project";
-import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, realCost } from "@/lib/money";
+import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, priceFromText } from "@/lib/money";
 
-const tone = (v: string) => (v === "Paid" ? "ok" : v === "Need to correct" ? "bad" : "") as "ok" | "bad" | "";
-const payTone = (v: string) => (v === "paid" ? "stsel-ok" : v === "refund" ? "stsel-bad" : "");
 const CUR_OPTS = CURRENCIES.map((c) => ({ value: c, label: c }));
+const PAY_OPTS = PAY_STATUSES.map((p) => ({ value: p.value, label: p.label }));
+const GP_OPTS = [{ value: "", label: "—" }, ...GP_STATUSES.map((s) => ({ value: s, label: s }))];
 const INDEX_OPTS = [
   { value: "", label: "—" },
   { value: "yes", label: "так" },
   { value: "no", label: "ні" },
 ];
+const SOURCE_OPTS = [{ value: "", label: "—" }, ...SOURCES.map((s) => ({ value: s.name, label: s.name }))];
 
 export default function GuestPosting({
   projectId,
@@ -27,130 +28,126 @@ export default function GuestPosting({
   rows: ProjectDonor[];
   dupes: Record<string, string[]>;
 }) {
+  const columns: SheetCol<ProjectDonor>[] = useMemo(
+    () => [
+      {
+        key: "domain",
+        header: "Domain",
+        kind: "readonly",
+        width: 170,
+        render: (d) => (
+          <span className="font-mono font-semibold whitespace-nowrap">
+            {d.domain}
+            <DupeBadge items={dupes[d.domain]} />
+          </span>
+        ),
+      },
+      { key: "gp_med", header: "Посередник", kind: "text", width: 170, placeholder: "email посередника" },
+      { key: "gp_source", header: "Джерело", kind: "text", width: 110, placeholder: "біржа / напряму" },
+      { key: "gp_price", header: "Price", kind: "number", width: 70, mono: true },
+      { key: "gp_currency", header: "Валюта", kind: "select", width: 70, options: CUR_OPTS },
+      { key: "gp_commission", header: "Комісія %", kind: "number", width: 70, mono: true },
+      {
+        key: "real",
+        header: "Реальна ціна",
+        kind: "readonly",
+        width: 90,
+        render: (_d, v) => {
+          const p = priceFromText(v("gp_price"));
+          if (p == null) return <span className="text-mute">—</span>;
+          const c = Number(v("gp_commission").replace(",", ".")) || 0;
+          return <span className="font-mono">{fmtAmount(p * (1 + c / 100), v("gp_currency") || "USD")}</span>;
+        },
+      },
+      {
+        key: "pay_status",
+        header: "Оплата",
+        kind: "select",
+        width: 110,
+        options: PAY_OPTS,
+        get: (d) => d.pay_status || (payState(d) === "paid" ? "paid" : ""),
+        tone: (v) => (v === "paid" ? "ok" : v === "refund" ? "bad" : v === "due" ? "warn" : ""),
+      },
+      { key: "payments", header: "Payments", kind: "text", width: 130, placeholder: "лінк на оплату" },
+      { key: "article_link", header: "Link to the article", kind: "text", width: 150, placeholder: "документ або посилання" },
+      { key: "page_url", header: "Page URL", kind: "text", width: 150, placeholder: "сторінка клієнта" },
+      { key: "anchors", header: "Keywords (Anchor)", kind: "text", width: 140, placeholder: "через кому" },
+      { key: "pre_anchor", header: "Pre-Anchor text", kind: "text", width: 130 },
+      { key: "article_url", header: "Article URL", kind: "text", width: 160, placeholder: "розміщена стаття" },
+      {
+        key: "gp_status",
+        header: "Status (GP)",
+        kind: "select",
+        width: 150,
+        options: GP_OPTS,
+        tone: (v) => (v === "Paid" ? "ok" : v === "Need to correct" ? "bad" : ""),
+      },
+      {
+        key: "link",
+        header: "Посилання",
+        kind: "readonly",
+        width: 150,
+        render: (d) => (
+          <LinkCheck id={d.id} projectId={projectId} status={d.link_status} note={d.link_note} checkedAt={d.link_checked_at} hasUrl={!!d.article_url} />
+        ),
+      },
+      {
+        key: "indexed",
+        header: "Індексація",
+        kind: "select",
+        width: 80,
+        options: INDEX_OPTS,
+        get: (d) => (d.indexed == null ? "" : d.indexed ? "yes" : "no"),
+        tone: (v) => (v === "yes" ? "ok" : v === "no" ? "bad" : ""),
+      },
+      {
+        key: "guarantee_until",
+        header: "Гарантія до",
+        kind: "date",
+        width: 130,
+        render: (_d, v) => {
+          const val = v("guarantee_until");
+          if (!val) return <span className="sh-ph">дата</span>;
+          const left = daysLeft(val);
+          return (
+            <span className="whitespace-nowrap font-mono" suppressHydrationWarning>
+              {val.split("-").reverse().join(".")}
+              {left != null && (
+                <span className={`pill ml-1 ${left < 0 ? "" : left <= 7 ? "pill-warn" : "pill-ok"}`}>{left < 0 ? "минула" : `${left} дн`}</span>
+              )}
+            </span>
+          );
+        },
+      },
+    ],
+    [dupes, projectId],
+  );
+
+  const setAll = (ids: string[], field: string, value: string) =>
+    updateDonorsBatch(projectId, ids.map((id) => ({ id, field, value })));
+
   return (
     <>
       <p className="text-sm text-mute">
-        Посередник і ціна переносяться з Communication. Реальна ціна = ціна + комісія біржі. Посилання з Article URL перевіряються
-        автоматично щодня, кнопка ↻ перевіряє одразу.
+        Посередник і ціна переносяться з Communication. Реальна ціна = ціна + комісія біржі. Посилання з Article URL перевіряються щодня,
+        кнопка ↻ — одразу. Джерело Collaborator підставляє комісію 10% і гарантію 90 днів.
       </p>
-
-      <datalist id="gp-sources">
-        {SOURCES.map((s) => <option key={s.name} value={s.name} />)}
-      </datalist>
-
-      {rows.length === 0 ? (
-        <div className="card text-center text-mute">
-          Відкривається після статусу Accepted у Communication або Price_ok у Project Core.
-        </div>
-      ) : (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                {[
-                  "Domain",
-                  "Посередник",
-                  "Джерело",
-                  "Price",
-                  "Валюта",
-                  "Комісія %",
-                  "Реальна ціна",
-                  "Оплата",
-                  "Payments",
-                  "Link to the article",
-                  "Page URL",
-                  "Keywords (Anchor)",
-                  "Pre-Anchor text",
-                  "Article URL",
-                  "Status (GP)",
-                  "Посилання",
-                  "Індексація",
-                  "Гарантія до",
-                ].map((h) => <th key={h}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => {
-                const left = daysLeft(d.guarantee_until);
-                return (
-                  <tr key={d.id}>
-                    <td className="font-mono font-semibold whitespace-nowrap">
-                      {d.domain}
-                      <DupeBadge items={dupes[d.domain]} />
-                    </td>
-                    <td><DonorCell id={d.id} field="gp_med" value={d.gp_med} width={180} placeholder="email посередника" /></td>
-                    <td>
-                      <DonorValueInput id={d.id} projectId={projectId} field="gp_source" value={d.gp_source} list="gp-sources" width={120} placeholder="біржа / напряму" />
-                    </td>
-                    <td><DonorCell id={d.id} field="gp_price" value={d.gp_price} width={80} mono /></td>
-                    <td><DonorValueSelect id={d.id} projectId={projectId} field="gp_currency" value={d.gp_currency} options={CUR_OPTS} /></td>
-                    <td>
-                      <DonorValueInput id={d.id} projectId={projectId} field="gp_commission" value={String(d.gp_commission ?? 0)} width={60} />
-                    </td>
-                    <td className="font-mono whitespace-nowrap">
-                      {d.gp_price == null ? "—" : fmtAmount(realCost(d), d.gp_currency)}
-                    </td>
-                    <td>
-                      <DonorValueSelect
-                        id={d.id}
-                        projectId={projectId}
-                        field="pay_status"
-                        value={d.pay_status || (payState(d) === "paid" ? "paid" : "")}
-                        options={PAY_STATUSES}
-                        tone={payTone}
-                      />
-                    </td>
-                    <td><DonorCell id={d.id} field="payments" value={d.payments} placeholder="лінк на оплату" /></td>
-                    <td><DonorCell id={d.id} field="article_link" value={d.article_link} placeholder="документ або посилання" /></td>
-                    <td><DonorCell id={d.id} field="page_url" value={d.page_url} placeholder="сторінка клієнта" /></td>
-                    <td><DonorCell id={d.id} field="anchors" value={d.anchors} placeholder="через кому" /></td>
-                    <td><DonorCell id={d.id} field="pre_anchor" value={d.pre_anchor} /></td>
-                    <td><DonorCell id={d.id} field="article_url" value={d.article_url} placeholder="розміщена стаття" /></td>
-                    <td>
-                      <StatusSelect
-                        id={`gp-${d.id}`}
-                        value={d.gp_status}
-                        emptyLabel="—"
-                        groups={[{ options: GP_STATUSES }]}
-                        tone={tone}
-                        onChange={(v) => setGpStatus(d.id, projectId, v)}
-                      />
-                    </td>
-                    <td>
-                      <LinkCheck
-                        id={d.id}
-                        projectId={projectId}
-                        status={d.link_status}
-                        note={d.link_note}
-                        checkedAt={d.link_checked_at}
-                        hasUrl={!!d.article_url}
-                      />
-                    </td>
-                    <td>
-                      <DonorValueSelect
-                        id={d.id}
-                        projectId={projectId}
-                        field="indexed"
-                        value={d.indexed == null ? "" : d.indexed ? "yes" : "no"}
-                        options={INDEX_OPTS}
-                        tone={(v) => (v === "yes" ? "stsel-ok" : v === "no" ? "stsel-bad" : "")}
-                      />
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <DonorValueInput id={d.id} projectId={projectId} field="guarantee_until" value={d.guarantee_until ?? ""} type="date" width={140} />
-                      {left != null && (
-                        <span className={`pill ml-1 ${left < 0 ? "" : left <= 7 ? "pill-warn" : "pill-ok"}`} suppressHydrationWarning>
-                          {left < 0 ? "закінчилась" : `${left} дн`}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Sheet
+        rows={rows}
+        columns={columns}
+        onSave={(changes) => updateDonorsBatch(projectId, changes)}
+        bulk={(ids) => (
+          <>
+            <BulkSelect label="Оплата" options={PAY_OPTS} onApply={(v) => setAll(ids, "pay_status", v)} />
+            <BulkSelect label="Status (GP)" options={GP_OPTS} onApply={(v) => setAll(ids, "gp_status", v)} />
+            <BulkSelect label="Валюта" options={CUR_OPTS} onApply={(v) => setAll(ids, "gp_currency", v)} />
+            <BulkSelect label="Джерело" options={SOURCE_OPTS} onApply={(v) => setAll(ids, "gp_source", v)} />
+          </>
+        )}
+        empty={
+          <div className="card text-center text-mute">Відкривається після статусу Accepted у Communication або Price_ok у Project Core.</div>
+        }
+      />
     </>
   );
 }

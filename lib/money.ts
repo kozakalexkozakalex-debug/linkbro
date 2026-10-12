@@ -68,3 +68,11 @@ export function daysLeft(dateIso: string | null): number | null {
   const end = new Date(dateIso + "T23:59:59");
   return Math.ceil((end.getTime() - Date.now()) / 86_400_000);
 }
+
+// Число из текста ячейки: "1 500", "138,78" → число; пусто → null
+export function priceFromText(s: string): number | null {
+  const t = s.replace(/[^\d.,]/g, "").replace(",", ".");
+  if (!t) return null;
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+}

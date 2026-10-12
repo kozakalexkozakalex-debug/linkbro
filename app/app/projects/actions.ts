@@ -548,3 +548,91 @@ export async function setReportPrices(formData: FormData) {
   refresh(id);
   redirect(`/app/projects/${id}?tab=profile&saved=1`);
 }
+
+// ---------- Пакетное сохранение из таблиц проекта ----------
+export type CellChange = { id: string; field: string; value: string };
+
+const SPECIAL = ["core_status", "comm_status", "gp_status", "indicator", "fg_status", "gp_source"] as const;
+
+export async function updateDonorsBatch(projectId: string, changes: CellChange[]): Promise<Ok> {
+  if (changes.length > 5000) return fail("Забагато змін за раз (до 5000).");
+  const { supabase, team } = await getTeamContext();
+  const simple = new Map<string, Record<string, unknown>>();
+  const special: CellChange[] = [];
+  let members: Set<string> | null = null;
+  const put = (id: string, patch: Record<string, unknown>) => simple.set(id, { ...(simple.get(id) ?? {}), ...patch });
+
+  for (const c of changes) {
+    const v = c.value.trim();
+    if ((DONOR_TEXT_FIELDS as readonly string[]).includes(c.field)) put(c.id, { [c.field]: v.slice(0, 2000) });
+    else if (c.field === "gp_price") {
+      const n = v === "" ? null : priceNumber(v);
+      if (v !== "" && n == null) return fail(`Price: «${v}» — потрібне число`);
+      put(c.id, { gp_price: n });
+    } else if (c.field === "gp_commission") {
+      const n = v === "" ? 0 : Number(v.replace(",", ".").replace("%", ""));
+      if (!Number.isFinite(n) || n < 0 || n > 100) return fail(`Комісія: «${v}» — від 0 до 100`);
+      put(c.id, { gp_commission: n });
+    } else if (c.field === "gp_currency") {
+      if (!(CURRENCIES as readonly string[]).includes(v)) return fail(`Валюта: «${v}» — USD, EUR або UAH`);
+      put(c.id, { gp_currency: v });
+    } else if (c.field === "pay_status") {
+      if (!["", "due", "paid", "refund"].includes(v)) return fail(`Оплата: «${v}» — невідомий статус`);
+      put(c.id, { pay_status: v, paid_at: v === "paid" ? new Date().toISOString() : null });
+    } else if (c.field === "guarantee_until") {
+      if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail(`Гарантія: «${v}» — дата у форматі РРРР-ММ-ДД`);
+      put(c.id, { guarantee_until: v || null });
+    } else if (c.field === "indexed") {
+      put(c.id, { indexed: v === "yes" ? true : v === "no" ? false : null });
+    } else if (c.field === "assignee") {
+      if (!members) {
+        const { data } = await supabase.from("team_members").select("user_id").eq("team_id", team.id);
+        members = new Set(((data ?? []) as { user_id: string }[]).map((r) => r.user_id));
+      }
+      if (v && !members.has(v)) return fail("Цей користувач не в команді");
+      put(c.id, { assignee: v || null });
+    } else if ((SPECIAL as readonly string[]).includes(c.field)) special.push(c);
+    else return fail(`Поле ${c.field} не редагується`);
+  }
+
+  for (const part of chunk([...simple.entries()], 20)) {
+    const res = await Promise.all(
+      part.map(([id, patch]) => supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id).eq("project_id", projectId)),
+    );
+    const bad = res.find((r) => r.error);
+    if (bad?.error) return fail(bad.error.message);
+  }
+
+  // Статусы с последствиями (переход между модулями, даты) — по одному
+  for (const c of special) {
+    let r: Ok;
+    if (c.field === "core_status") r = await setCoreStatus(c.id, projectId, c.value);
+    else if (c.field === "comm_status") r = await setCommStatus(c.id, projectId, c.value);
+    else if (c.field === "gp_status") r = await setGpStatus(c.id, projectId, c.value);
+    else if (c.field === "indicator") r = await setIndicator(c.id, projectId, c.value);
+    else if (c.field === "fg_status") r = await setFgStatus(c.id, projectId, c.value as FgStatus);
+    else r = await setDonorValue(c.id, projectId, "gp_source", c.value);
+    if (!r.ok) return r;
+  }
+
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function updateIntermediariesBatch(changes: CellChange[]): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const patches = new Map<string, Record<string, string>>();
+  for (const c of changes) {
+    if (c.field !== "intermediary" && c.field !== "price") return fail("Це поле не редагується");
+    patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: c.value.trim().slice(0, 300) });
+  }
+  for (const part of chunk([...patches.entries()], 20)) {
+    const res = await Promise.all(
+      part.map(([domain, patch]) => supabase.from("intermediaries").update(patch).eq("team_id", team.id).eq("domain", domain)),
+    );
+    const bad = res.find((r) => r.error);
+    if (bad?.error) return fail(bad.error.message);
+  }
+  revalidatePath("/app/intermediaries");
+  return { ok: true };
+}

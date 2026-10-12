@@ -11,6 +11,7 @@
   --side-ink: #d5e2dd;
   --accent: #0b7a63;
   --accent-ink: #ffffff;
+  --accent-soft: #ddf1ea;
   --ok: #1b7f4b;
   --ok-soft: #dff3e6;
   --bad: #b4342b;
@@ -30,6 +31,7 @@
     --side-ink: #d5e2dd;
     --accent: #3fc7a4;
     --accent-ink: #06241c;
+    --accent-soft: #143229;
     --ok: #5fd08f;
     --ok-soft: #143021;
     --bad: #f08a80;
@@ -169,4 +171,24 @@ body {
     .side-add-mobile { display: block; }
     .side-empty { display: none; }
   }
+}
+
+/* ---------- Таблица как в Google Sheets ---------- */
+@layer components {
+  .sheet { outline: none; user-select: none; }
+  .sheet:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+  .sheet-saving { cursor: progress; }
+  .sh-cell { position: relative; cursor: cell; max-width: 320px; }
+  .sh-edit:hover { background: var(--bg); }
+  .sh-sel { background: var(--accent-soft) !important; }
+  .sh-focus { box-shadow: inset 0 0 0 2px var(--accent); }
+  .sh-fill { box-shadow: inset 0 0 0 1px var(--accent); background: var(--bg); }
+  .sh-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sh-ph { color: var(--mute); opacity: .5; font-size: 12px; }
+  .sh-input { width: 100%; min-width: 80px; background: var(--panel); color: var(--ink); border: 0; outline: 2px solid var(--accent); border-radius: 2px; padding: 2px 4px; font: inherit; user-select: text; }
+  .sh-handle { position: absolute; right: -4px; bottom: -4px; width: 8px; height: 8px; background: var(--accent); border: 2px solid var(--panel); border-radius: 2px; cursor: ns-resize; z-index: 2; }
+  .sh-check { width: 34px; text-align: center; }
+  .sh-row-checked td { background: var(--bg); }
+  .bulk-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: var(--ink); color: var(--panel); }
+  .bulk-bar .stsel, .bulk-bar .btn { color: var(--ink); }
 }

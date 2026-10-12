@@ -226,3 +226,36 @@ export async function importGlobal(
   revalidatePath("/app/global");
   return { added: fresh.length, updated, duplicates: opts.updateExisting ? 0 : old.length, invalid };
 }
+
+// ---------- Пакетное сохранение из таблицы (вставка блоком, протягивание) ----------
+export type BatchChange = { id: string; field: string; value: string };
+
+function parseGlobal(field: string, raw: string): { ok: true; value: string | number | null } | { ok: false; error: string } {
+  if ((NUMERIC_FIELDS as readonly string[]).includes(field)) {
+    const n = toNumber(raw);
+    if (raw.trim() !== "" && (n == null || n < 0)) return { ok: false, error: `«${raw}» — потрібне число` };
+    return { ok: true, value: raw.trim() === "" ? null : n };
+  }
+  if ((TEXT_FIELDS as readonly string[]).includes(field)) return { ok: true, value: raw.trim().slice(0, 200) };
+  return { ok: false, error: "це поле не редагується" };
+}
+
+export async function updateGlobalBatch(changes: BatchChange[]): Promise<{ ok: boolean; error?: string }> {
+  if (changes.length > 10000) return { ok: false, error: "Забагато змін за раз (до 10 000)." };
+  const { supabase, team } = await getTeamContext();
+  const patches = new Map<string, Record<string, string | number | null>>();
+  for (const c of changes) {
+    const p = parseGlobal(c.field, c.value);
+    if (!p.ok) return { ok: false, error: `${c.field}: ${p.error}` };
+    patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: p.value });
+  }
+  for (const part of chunk([...patches.entries()], 20)) {
+    const res = await Promise.all(
+      part.map(([id, patch]) => supabase.from("global_donors").update(patch).eq("id", id).eq("team_id", team.id)),
+    );
+    const bad = res.find((r) => r.error);
+    if (bad?.error) return { ok: false, error: bad.error.message };
+  }
+  revalidatePath("/app/global");
+  return { ok: true };
+}

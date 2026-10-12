@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { runCheck, updateGlobalField } from "./actions";
+import { runCheck, updateGlobalBatch } from "./actions";
 import { transferToProjects } from "../projects/actions";
-import {
-  DEFAULT_FILTER,
-  METRICS,
-  fmtDate,
-  fmtDateTime,
-  ratioOf,
-  type EditableField,
-  type GlobalDonor,
-  type MetricFilter,
-} from "@/lib/global";
+import Sheet, { type SheetCol } from "@/components/Sheet";
+import { DEFAULT_FILTER, METRICS, fmtDate, fmtDateTime, type GlobalDonor, type MetricFilter } from "@/lib/global";
 
 const STATUS = {
   new: { label: "NEW", cls: "" },
@@ -24,63 +16,19 @@ const STATUS = {
 
 const FILTER_KEY = "linkbro.globalFilter";
 
-function Cell({
-  id,
-  field,
-  value,
-  wide,
-  onSaved,
-}: {
-  id: string;
-  field: EditableField;
-  value: string | number | null;
-  wide?: boolean;
-  onSaved: (field: EditableField, value: string | number | null) => void;
-}) {
-  const initial = value == null ? "" : String(value);
-  const [v, setV] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  function save() {
-    if (v === initial) return;
-    start(async () => {
-      const r = await updateGlobalField(id, field, v);
-      if (r.ok) {
-        setError(null);
-        onSaved(field, r.value);
-      } else {
-        setError(r.error);
-      }
-    });
-  }
-
-  return (
-    <input
-      id={`g-${id}-${field}`}
-      aria-label={field}
-      title={error ?? undefined}
-      inputMode={wide ? "text" : "decimal"}
-      className={`cell ${wide ? "cell-wide" : ""} ${error ? "cell-err" : ""} ${pending ? "opacity-60" : ""}`}
-      value={v}
-      onChange={(e) => setV(e.target.value)}
-      onBlur={save}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-      }}
-    />
-  );
+function ratio(v: (k: string) => string) {
+  const tf = Number(v("tf"));
+  const cf = Number(v("cf"));
+  if (v("tf") === "" || v("cf") === "" || !cf) return "—";
+  return (tf / cf).toFixed(2);
 }
 
 export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[] }) {
   const router = useRouter();
-  const [rows, setRows] = useState(initialRows);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<MetricFilter>(DEFAULT_FILTER);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [checking, startCheck] = useTransition();
-
-  useEffect(() => setRows(initialRows), [initialRows]);
 
   useEffect(() => {
     try {
@@ -91,9 +39,41 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
     }
   }, []);
 
-  function onSaved(id: string, field: EditableField, value: string | number | null) {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
-  }
+  const columns: SheetCol<GlobalDonor>[] = useMemo(
+    () => [
+      { key: "domain", header: "Domain", kind: "readonly", width: 170, render: (d) => <span className="font-mono font-semibold whitespace-nowrap">{d.domain}</span> },
+      {
+        key: "added_at",
+        header: "Date Added",
+        kind: "readonly",
+        width: 130,
+        render: (d) => (
+          <span className={`date-chip ${d.batch % 2 ? "date-odd" : "date-even"}`} title={`Ітерація ${d.batch}`}>{fmtDateTime(d.added_at)}</span>
+        ),
+      },
+      { key: "dr", header: "DR", kind: "number", width: 60, mono: true },
+      { key: "keywords", header: "Keywords", kind: "number", width: 80, mono: true },
+      { key: "traffic", header: "Traffic", kind: "number", width: 80, mono: true },
+      { key: "geo", header: "GEO", kind: "text", width: 70 },
+      { key: "topics", header: "Topics", kind: "text", width: 130 },
+      { key: "tf", header: "TF", kind: "number", width: 55, mono: true },
+      { key: "cf", header: "CF", kind: "number", width: 55, mono: true },
+      { key: "ratio", header: "TF/CF", kind: "readonly", width: 60, render: (_d, v) => <span className="font-mono">{ratio(v)}</span> },
+      { key: "price", header: "Price", kind: "text", width: 120 },
+      {
+        key: "status",
+        header: "Status",
+        kind: "readonly",
+        width: 70,
+        render: (d) => (
+          <span className={`pill ${STATUS[d.status].cls}`} title={d.checked_at ? `Перевірено ${fmtDate(d.checked_at)}` : "Ще не перевірявся"}>
+            {STATUS[d.status].label}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   function check() {
     try {
@@ -136,65 +116,18 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}
 
-      {rows.length === 0 ? (
-        <div className="card text-center text-mute">
-          Тут поки порожньо. <Link href="/app/input" className="underline">Додайте донорів через Інпут</Link>.
-        </div>
-      ) : (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                {["Domain", "Date Added", "DR", "Keywords", "Traffic", "GEO", "Topics", "TF", "CF", "TF/CF", "Price", "Status"].map((c) => (
-                  <th key={c}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => {
-                const ratio = ratioOf(d);
-                const cell = (field: EditableField, wide?: boolean) => (
-                  <Cell
-                    key={`${d.id}-${field}-${String(d[field])}`}
-                    id={d.id}
-                    field={field}
-                    value={d[field]}
-                    wide={wide}
-                    onSaved={(f, v) => onSaved(d.id, f, v)}
-                  />
-                );
-                return (
-                  <tr key={d.id}>
-                    <td className="font-mono font-semibold whitespace-nowrap">{d.domain}</td>
-                    <td>
-                      <span className={`date-chip ${d.batch % 2 ? "date-odd" : "date-even"}`} title={`Ітерація ${d.batch}`}>
-                        {fmtDateTime(d.added_at)}
-                      </span>
-                    </td>
-                    <td>{cell("dr")}</td>
-                    <td>{cell("keywords")}</td>
-                    <td>{cell("traffic")}</td>
-                    <td>{cell("geo", true)}</td>
-                    <td>{cell("topics", true)}</td>
-                    <td>{cell("tf")}</td>
-                    <td>{cell("cf")}</td>
-                    <td className="font-mono">{ratio == null ? "—" : ratio.toFixed(2)}</td>
-                    <td>{cell("price", true)}</td>
-                    <td>
-                      <span
-                        className={`pill ${STATUS[d.status].cls}`}
-                        title={d.checked_at ? `Перевірено ${fmtDate(d.checked_at)}` : "Ще не перевірявся"}
-                      >
-                        {STATUS[d.status].label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Sheet
+        rows={initialRows}
+        columns={columns}
+        onSave={(changes) => updateGlobalBatch(changes)}
+        refreshAfterSave={false}
+        empty={
+          <div className="card text-center text-mute">
+            Тут поки порожньо. <Link href="/app/input" className="underline">Додайте донорів через Інпут</Link> або{" "}
+            <Link href="/app/import" className="underline">імпорт CSV</Link>.
+          </div>
+        }
+      />
 
       {open && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>

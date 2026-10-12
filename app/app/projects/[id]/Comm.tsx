@@ -2,22 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addCustomStatus, markContacted, setCommStatus, setIndicator, syncIntermediaries } from "../actions";
-import DonorCell from "@/components/DonorCell";
-import StatusSelect from "@/components/StatusSelect";
-import AssigneeSelect from "@/components/AssigneeSelect";
+import { markContacted, syncIntermediaries, updateDonorsBatch } from "../actions";
+import Sheet, { type SheetCol } from "@/components/Sheet";
+import { AddStatus, BulkSelect } from "@/components/BulkTools";
 import CopyButton from "@/components/CopyButton";
 import DupeBadge from "@/components/DupeBadge";
-import {
-  COMM_BAD,
-  COMM_STATUSES,
-  INDICATORS,
-  ageLabel,
-  hoursSince,
-  type CustomStatuses,
-  type Member,
-  type ProjectDonor,
-} from "@/lib/project";
+import { COMM_BAD, COMM_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
 
@@ -25,36 +15,7 @@ const TEMPLATE_KEY = "linkbro.mailTemplate";
 const DEFAULT_TEMPLATE =
   "Hi!\n\nI'm interested in publishing a guest post on {domains}.\nCould you share your current terms and price?\n\nThanks!";
 
-function IndicatorCell({ d, projectId }: { d: ProjectDonor; projectId: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const hrs = hoursSince(d.indicator_at);
-  const tone = d.indicator === "replied" ? "pill-ok" : d.indicator === "waiting" && hrs != null ? (hrs < 24 ? "" : hrs < 72 ? "pill-warn" : "pill-bad") : "";
-
-  return (
-    <div className="flex items-center gap-1 whitespace-nowrap">
-      <select
-        id={`ind-${d.id}`}
-        aria-label="Індикатор"
-        className={`stsel ${pending ? "opacity-60" : ""}`}
-        value={d.indicator ?? ""}
-        onChange={(e) => {
-          const v = e.target.value;
-          start(async () => {
-            await setIndicator(d.id, projectId, v);
-            router.refresh();
-          });
-        }}
-      >
-        <option value="">—</option>
-        {INDICATORS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-      </select>
-      {d.indicator && hrs != null && (
-        <span className={`pill ${tone}`} suppressHydrationWarning>{ageLabel(hrs)}</span>
-      )}
-    </div>
-  );
-}
+const IND_OPTS = [{ value: "", label: "—" }, ...INDICATORS.map((i) => ({ value: i.value, label: i.label }))];
 
 export default function Comm({
   projectId,
@@ -84,8 +45,91 @@ export default function Comm({
     }
   });
 
-  const statuses = [...COMM_STATUSES, ...custom.comm];
-  const tone = (v: string) => (v === "Accepted" ? "ok" : COMM_BAD.includes(v) ? "bad" : "") as "ok" | "bad" | "";
+  const commOpts = useMemo(() => [{ value: "", label: "—" }, ...[...COMM_STATUSES, ...custom.comm].map((s) => ({ value: s, label: s }))], [custom]);
+  const memberOpts = useMemo(() => [{ value: "", label: "—" }, ...members.map((m) => ({ value: m.id, label: m.name }))], [members]);
+
+  const columns: SheetCol<ProjectDonor>[] = useMemo(
+    () => [
+      {
+        key: "domain",
+        header: "Domain",
+        kind: "readonly",
+        width: 180,
+        render: (d) => (
+          <span className="font-mono font-semibold whitespace-nowrap">
+            {d.domain}
+            <DupeBadge items={dupes[d.domain]} />
+          </span>
+        ),
+      },
+      {
+        key: "med_base",
+        header: "Посередник (БАЗА)",
+        kind: "readonly",
+        width: 190,
+        get: (d) => d.med_base,
+        render: (d) => (
+          <span className="whitespace-nowrap">
+            <span className="inline-block max-w-44 truncate align-middle">{d.med_base || <span className="text-mute">—</span>}</span>
+            <DupeBadge
+              label="посередник у"
+              items={(medBusy[d.med_base] ?? []).filter((x) => x.donorId !== d.id && x.assignee !== d.assignee).map((x) => x.label)}
+            />
+          </span>
+        ),
+      },
+      { key: "med_add", header: "Посередник (ДОДАТИ)", kind: "text", width: 180, placeholder: "email або контакт" },
+      { key: "price_base", header: "Ціна (БАЗА)", kind: "readonly", width: 90, get: (d) => d.price_base || "—" },
+      { key: "price_add", header: "Ціна (ДОДАТИ)", kind: "text", width: 90 },
+      {
+        key: "indicator",
+        header: "Індикатор",
+        kind: "select",
+        width: 150,
+        options: IND_OPTS,
+        get: (d) => d.indicator ?? "",
+        render: (d, v) => {
+          const val = v("indicator");
+          if (!val) return <span className="text-mute">—</span>;
+          const label = IND_OPTS.find((o) => o.value === val)?.label ?? val;
+          const hrs = val === d.indicator ? hoursSince(d.indicator_at) : 0;
+          const tone = val === "replied" ? "pill-ok" : val === "waiting" && hrs != null ? (hrs < 24 ? "" : hrs < 72 ? "pill-warn" : "pill-bad") : "";
+          return (
+            <span className={`pill ${tone}`} suppressHydrationWarning>
+              {label}
+              {hrs != null && val !== "replied" ? ` (${ageLabel(hrs)})` : ""}
+            </span>
+          );
+        },
+      },
+      {
+        key: "comm_status",
+        header: "Статус (Комунікація)",
+        kind: "select",
+        width: 140,
+        options: commOpts,
+        tone: (v) => (v === "Accepted" ? "ok" : COMM_BAD.includes(v) ? "bad" : ""),
+      },
+      {
+        key: "dialog",
+        header: "Діалог",
+        kind: "text",
+        width: 150,
+        placeholder: "посилання на лист",
+        render: (_d, v) => {
+          const url = v("dialog");
+          if (!url) return <span className="sh-ph">посилання на лист</span>;
+          return /^https?:\/\//.test(url) ? (
+            <a href={url} target="_blank" rel="noreferrer" className="underline">відкрити ↗</a>
+          ) : (
+            <span className="sh-text">{url}</span>
+          );
+        },
+      },
+      { key: "assignee", header: "Відповідальний", kind: "select", width: 140, options: memberOpts },
+    ],
+    [dupes, medBusy, commOpts, memberOpts],
+  );
 
   // Черновики: донорам с посредником, кому ещё не писали. Один посредник — одно письмо.
   const groups = useMemo(() => {
@@ -128,6 +172,9 @@ export default function Comm({
     }
   }
 
+  const setAll = (ids: string[], field: string, value: string) =>
+    updateDonorsBatch(projectId, ids.map((id) => ({ id, field, value })));
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -136,73 +183,28 @@ export default function Comm({
           Сформувати листи{groups.length ? ` (${groups.length})` : ""}
         </button>
         <button type="button" className="btn" disabled title="Версія 2">Snov.io</button>
+        <AddStatus kinds={[{ value: "comm", label: "Комунікація" }]} />
       </div>
       <p className="text-sm text-mute">
-        «Синхронізація»: порожні поля (БАЗА) підтягуються з бази посередників, а заповнені (ДОДАТИ) записуються в базу.
-        «Accepted» переводить донора в Guest Posting.
+        «Синхронізація»: порожні поля (БАЗА) підтягуються з бази посередників, а заповнені (ДОДАТИ) записуються в базу. «Accepted»
+        переводить донора в Guest Posting.
       </p>
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}
 
-      {rows.length === 0 ? (
-        <div className="card text-center text-mute">Сюди потрапляють донори зі статусом «In communication» у Project Core.</div>
-      ) : (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                {["Domain", "Посередник (БАЗА)", "Посередник (ДОДАТИ)", "Ціна (БАЗА)", "Ціна (ДОДАТИ)", "Індикатор", "Статус (Комунікація)", "Діалог", "Відповідальний"].map(
-                  (h) => <th key={h}>{h}</th>,
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => (
-                <tr key={d.id}>
-                  <td className="font-mono font-semibold whitespace-nowrap">
-                    {d.domain}
-                    <DupeBadge items={dupes[d.domain]} />
-                  </td>
-                  <td className="max-w-60 whitespace-nowrap" title={d.med_base || undefined}>
-                    <span className="inline-block max-w-44 truncate align-middle">{d.med_base || <span className="text-mute">—</span>}</span>
-                    <DupeBadge
-                      label="посередник у"
-                      items={(medBusy[d.med_base] ?? [])
-                        .filter((x) => x.donorId !== d.id && x.assignee !== d.assignee)
-                        .map((x) => x.label)}
-                    />
-                  </td>
-                  <td><DonorCell id={d.id} field="med_add" value={d.med_add} width={190} placeholder="email або контакт" /></td>
-                  <td className="whitespace-nowrap">{d.price_base || <span className="text-mute">—</span>}</td>
-                  <td><DonorCell id={d.id} field="price_add" value={d.price_add} width={90} /></td>
-                  <td><IndicatorCell d={d} projectId={projectId} /></td>
-                  <td>
-                    <StatusSelect
-                      id={`comm-${d.id}`}
-                      value={d.comm_status}
-                      emptyLabel="—"
-                      groups={[{ options: statuses }]}
-                      tone={tone}
-                      onChange={(v) => setCommStatus(d.id, projectId, v)}
-                      onAddCustom={(_kind, name) => addCustomStatus("comm", name)}
-                      addKinds={[{ value: "comm", label: "Комунікація" }]}
-                    />
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <DonorCell id={d.id} field="dialog" value={d.dialog} width={140} placeholder="посилання на лист" />
-                      {/^https?:\/\//.test(d.dialog) && (
-                        <a href={d.dialog} target="_blank" rel="noreferrer" className="btn btn-sm">↗</a>
-                      )}
-                    </div>
-                  </td>
-                  <td><AssigneeSelect id={d.id} projectId={projectId} value={d.assignee} members={members} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Sheet
+        rows={rows}
+        columns={columns}
+        onSave={(changes) => updateDonorsBatch(projectId, changes)}
+        bulk={(ids) => (
+          <>
+            <BulkSelect label="Індикатор" options={IND_OPTS} onApply={(v) => setAll(ids, "indicator", v)} />
+            <BulkSelect label="Статус" options={commOpts} onApply={(v) => setAll(ids, "comm_status", v)} />
+            <BulkSelect label="Відповідальний" options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />
+          </>
+        )}
+        empty={<div className="card text-center text-mute">Сюди потрапляють донори зі статусом «In communication» у Project Core.</div>}
+      />
 
       {draftsOpen && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setDraftsOpen(false)}>
