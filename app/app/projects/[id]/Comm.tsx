@@ -7,6 +7,7 @@ import DonorCell from "@/components/DonorCell";
 import StatusSelect from "@/components/StatusSelect";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import CopyButton from "@/components/CopyButton";
+import DupeBadge from "@/components/DupeBadge";
 import {
   COMM_BAD,
   COMM_STATUSES,
@@ -17,6 +18,8 @@ import {
   type Member,
   type ProjectDonor,
 } from "@/lib/project";
+
+export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
 
 const TEMPLATE_KEY = "linkbro.mailTemplate";
 const DEFAULT_TEMPLATE =
@@ -58,11 +61,15 @@ export default function Comm({
   rows,
   custom,
   members,
+  dupes,
+  medBusy,
 }: {
   projectId: string;
   rows: ProjectDonor[];
   custom: CustomStatuses;
   members: Member[];
+  dupes: Record<string, string[]>;
+  medBusy: MedBusy;
 }) {
   const router = useRouter();
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -152,8 +159,19 @@ export default function Comm({
             <tbody>
               {rows.map((d) => (
                 <tr key={d.id}>
-                  <td className="font-mono font-semibold whitespace-nowrap">{d.domain}</td>
-                  <td className="max-w-52 truncate" title={d.med_base || undefined}>{d.med_base || <span className="text-mute">—</span>}</td>
+                  <td className="font-mono font-semibold whitespace-nowrap">
+                    {d.domain}
+                    <DupeBadge items={dupes[d.domain]} />
+                  </td>
+                  <td className="max-w-60 whitespace-nowrap" title={d.med_base || undefined}>
+                    <span className="inline-block max-w-44 truncate align-middle">{d.med_base || <span className="text-mute">—</span>}</span>
+                    <DupeBadge
+                      label="посередник у"
+                      items={(medBusy[d.med_base] ?? [])
+                        .filter((x) => x.donorId !== d.id && x.assignee !== d.assignee)
+                        .map((x) => x.label)}
+                    />
+                  </td>
                   <td><DonorCell id={d.id} field="med_add" value={d.med_add} width={190} placeholder="email або контакт" /></td>
                   <td className="whitespace-nowrap">{d.price_base || <span className="text-mute">—</span>}</td>
                   <td><DonorCell id={d.id} field="price_add" value={d.price_add} width={90} /></td>

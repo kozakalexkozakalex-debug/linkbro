@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getTeamContext } from "@/lib/team";
+import { chunk } from "@/lib/fetchAll";
+import { toNumber } from "@/lib/csv";
 import {
   GLOBAL_COLUMNS,
   NUMERIC_FIELDS,
@@ -14,11 +16,6 @@ import {
   type MetricFilter,
 } from "@/lib/global";
 
-const chunk = <T,>(arr: T[], size: number): T[][] => {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-};
 
 // ---------- Инпут: передать доноров в глобальную базу ----------
 export type InputResult = { added: string[]; dup: string[]; invalid: string[]; error?: string } | null;
@@ -150,4 +147,82 @@ export async function runCheck(filter: MetricFilter): Promise<CheckResult> {
 
   revalidatePath("/app/global");
   return { fit: fitIds.length, drop: dropIds.length, skipped };
+}
+
+// ---------- Импорт CSV в глобальную базу ----------
+export type ImportRow = Partial<Record<"domain" | "price" | "dr" | "keywords" | "traffic" | "geo" | "topics" | "tf" | "cf", string>>;
+export type ImportResult = { added: number; updated: number; duplicates: number; invalid: number; error?: string };
+
+export async function importGlobal(
+  rows: ImportRow[],
+  opts: { prefix: string; updateExisting: boolean; mapped: string[] },
+): Promise<ImportResult> {
+  const { supabase, team } = await getTeamContext();
+  if (rows.length > 5000) return { added: 0, updated: 0, duplicates: 0, invalid: 0, error: "За раз можна до 5000 рядків. Розділіть файл." };
+
+  const metricKeys = (["dr", "keywords", "traffic", "tf", "cf"] as const).filter((k) => opts.mapped.includes(k));
+  const textKeys = (["geo", "topics"] as const).filter((k) => opts.mapped.includes(k));
+  const prefix = opts.prefix.trim();
+
+  const parsed = new Map<string, Record<string, string | number | null>>();
+  let invalid = 0;
+  for (const r of rows) {
+    const domain = normalizeDomain(r.domain ?? "");
+    if (!domain) {
+      invalid++;
+      continue;
+    }
+    if (parsed.has(domain)) continue;
+    const rec: Record<string, string | number | null> = {};
+    for (const k of metricKeys) rec[k] = toNumber(r[k]);
+    for (const k of textKeys) rec[k] = (r[k] ?? "").trim().slice(0, 200);
+    if (opts.mapped.includes("price")) {
+      const p = (r.price ?? "").trim();
+      rec.price = p ? (prefix ? `${prefix} ${p}` : p).slice(0, 200) : "";
+    }
+    parsed.set(domain, rec);
+  }
+
+  const domains = [...parsed.keys()];
+  const existing = new Set<string>();
+  for (const part of chunk(domains, 200)) {
+    const { data, error } = await supabase.from("global_donors").select("domain").eq("team_id", team.id).in("domain", part);
+    if (error) return { added: 0, updated: 0, duplicates: 0, invalid, error: error.message };
+    (data ?? []).forEach((r: { domain: string }) => existing.add(r.domain));
+  }
+
+  const { data: last } = await supabase
+    .from("global_donors")
+    .select("batch")
+    .eq("team_id", team.id)
+    .order("batch", { ascending: false })
+    .limit(1);
+  const batch = ((last?.[0] as { batch: number } | undefined)?.batch ?? 0) + 1;
+
+  const fresh = domains.filter((d) => !existing.has(d));
+  for (const part of chunk(fresh, 500)) {
+    const { error } = await supabase
+      .from("global_donors")
+      .insert(part.map((domain) => ({ team_id: team.id, domain, batch, price: "", ...parsed.get(domain) })));
+    if (error) return { added: 0, updated: 0, duplicates: 0, invalid, error: "Не вдалося зберегти: " + error.message };
+  }
+
+  let updated = 0;
+  const old = domains.filter((d) => existing.has(d));
+  if (opts.updateExisting && (metricKeys.length || textKeys.length)) {
+    for (const part of chunk(old, 500)) {
+      const payload = part.map((domain) => {
+        const rec = parsed.get(domain) ?? {};
+        const row: Record<string, string | number | null> = { team_id: team.id, domain };
+        for (const k of [...metricKeys, ...textKeys]) row[k] = rec[k] ?? null;
+        return row;
+      });
+      const { error } = await supabase.from("global_donors").upsert(payload, { onConflict: "team_id,domain" });
+      if (error) return { added: fresh.length, updated, duplicates: 0, invalid, error: "Не вдалося оновити: " + error.message };
+      updated += part.length;
+    }
+  }
+
+  revalidatePath("/app/global");
+  return { added: fresh.length, updated, duplicates: opts.updateExisting ? 0 : old.length, invalid };
 }

@@ -1,0 +1,29 @@
+# Каждый день в 08:00 по Киеву проверяет опубликованные ссылки.
+# Нужны два секрета в GitHub: APP_URL (адрес сайта) и CRON_SECRET (тот же, что в Vercel).
+name: Check links
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check links in batches
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Додайте секрети APP_URL і CRON_SECRET у Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          for i in $(seq 1 50); do
+            out=$(curl -sS --fail-with-body -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/check-links")
+            echo "$out"
+            echo "$out" | grep -q '"remaining":0' && break
+            sleep 3
+          done

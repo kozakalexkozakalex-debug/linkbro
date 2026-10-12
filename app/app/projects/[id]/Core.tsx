@@ -5,6 +5,7 @@ import { MetricCells, METRIC_HEADERS } from "@/components/MetricCells";
 import DonorCell from "@/components/DonorCell";
 import StatusSelect from "@/components/StatusSelect";
 import AssigneeSelect from "@/components/AssigneeSelect";
+import DupeBadge from "@/components/DupeBadge";
 import { fmtDate } from "@/lib/global";
 import { CORE_NEG, CORE_POS, monthYear, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 
@@ -13,11 +14,13 @@ export default function Core({
   rows,
   custom,
   members,
+  dupes,
 }: {
   projectId: string;
   rows: ProjectDonor[];
   custom: CustomStatuses;
   members: Member[];
+  dupes: Record<string, string[]>;
 }) {
   const pos = [...CORE_POS, ...custom.core_pos];
   const neg = [...CORE_NEG, ...custom.core_neg];
@@ -42,7 +45,10 @@ export default function Core({
             <tbody>
               {rows.map((d) => (
                 <tr key={d.id}>
-                  <td className="font-mono font-semibold whitespace-nowrap">{d.domain}</td>
+                  <td className="font-mono font-semibold whitespace-nowrap">
+                    {d.domain}
+                    <DupeBadge items={dupes[d.domain]} />
+                  </td>
                   <td className="font-mono whitespace-nowrap">{fmtDate(d.added_at)}</td>
                   <MetricCells g={d.global_donors} />
                   <td className="whitespace-nowrap">

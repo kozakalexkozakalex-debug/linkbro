@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="side-label">Робота</span>
           <Link href="/app" className="side-link">Дашборд</Link>
           <Link href="/app/tasks" className="side-link">Таски</Link>
+          <Link href="/app/finance" className="side-link">Фінанси</Link>
         </div>
 
         <div className="side-group">
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/app/input" className="side-link">Інпут</Link>
           <Link href="/app/global" className="side-link">Глобальна база</Link>
           <Link href="/app/intermediaries" className="side-link">База посередників</Link>
+          <Link href="/app/import" className="side-link">Імпорт CSV</Link>
         </div>
 
         <div className="side-group">

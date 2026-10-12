@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
 import { fetchAll } from "@/lib/fetchAll";
-import { hoursSince, isThisMonth } from "@/lib/project";
+import { hoursSince, isThisMonth, LINK_STATUS, type LinkStatus } from "@/lib/project";
+import { addTo, daysLeft, fmtMoney, payState, realCost, type ByCurrency } from "@/lib/money";
 
 type Search = Promise<{ project?: string }>;
 
@@ -20,24 +21,30 @@ type Row = {
   gp_price: number | null;
   indicator: string | null;
   indicator_at: string | null;
+  gp_currency: string;
+  gp_commission: number;
+  pay_status: string;
+  link_status: LinkStatus;
+  guarantee_until: string | null;
 };
 
-type Stats = { fromG: number; core: number; comm: number; gp: number; pub: number; paid: number; due: number };
+type Stats = { fromG: number; core: number; comm: number; gp: number; pub: number; paid: ByCurrency; due: ByCurrency };
 
 function stats(rows: Row[]): Stats {
-  const s: Stats = { fromG: rows.length, core: 0, comm: 0, gp: 0, pub: 0, paid: 0, due: 0 };
+  const s: Stats = { fromG: rows.length, core: 0, comm: 0, gp: 0, pub: 0, paid: {}, due: {} };
   for (const r of rows) {
     if (r.fg_status === "core") s.core++;
     if (r.in_comm) s.comm++;
     if (r.in_gp) s.gp++;
     if (r.core_status === "Published" && isThisMonth(r.published_at)) s.pub++;
-    if (r.gp_status === "Paid") s.paid += r.gp_price ?? 0;
-    else if (r.in_gp) s.due += r.gp_price ?? 0;
+    const st = payState(r);
+    if (st === "paid") addTo(s.paid, r.gp_currency, realCost(r));
+    else if (st === "due") addTo(s.due, r.gp_currency, realCost(r));
   }
   return s;
 }
 
-const money = (n: number) => "$" + Math.round(n).toLocaleString("uk-UA");
+const money = (m: ByCurrency) => fmtMoney(m);
 const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0);
 
 function Bar({ value }: { value: number }) {
@@ -59,7 +66,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const all = await fetchAll<Row>((from, to) =>
     supabase
       .from("project_donors")
-      .select("id, project_id, domain, assignee, fg_status, core_status, published_at, in_comm, in_gp, gp_status, gp_price, indicator, indicator_at")
+      .select("id, project_id, domain, assignee, fg_status, core_status, published_at, in_comm, in_gp, gp_status, gp_price, indicator, indicator_at, gp_currency, gp_commission, pay_status, link_status, guarantee_until")
       .eq("team_id", team.id)
       .order("id")
       .range(from, to),
@@ -74,6 +81,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const pName = new Map(projects.map((p) => [p.id, p.name]));
 
   const stale = rows.filter((r) => r.indicator === "waiting" && (hoursSince(r.indicator_at) ?? 0) > 72);
+  const broken = rows.filter((r) => ["missing", "nofollow", "noindex", "anchor"].includes(r.link_status));
+  const guaranteeSoon = rows.filter((r) => {
+    const d = daysLeft(r.guarantee_until);
+    return d != null && d >= 0 && d <= 7;
+  });
   const funnel: [string, number][] = [
     ["From Global", s.fromG],
     ["Project Core", s.core],
@@ -131,7 +143,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
           [money(s.paid), "оплачено"],
           [money(s.due), "до оплати (Guest Posting)"],
           [String(s.comm - s.gp), "у переписці"],
-          [String(stale.length), "без відповіді понад 3 дні"],
+          [String(stale.length + broken.length), "потребують уваги"],
         ].map(([v, l]) => (
           <div key={l} className="card">
             <p className="font-mono text-2xl font-semibold">{v}</p>
@@ -156,8 +168,24 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
 
         <section className="card">
           <p className="lbl mb-3">Потребують уваги</p>
+          {broken.length > 0 && (
+            <ul className="mb-3 divide-y divide-line text-sm">
+              {broken.slice(0, 12).map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <Link href={`/app/projects/${r.project_id}?tab=gp`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
+                  <span className="pill">{pName.get(r.project_id)}</span>
+                  <span className="pill pill-bad">{LINK_STATUS[r.link_status].label}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {guaranteeSoon.length > 0 && (
+            <p className="mb-3 text-sm">
+              <Link href="/app/finance" className="underline">Гарантія закінчується за 7 днів: {guaranteeSoon.length}</Link>
+            </p>
+          )}
           {stale.length === 0 ? (
-            <p className="text-mute">Завислих переписок немає.</p>
+            <p className="text-mute">{broken.length === 0 ? "Завислих переписок і проблемних посилань немає." : "Завислих переписок немає."}</p>
           ) : (
             <ul className="divide-y divide-line text-sm">
               {stale.slice(0, 12).map((r) => (

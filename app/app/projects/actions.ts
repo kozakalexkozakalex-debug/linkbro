@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { getTeamContext } from "@/lib/team";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
+import { checkLink } from "@/lib/linkcheck";
+import { CURRENCIES, SOURCES } from "@/lib/money";
 import {
   COMM_STATUSES,
   CORE_NEG,
@@ -202,12 +204,20 @@ export async function setCoreStatus(id: string, projectId: string, status: strin
 
   const { data: cur } = await supabase
     .from("project_donors")
-    .select("med_base, price_base, gp_med, gp_price, published_at")
+    .select("med_base, price_base, gp_med, gp_price, published_at, gp_source, guarantee_until")
     .eq("id", id)
     .eq("team_id", team.id)
     .maybeSingle();
   if (!cur) return fail("Донора не знайдено");
-  const c = cur as { med_base: string; price_base: string; gp_med: string; gp_price: number | null; published_at: string | null };
+  const c = cur as {
+    med_base: string;
+    price_base: string;
+    gp_med: string;
+    gp_price: number | null;
+    published_at: string | null;
+    gp_source: string;
+    guarantee_until: string | null;
+  };
 
   const patch: Record<string, unknown> = { core_status: status };
   if (status === OPENS_COMM) patch.in_comm = true;
@@ -217,7 +227,11 @@ export async function setCoreStatus(id: string, projectId: string, status: strin
     if (!c.gp_med) patch.gp_med = c.med_base;
     if (c.gp_price == null) patch.gp_price = priceNumber(c.price_base);
   }
-  if (status === "Published" && !c.published_at) patch.published_at = new Date().toISOString();
+  if (status === "Published" && !c.published_at) {
+    patch.published_at = new Date().toISOString();
+    const src = SOURCES.find((x) => x.name === c.gp_source);
+    if (!c.guarantee_until && src && src.guaranteeDays > 0) patch.guarantee_until = addDays(new Date(), src.guaranteeDays);
+  }
 
   const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
@@ -255,7 +269,16 @@ export async function setIndicator(id: string, projectId: string, value: string)
 export async function setGpStatus(id: string, projectId: string, status: string): Promise<Ok> {
   if (status !== "" && !GP_STATUSES.includes(status)) return fail("Невідомий статус");
   const { supabase, team } = await getTeamContext();
-  const { error } = await supabase.from("project_donors").update({ gp_status: status }).eq("id", id).eq("team_id", team.id);
+  const patch: Record<string, unknown> = { gp_status: status };
+  if (status === "Paid") {
+    patch.pay_status = "paid";
+    patch.paid_at = new Date().toISOString();
+  }
+  if (status === "Need to pay") {
+    const { data } = await supabase.from("project_donors").select("pay_status").eq("id", id).eq("team_id", team.id).maybeSingle();
+    if (!(data as { pay_status: string } | null)?.pay_status) patch.pay_status = "due";
+  }
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
   refresh(projectId);
   return { ok: true };
@@ -404,4 +427,113 @@ export async function addIntermediary(formData: FormData) {
   if (error) redirect("/app/intermediaries?error=" + encodeURIComponent(error.message));
   revalidatePath("/app/intermediaries");
   redirect("/app/intermediaries");
+}
+
+// ---------- Деньги, гарантия, индексация ----------
+
+function addDays(from: Date, days: number): string {
+  const d = new Date(from.getTime() + days * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
+export type DonorValueField = "gp_source" | "gp_currency" | "gp_commission" | "pay_status" | "guarantee_until" | "indexed";
+
+export async function setDonorValue(id: string, projectId: string, field: DonorValueField, raw: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const patch: Record<string, unknown> = {};
+  const v = raw.trim();
+
+  if (field === "gp_source") {
+    patch.gp_source = v.slice(0, 60);
+    const src = SOURCES.find((x) => x.name === v);
+    const { data } = await supabase
+      .from("project_donors")
+      .select("gp_commission, guarantee_until, published_at")
+      .eq("id", id)
+      .eq("team_id", team.id)
+      .maybeSingle();
+    const cur = data as { gp_commission: number; guarantee_until: string | null; published_at: string | null } | null;
+    if (src && cur) {
+      if (!Number(cur.gp_commission) && src.commission) patch.gp_commission = src.commission;
+      if (!cur.guarantee_until && cur.published_at && src.guaranteeDays) patch.guarantee_until = addDays(new Date(cur.published_at), src.guaranteeDays);
+    }
+  } else if (field === "gp_currency") {
+    if (!(CURRENCIES as readonly string[]).includes(v)) return fail("Невідома валюта");
+    patch.gp_currency = v;
+  } else if (field === "gp_commission") {
+    const n = v === "" ? 0 : Number(v.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0 || n > 100) return fail("Комісія від 0 до 100");
+    patch.gp_commission = n;
+  } else if (field === "pay_status") {
+    if (!["", "due", "paid", "refund"].includes(v)) return fail("Невідомий статус");
+    patch.pay_status = v;
+    patch.paid_at = v === "paid" ? new Date().toISOString() : null;
+  } else if (field === "guarantee_until") {
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail("Дата у форматі РРРР-ММ-ДД");
+    patch.guarantee_until = v || null;
+  } else if (field === "indexed") {
+    patch.indexed = v === "yes" ? true : v === "no" ? false : null;
+  } else {
+    return fail("Це поле не редагується");
+  }
+
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+// ---------- Проверка ссылки вручную ----------
+
+export async function checkDonorLink(id: string, projectId: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase
+    .from("project_donors")
+    .select("article_url, page_url, anchors")
+    .eq("id", id)
+    .eq("team_id", team.id)
+    .maybeSingle();
+  if (!data) return fail("Донора не знайдено");
+  const d = data as { article_url: string; page_url: string; anchors: string };
+  const r = await checkLink(d.article_url, d.page_url, d.anchors);
+  const { error } = await supabase
+    .from("project_donors")
+    .update({ link_status: r.status, link_note: r.note, link_checked_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+// ---------- Отчёт для клиента ----------
+
+function newToken(): string {
+  return (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
+}
+
+export async function createReportLink(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const id = String(formData.get("project_id") ?? "");
+  const { error } = await supabase.from("projects").update({ report_token: newToken() }).eq("id", id).eq("team_id", team.id);
+  const q = error ? "&error=" + encodeURIComponent("Створити звіт може лише тімлід.") : "&saved=1";
+  refresh(id);
+  redirect(`/app/projects/${id}?tab=profile${q}`);
+}
+
+export async function revokeReportLink(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const id = String(formData.get("project_id") ?? "");
+  await supabase.from("projects").update({ report_token: null }).eq("id", id).eq("team_id", team.id);
+  refresh(id);
+  redirect(`/app/projects/${id}?tab=profile&saved=1`);
+}
+
+export async function setReportPrices(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const id = String(formData.get("project_id") ?? "");
+  const show = formData.get("show") === "1";
+  await supabase.from("projects").update({ report_show_prices: show }).eq("id", id).eq("team_id", team.id);
+  refresh(id);
+  redirect(`/app/projects/${id}?tab=profile&saved=1`);
 }

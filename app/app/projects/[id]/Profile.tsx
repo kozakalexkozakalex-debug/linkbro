@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveProjectFilter, saveStoplist, updateProject } from "../actions";
+import { createReportLink, revokeReportLink, saveProjectFilter, saveStoplist, setReportPrices, updateProject } from "../actions";
+import CopyButton from "@/components/CopyButton";
 import { METRICS, type MetricFilter } from "@/lib/global";
 
 type P = { id: string; name: string; plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
@@ -11,11 +12,15 @@ export default function Profile({
   isLead,
   stopTools,
   stopGlobalCount,
+  reportUrl,
+  reportPrices,
 }: {
   project: P;
   isLead: boolean;
   stopTools: string[];
   stopGlobalCount: number;
+  reportUrl: string | null;
+  reportPrices: boolean;
 }) {
   const [filter, setFilter] = useState(project.filter);
   const [filterMsg, setFilterMsg] = useState<string | null>(null);
@@ -109,6 +114,44 @@ export default function Profile({
         />
         {isLead && <div><button type="submit" className="btn">Зберегти стоп-лист</button></div>}
       </form>
+
+      <div className="card flex flex-col gap-3 lg:col-span-2">
+        <div>
+          <p className="lbl">Звіт для клієнта</p>
+          <p className="mt-1 text-sm text-mute">
+            Посилання без входу в акаунт: розміщені статті, анкори, статус перевірки. Ціни показуються, лише якщо ви це ввімкнете.
+          </p>
+        </div>
+        {reportUrl ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <input id="report-url" aria-label="Посилання на звіт" readOnly value={reportUrl} className="inp min-w-0 flex-1 font-mono text-xs" />
+              <CopyButton text={reportUrl} />
+              <a href={reportUrl} target="_blank" rel="noreferrer" className="btn btn-sm">Відкрити</a>
+            </div>
+            {isLead && (
+              <div className="flex flex-wrap gap-2">
+                <form action={setReportPrices}>
+                  <input type="hidden" name="project_id" value={project.id} />
+                  <input type="hidden" name="show" value={reportPrices ? "0" : "1"} />
+                  <button type="submit" className="btn btn-sm">{reportPrices ? "Сховати ціни" : "Показувати ціни"}</button>
+                </form>
+                <form action={revokeReportLink}>
+                  <input type="hidden" name="project_id" value={project.id} />
+                  <button type="submit" className="btn btn-sm">Вимкнути посилання</button>
+                </form>
+              </div>
+            )}
+          </>
+        ) : isLead ? (
+          <form action={createReportLink}>
+            <input type="hidden" name="project_id" value={project.id} />
+            <button type="submit" className="btn btn-pri">Створити посилання на звіт</button>
+          </form>
+        ) : (
+          <p className="text-sm text-mute">Посилання ще не створене. Це робить тімлід.</p>
+        )}
+      </div>
 
       <div className="card flex flex-col gap-2">
         <p className="lbl">Стоп-лист (Глобал) · {stopGlobalCount}</p>
