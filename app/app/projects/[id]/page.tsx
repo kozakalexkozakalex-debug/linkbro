@@ -148,13 +148,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
   const isLead = team.role === "lead";
 
   let stopTools: string[] = [];
+  let stopGlobal: string[] = [];
   let stopGlobalCount = 0;
   if (tab === "profile" || tab === "fg") {
     const stop = await fetchAll<{ domain: string; source: string }>((from, to) =>
       supabase.from("project_stoplist").select("domain, source").eq("project_id", id).order("domain").range(from, to),
     );
     stopTools = stop.filter((s) => s.source === "tools").map((s) => s.domain);
-    stopGlobalCount = stop.length - stopTools.length;
+    stopGlobal = stop.filter((s) => s.source === "global").map((s) => s.domain);
+    stopGlobalCount = stopGlobal.length;
   }
 
   let log: LogRow[] = [];
@@ -271,6 +273,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
           project={{ ...project, filter: normalizeFilter(project.metric_filter) }}
           isLead={isLead}
           stopTools={stopTools}
+          stopGlobal={stopGlobal}
           stopGlobalCount={stopGlobalCount}
           reportUrl={project.report_token ? `${origin}/r/${project.report_token}` : null}
           reportPrices={project.report_show_prices}

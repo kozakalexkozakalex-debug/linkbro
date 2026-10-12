@@ -22,6 +22,7 @@ export default function Profile({
   project,
   isLead,
   stopTools,
+  stopGlobal,
   stopGlobalCount,
   reportUrl,
   reportPrices,
@@ -29,6 +30,7 @@ export default function Profile({
   project: P;
   isLead: boolean;
   stopTools: string[];
+  stopGlobal: string[];
   stopGlobalCount: number;
   reportUrl: string | null;
   reportPrices: boolean;
@@ -201,8 +203,16 @@ export default function Profile({
       <div className="card flex flex-col gap-2">
         <p className="lbl">Стоп-лист (Глобал) · {stopGlobalCount}</p>
         <p className="text-sm text-mute">
-          Наповнюється автоматично: усе, що вже приходило з глобальної бази. Ці домени не потраплять у проєкт повторно.
+          Наповнюється автоматично доменами, які вже передані в проєкт. Вони не прийдуть повторно. Донори, що не пройшли фільтр проєкту, сюди
+          не потрапляють: змініть фільтр або метрики й передайте ще раз.
         </p>
+        <textarea
+          id="stop-global"
+          aria-label="Стоп-лист (Глобал)"
+          readOnly
+          className="inp min-h-32 font-mono text-sm"
+          value={stopGlobal.length ? stopGlobal.join("\n") : "поки порожньо"}
+        />
       </div>
     </div>
   );

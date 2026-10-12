@@ -99,7 +99,8 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         setMsg({
           text:
             "Передано у проєкти. " +
-            r.report.map((p) => `${p.name}: +${p.added} (не пройшли фільтр: ${p.filtered}, у стоп-листі: ${p.stopped})`).join(" · "),
+            r.report.map((p) => `${p.name}: додано ${p.added}, не пройшли фільтр проєкту ${p.filtered}, вже в проєкті або в стоп-листі ${p.stopped}`).join(" · ") +
+            (r.report.some((p) => p.filtered > 0) ? ". Фільтр проєкту — у Профілі проєкту." : ""),
         });
       router.refresh();
     });

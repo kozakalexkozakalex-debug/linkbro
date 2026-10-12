@@ -135,33 +135,35 @@ export async function transferToProjects(): Promise<TransferReport> {
 
     const report: TransferReport["report"] = [];
     for (const p of (projects ?? []) as { id: string; name: string; metric_filter: unknown }[]) {
-      const stop = new Set(
-        (
-          await fetchAll<{ domain: string }>((from, to) =>
-            supabase.from("project_stoplist").select("domain").eq("project_id", p.id).order("domain").range(from, to),
-          )
-        ).map((r) => r.domain),
+      // Блокируют: стоп-лист из инструментов + доноры, которые уже есть в проекте.
+      // Не прошедшие фильтр НЕ блокируются: пройдут позже, если поменять фильтр или метрики.
+      const tools = await fetchAll<{ domain: string }>((from, to) =>
+        supabase.from("project_stoplist").select("domain").eq("project_id", p.id).eq("source", "tools").order("domain").range(from, to),
       );
+      const inProject = await fetchAll<{ domain: string }>((from, to) =>
+        supabase.from("project_donors").select("domain").eq("project_id", p.id).order("domain").range(from, to),
+      );
+      const stop = new Set([...tools, ...inProject].map((r) => r.domain));
       const filter = normalizeFilter(p.metric_filter);
       const candidates = fit.filter((d) => !stop.has(d.domain));
       const passed = candidates.filter((d) => passesFilter(d, filter));
 
-      // Всё, что пришло из глобала, попадает в Стоп-лист (Глобал), чтобы не прийти повторно
-      for (const part of chunk(candidates, 500)) {
-        const { error } = await supabase
-          .from("project_stoplist")
-          .upsert(
-            part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain, source: "global" })),
-            { onConflict: "project_id,source,domain", ignoreDuplicates: true },
-          );
-        if (error) throw new Error(error.message);
-      }
       for (const part of chunk(passed, 500)) {
         const { error } = await supabase
           .from("project_donors")
           .upsert(
             part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain })),
             { onConflict: "project_id,domain", ignoreDuplicates: true },
+          );
+        if (error) throw new Error(error.message);
+      }
+      // Переданные записываем в Стоп-лист (Глобал) — история того, что уже приходило в проект
+      for (const part of chunk(passed, 500)) {
+        const { error } = await supabase
+          .from("project_stoplist")
+          .upsert(
+            part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain, source: "global" })),
+            { onConflict: "project_id,source,domain", ignoreDuplicates: true },
           );
         if (error) throw new Error(error.message);
       }
