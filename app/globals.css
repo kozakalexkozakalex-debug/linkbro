@@ -65,3 +65,53 @@ body {
   background: var(--bg);
   color: var(--ink);
 }
+
+/* ---------- Базовые элементы интерфейса ---------- */
+@layer components {
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    padding: 7px 14px; border-radius: 6px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn-pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-sm { padding: 3px 9px; font-size: 13px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); font-weight: 600; }
+  .inp { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0; }
+  .inp:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .note { border-radius: 6px; padding: 9px 12px; font-size: 14px; }
+  .note-bad { background: var(--bad-soft); color: var(--bad); }
+  .note-ok { background: var(--ok-soft); color: var(--ok); }
+
+  .pill { display: inline-flex; align-items: center; font-size: 12px; padding: 2px 9px; border-radius: 99px; background: var(--bg); color: var(--mute); white-space: nowrap; }
+  .pill-ok { background: var(--ok-soft); color: var(--ok); }
+  .pill-bad { background: var(--bad-soft); color: var(--bad); }
+
+  .tab { padding: 8px 12px; color: var(--mute); border-bottom: 2px solid transparent; font-weight: 500; }
+  .tab-on { color: var(--ink); border-bottom-color: var(--accent); }
+
+  /* Каркас приложения: тёмная колонка слева, на телефоне — полоса сверху */
+  .app-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .side { background: var(--side); color: var(--side-ink); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px; }
+  .side-group { display: flex; flex-direction: column; gap: 2px; }
+  .side-link { display: block; text-align: left; padding: 8px 10px; border-radius: 6px; color: var(--side-ink); white-space: nowrap; background: none; border: 0; cursor: pointer; }
+  .side-link:hover { background: #ffffff14; }
+  .side-soon { opacity: .4; cursor: default; }
+  .side-soon:hover { background: none; }
+  .side-team { display: flex; gap: 6px; align-items: center; }
+  .side-select { background: #ffffff14; color: var(--side-ink); border: 0; border-radius: 6px; padding: 6px 8px; min-width: 0; flex: 1; }
+  .side-select option { color: #16211e; }
+  .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+
+  @media (max-width: 800px) {
+    .app-shell { grid-template-columns: minmax(0, 1fr); }
+    .side { flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 16px; gap: 12px; }
+    .side-group { flex-direction: row; }
+    .side-foot { margin-top: 0; flex-direction: row; align-items: center; }
+  }
+}
