@@ -106,9 +106,30 @@ export type DonorTextField = (typeof DONOR_TEXT_FIELDS)[number] | "gp_price";
 
 export type Member = { id: string; name: string };
 
+// Ниши проектов для подсказки. Можно вписать свою.
+export const NICHES = [
+  "Real Estate",
+  "E-commerce",
+  "iGaming / Casino",
+  "Betting",
+  "Finance / Fintech",
+  "Crypto",
+  "Health / Medicine",
+  "Travel",
+  "Education",
+  "SaaS / IT",
+  "Auto",
+  "Beauty / Fashion",
+  "Home & Garden",
+  "Legal",
+  "Food",
+  "B2B Services",
+];
+
 export type Project = {
   id: string;
   name: string;
+  niche: string;
   plan_per_month: number;
   requirements: string;
   notes: string;

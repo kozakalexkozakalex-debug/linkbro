@@ -59,8 +59,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const sp = await searchParams;
   const { supabase, team } = await getTeamContext();
 
-  const { data: pData } = await supabase.from("projects").select("id, name, plan_per_month").eq("team_id", team.id).order("created_at");
-  const projects = (pData ?? []) as { id: string; name: string; plan_per_month: number }[];
+  const { data: pData } = await supabase.from("projects").select("id, name, niche, plan_per_month").eq("team_id", team.id).order("created_at");
+  const projects = (pData ?? []) as { id: string; name: string; niche: string; plan_per_month: number }[];
   const scope = projects.some((p) => p.id === sp.project) ? (sp.project as string) : "all";
 
   const all = await fetchAll<Row>((from, to) =>
@@ -218,7 +218,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                 const x = stats(all.filter((r) => r.project_id === p.id));
                 return (
                   <tr key={p.id}>
-                    <td className="font-semibold whitespace-nowrap">{p.name}</td>
+                    <td className="whitespace-nowrap">
+                      <span className="font-semibold">{p.name}</span>
+                      {p.niche && <span className="pill ml-1">{p.niche}</span>}
+                    </td>
                     <td className="font-mono">{p.plan_per_month}</td>
                     <td className="font-mono">{x.pub}</td>
                     <td className="min-w-24"><Bar value={pct(x.pub, p.plan_per_month)} /></td>

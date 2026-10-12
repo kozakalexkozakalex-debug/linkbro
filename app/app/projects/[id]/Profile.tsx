@@ -4,8 +4,9 @@ import { useState, useTransition } from "react";
 import { createReportLink, revokeReportLink, saveProjectFilter, saveStoplist, setReportPrices, updateProject } from "../actions";
 import CopyButton from "@/components/CopyButton";
 import { METRICS, type MetricFilter } from "@/lib/global";
+import { NICHES } from "@/lib/project";
 
-type P = { id: string; name: string; plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
+type P = { id: string; name: string; niche: string; plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
 
 export default function Profile({
   project,
@@ -41,6 +42,14 @@ export default function Profile({
         <div className="field">
           <label htmlFor="p-name" className="lbl">Назва</label>
           <input id="p-name" name="name" className="inp" defaultValue={project.name} disabled={!isLead} maxLength={100} />
+        </div>
+        <div className="field">
+          <label htmlFor="p-niche" className="lbl">Ніша</label>
+          <input id="p-niche" name="niche" className="inp" list="p-niches" defaultValue={project.niche} disabled={!isLead} maxLength={60}
+            placeholder="Оберіть зі списку або впишіть свою" />
+          <datalist id="p-niches">
+            {NICHES.map((n) => <option key={n} value={n} />)}
+          </datalist>
         </div>
         <div className="field">
           <label htmlFor="p-plan" className="lbl">План публікацій на місяць</label>

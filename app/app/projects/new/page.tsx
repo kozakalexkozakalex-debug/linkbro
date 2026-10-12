@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTeamContext } from "@/lib/team";
 import { createProject } from "../actions";
+import { NICHES } from "@/lib/project";
 
 type Search = Promise<{ error?: string }>;
 
@@ -20,6 +21,13 @@ export default async function NewProject({ searchParams }: { searchParams: Searc
         <div className="field">
           <label htmlFor="name" className="lbl">Назва</label>
           <input id="name" name="name" className="inp" maxLength={100} required placeholder="Наприклад, SKOGUR" />
+        </div>
+        <div className="field">
+          <label htmlFor="niche" className="lbl">Ніша</label>
+          <input id="niche" name="niche" className="inp" list="niches" maxLength={60} placeholder="Оберіть зі списку або впишіть свою" />
+          <datalist id="niches">
+            {NICHES.map((n) => <option key={n} value={n} />)}
+          </datalist>
         </div>
         <div className="field">
           <label htmlFor="plan" className="lbl">План публікацій на місяць</label>

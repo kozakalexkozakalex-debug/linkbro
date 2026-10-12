@@ -36,11 +36,12 @@ export async function createProject(formData: FormData) {
   const { supabase, team } = await getTeamContext();
   const name = String(formData.get("name") ?? "").trim();
   const plan = Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0);
+  const niche = String(formData.get("niche") ?? "").trim().slice(0, 60);
   if (!name) redirect("/app/projects/new?error=" + encodeURIComponent("Вкажіть назву проєкту."));
 
   const { data, error } = await supabase
     .from("projects")
-    .insert({ team_id: team.id, name, plan_per_month: plan, metric_filter: DEFAULT_FILTER })
+    .insert({ team_id: team.id, name, niche, plan_per_month: plan, metric_filter: DEFAULT_FILTER })
     .select("id")
     .single();
   if (error || !data) redirect("/app/projects/new?error=" + encodeURIComponent("Створювати проєкти може лише тімлід."));
@@ -54,6 +55,7 @@ export async function updateProject(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const patch = {
     name: String(formData.get("name") ?? "").trim() || "Проєкт",
+    niche: String(formData.get("niche") ?? "").trim().slice(0, 60),
     plan_per_month: Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0),
     requirements: String(formData.get("requirements") ?? ""),
     notes: String(formData.get("notes") ?? ""),

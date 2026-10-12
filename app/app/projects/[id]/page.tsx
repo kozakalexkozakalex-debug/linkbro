@@ -63,7 +63,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
   const { data: projectData } = await supabase
     .from("projects")
-    .select("id, name, plan_per_month, requirements, notes, metric_filter, report_token, report_show_prices")
+    .select("id, name, niche, plan_per_month, requirements, notes, metric_filter, report_token, report_show_prices")
     .eq("id", id)
     .eq("team_id", team.id)
     .maybeSingle();
@@ -180,7 +180,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-medium">{project.name}</h1>
+          <h1 className="flex flex-wrap items-center gap-2 font-display text-xl font-medium">
+            {project.name}
+            {project.niche && <span className="pill font-sans">{project.niche}</span>}
+          </h1>
           <p className="mt-1 text-mute">From Global → Project Core → Communication → Guest Posting</p>
         </div>
         {tab !== "profile" && tab !== "history" && (
