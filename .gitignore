@@ -1,0 +1,18 @@
+# зависимости
+/node_modules
+
+# сборка
+/.next/
+/out/
+/build
+
+# настройки с ключами — никогда не коммитим
+.env
+.env*.local
+
+# служебное
+.DS_Store
+*.log
+*.tsbuildinfo
+next-env.d.ts
+.vercel

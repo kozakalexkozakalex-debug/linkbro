@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Цвета из прототипа LinkBro. Светлая тема по умолчанию, тёмная — по настройке системы. */
+:root {
+  --bg: #f3f5f4;
+  --panel: #ffffff;
+  --ink: #16211e;
+  --mute: #5f6f6a;
+  --line: #dce3e0;
+  --side: #12201c;
+  --side-ink: #d5e2dd;
+  --accent: #0b7a63;
+  --accent-ink: #ffffff;
+  --ok: #1b7f4b;
+  --ok-soft: #dff3e6;
+  --bad: #b4342b;
+  --bad-soft: #fbe4e1;
+  --warn: #8a5800;
+  --warn-soft: #fcefd2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1513;
+    --panel: #16201d;
+    --ink: #e6eeea;
+    --mute: #93a49e;
+    --line: #26332f;
+    --side: #0a100e;
+    --side-ink: #d5e2dd;
+    --accent: #3fc7a4;
+    --accent-ink: #06241c;
+    --ok: #5fd08f;
+    --ok-soft: #143021;
+    --bad: #f08a80;
+    --bad-soft: #3a1a17;
+    --warn: #e8b45a;
+    --warn-soft: #3a2c10;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-line: var(--line);
+  --color-side: var(--side);
+  --color-side-ink: var(--side-ink);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-onest), system-ui, sans-serif;
+  --font-display: var(--font-unbounded), var(--font-onest), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, Menlo, Consolas, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
