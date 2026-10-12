@@ -5,7 +5,7 @@ import { switchTeam } from "@/app/actions/team";
 
 export const dynamic = "force-dynamic";
 
-const SOON = ["Інпут", "Глобальна база", "База посередників", "Проєкти", "Таски"];
+const SOON = ["База посередників", "Проєкти", "Таски"];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, teams, team } = await getTeamContext();
@@ -33,6 +33,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="side-group">
           <Link href="/app" className="side-link">Дашборд</Link>
+          <Link href="/app/input" className="side-link">Інпут</Link>
+          <Link href="/app/global" className="side-link">Глобальна база</Link>
           <Link href="/app/team" className="side-link">Команда</Link>
           {SOON.map((s) => (
             <span key={s} className="side-link side-soon" title="Скоро">{s}</span>

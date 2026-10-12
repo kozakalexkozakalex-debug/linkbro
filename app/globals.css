@@ -115,3 +115,20 @@ body {
     .side-foot { margin-top: 0; flex-direction: row; align-items: center; }
   }
 }
+
+/* ---------- Таблицы ---------- */
+@layer components {
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); text-align: left; font-weight: 600; white-space: nowrap; }
+  .tbl th, .tbl td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .cell { width: 72px; background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: 4px; padding: 3px 6px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .cell-wide { width: 130px; font-family: inherit; }
+  .cell:hover, .cell:focus { border-color: var(--line); background: var(--bg); outline: none; }
+  .cell-err { border-color: var(--bad) !important; background: var(--bad-soft); }
+  .date-chip { font-family: var(--font-mono); font-size: 12px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+  .date-even { background: var(--bg); color: var(--ink); }
+  .date-odd { background: var(--ink); color: var(--panel); }
+  .modal { position: fixed; inset: 0; background: #0009; display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+}

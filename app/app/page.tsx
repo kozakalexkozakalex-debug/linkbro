@@ -14,13 +14,12 @@ export default async function Dashboard() {
       <div className="card">
         <p className="lbl mb-2">Що далі</p>
         <p>
-          Вхід і команда працюють. Наступним кроком тут з&apos;являться Інпут і Глобальна база донорів.
+          Почніть з Інпуту: вставте донорів, потім заповніть метрики в Глобальній базі й натисніть CHECK.
         </p>
-        {team.role === "lead" && (
-          <p className="mt-3">
-            <Link href="/app/team" className="btn btn-pri">Запросити лінкбілдера</Link>
-          </p>
-        )}
+        <p className="mt-3 flex flex-wrap gap-2">
+          <Link href="/app/input" className="btn btn-pri">Додати донорів</Link>
+          {team.role === "lead" && <Link href="/app/team" className="btn">Запросити лінкбілдера</Link>}
+        </p>
       </div>
     </div>
   );
