@@ -8,3 +8,5 @@
 - `Dockerfile` должен оставаться рабочим.
 - Интерфейс — на украинском, термины воронки как в ТЗ (From Global, Project Core, Communication, Guest Posting).
 - Цвета и шрифты — токены из `app/globals.css` (взяты из прототипа).
+- Каждая новая таблица в миграции: `enable row level security`, политики через `public.is_team_member(team_id)` / `public.is_team_lead(team_id)`, `revoke all ... from anon`, `grant ... to authenticated`.
+- Миграцию перед отправкой прогоняем на локальном Postgres 16 с заглушкой схемы `auth` и проверяем, что чужая команда не видит данных.
