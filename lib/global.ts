@@ -80,18 +80,22 @@ export function passesFilter(d: GlobalDonor, f: MetricFilter): boolean {
   });
 }
 
-// "https://www.Site.com/page" → "site.com"
+// Приводим любой ввод к одному виду, чтобы дубли находились:
+// "HTTPS://WWW.Site.com/page?x=1" → "site.com", "http://site.com:8080/" → "site.com",
+// "сайт.укр" → "xn--80aswg.xn--j1amh" (так браузеры хранят кириллические домены).
 export function normalizeDomain(raw: string): string | null {
-  const d = raw
-    .trim()
-    .toLowerCase()
-    .replace(/^[a-z]+:\/\//, "")
-    .replace(/^www\./, "")
-    .replace(/[/?#].*$/, "")
-    .replace(/:\d+$/, "")
-    .replace(/\.$/, "");
-  if (!/^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)+$/u.test(d) || d.length > 253) return null;
-  return d;
+  let s = raw.trim().toLowerCase();
+  if (!s) return null;
+  if (!/^[a-z][a-z0-9+.-]*:\/\//.test(s)) s = "http://" + s;
+  let host: string;
+  try {
+    host = new URL(s).hostname;
+  } catch {
+    return null;
+  }
+  host = host.replace(/^www\d*\./, "").replace(/\.$/, "");
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) || host.length > 253) return null;
+  return host;
 }
 
 const KYIV = "Europe/Kyiv";
