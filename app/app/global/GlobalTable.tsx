@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { runCheck, updateGlobalField } from "./actions";
+import { transferToProjects } from "../projects/actions";
 import {
   DEFAULT_FILTER,
   METRICS,
@@ -109,11 +110,28 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
     });
   }
 
+  function transfer() {
+    startCheck(async () => {
+      const r = await transferToProjects();
+      if (r.error) setMsg({ text: "Помилка передачі: " + r.error, bad: true });
+      else if (r.report.length === 0) setMsg({ text: "Спочатку створіть проєкт.", bad: true });
+      else
+        setMsg({
+          text:
+            "Передано у проєкти. " +
+            r.report.map((p) => `${p.name}: +${p.added} (не пройшли фільтр: ${p.filtered}, у стоп-листі: ${p.stopped})`).join(" · "),
+        });
+      router.refresh();
+    });
+  }
+
   return (
     <>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-pri" onClick={() => setOpen(true)}>CHECK</button>
-        <button type="button" className="btn" disabled title="Наступний крок">Передати у проєкти</button>
+        <button type="button" className="btn" onClick={transfer} disabled={checking}>
+          Передати у проєкти
+        </button>
       </div>
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}

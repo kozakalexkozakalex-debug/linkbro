@@ -132,3 +132,19 @@ body {
   .date-odd { background: var(--ink); color: var(--panel); }
   .modal { position: fixed; inset: 0; background: #0009; display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
 }
+
+/* ---------- Проекты ---------- */
+@layer components {
+  .pill-warn { background: var(--warn-soft); color: var(--warn); }
+  .cell-box { border-color: var(--line); }
+  .cell-text { font-family: inherit; }
+  .stsel { border-radius: 99px; border: 1px solid var(--line); padding: 3px 8px; background: var(--bg); color: var(--ink); font-size: 12px; max-width: 200px; }
+  .stsel-ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .stsel-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+  .stsel option, .stsel optgroup { background: var(--panel); color: var(--ink); }
+  .side-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; opacity: .55; padding: 0 10px 4px; }
+  .side-add { opacity: .7; }
+  @media (max-width: 800px) {
+    .side-label { display: none; }
+  }
+}

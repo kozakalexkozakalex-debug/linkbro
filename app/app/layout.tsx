@@ -5,10 +5,10 @@ import { switchTeam } from "@/app/actions/team";
 
 export const dynamic = "force-dynamic";
 
-const SOON = ["База посередників", "Проєкти", "Таски"];
-
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, teams, team } = await getTeamContext();
+  const { supabase, user, teams, team } = await getTeamContext();
+  const { data } = await supabase.from("projects").select("id, name").eq("team_id", team.id).order("created_at");
+  const projects = (data ?? []) as { id: string; name: string }[];
 
   return (
     <div className="app-shell">
@@ -32,16 +32,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
 
         <div className="side-group">
+          <span className="side-label">Робота</span>
           <Link href="/app" className="side-link">Дашборд</Link>
+          <Link href="/app/tasks" className="side-link">Таски</Link>
+        </div>
+
+        <div className="side-group">
+          <span className="side-label">Донори</span>
           <Link href="/app/input" className="side-link">Інпут</Link>
           <Link href="/app/global" className="side-link">Глобальна база</Link>
-          <Link href="/app/team" className="side-link">Команда</Link>
-          {SOON.map((s) => (
-            <span key={s} className="side-link side-soon" title="Скоро">{s}</span>
+          <Link href="/app/intermediaries" className="side-link">База посередників</Link>
+        </div>
+
+        <div className="side-group">
+          <span className="side-label">Проєкти</span>
+          {projects.map((p) => (
+            <Link key={p.id} href={`/app/projects/${p.id}`} className="side-link truncate">{p.name}</Link>
           ))}
+          {team.role === "lead" && <Link href="/app/projects/new" className="side-link side-add">+ Проєкт</Link>}
         </div>
 
         <div className="side-foot">
+          <Link href="/app/team" className="side-link">Команда</Link>
           <p className="truncate px-2 text-xs opacity-70">{user.email}</p>
           <p className="px-2 text-xs opacity-70">{team.role === "lead" ? "Тімлід" : "Лінкбілдер"}</p>
           <form action={signOut}>

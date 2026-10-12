@@ -1,0 +1,407 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getTeamContext } from "@/lib/team";
+import { fetchAll, chunk } from "@/lib/fetchAll";
+import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
+import {
+  COMM_STATUSES,
+  CORE_NEG,
+  CORE_POS,
+  DONOR_TEXT_FIELDS,
+  GP_STATUSES,
+  INDICATORS,
+  OPENS_COMM,
+  OPENS_GP,
+  normalizeFilter,
+  priceNumber,
+  type DonorTextField,
+  type FgStatus,
+} from "@/lib/project";
+
+type Ok = { ok: true } | { ok: false; error: string };
+const fail = (error: string): Ok => ({ ok: false, error });
+
+function refresh(projectId?: string) {
+  if (projectId) revalidatePath(`/app/projects/${projectId}`);
+  revalidatePath("/app");
+}
+
+// ---------- Проект: создать, изменить, фильтр, стоп-листы ----------
+
+export async function createProject(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const name = String(formData.get("name") ?? "").trim();
+  const plan = Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0);
+  if (!name) redirect("/app/projects/new?error=" + encodeURIComponent("Вкажіть назву проєкту."));
+
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({ team_id: team.id, name, plan_per_month: plan, metric_filter: DEFAULT_FILTER })
+    .select("id")
+    .single();
+  if (error || !data) redirect("/app/projects/new?error=" + encodeURIComponent("Створювати проєкти може лише тімлід."));
+
+  revalidatePath("/app", "layout");
+  redirect(`/app/projects/${(data as { id: string }).id}?tab=profile`);
+}
+
+export async function updateProject(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const id = String(formData.get("id") ?? "");
+  const patch = {
+    name: String(formData.get("name") ?? "").trim() || "Проєкт",
+    plan_per_month: Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0),
+    requirements: String(formData.get("requirements") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+  };
+  const { error } = await supabase.from("projects").update(patch).eq("id", id).eq("team_id", team.id);
+  const q = error ? "&error=" + encodeURIComponent("Змінювати проєкт може лише тімлід.") : "&saved=1";
+  revalidatePath("/app", "layout");
+  redirect(`/app/projects/${id}?tab=profile${q}`);
+}
+
+export async function saveProjectFilter(projectId: string, filter: MetricFilter): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const clean: Record<string, { min: string; max: string }> = {};
+  for (const m of METRICS) clean[m.key] = { min: String(filter[m.key]?.min ?? "").trim(), max: String(filter[m.key]?.max ?? "").trim() };
+  const { error } = await supabase.from("projects").update({ metric_filter: clean }).eq("id", projectId).eq("team_id", team.id);
+  if (error) return fail("Змінювати фільтр може лише тімлід.");
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function saveStoplist(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const projectId = String(formData.get("project_id") ?? "");
+  const source = formData.get("source") === "global" ? "global" : "tools";
+  const domains = [
+    ...new Set(
+      String(formData.get("domains") ?? "")
+        .split(/\r?\n/)
+        .map((l) => normalizeDomain(l))
+        .filter((d): d is string => !!d),
+    ),
+  ];
+
+  const back = `/app/projects/${projectId}?tab=profile`;
+  const { error: delErr } = await supabase
+    .from("project_stoplist")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("team_id", team.id)
+    .eq("source", source);
+  if (delErr) redirect(back + "&error=" + encodeURIComponent("Змінювати стоп-лист може лише тімлід."));
+
+  for (const part of chunk(domains, 500)) {
+    const rows = part.map((domain) => ({ project_id: projectId, team_id: team.id, domain, source }));
+    const { error } = await supabase.from("project_stoplist").insert(rows);
+    if (error) redirect(back + "&error=" + encodeURIComponent("Не вдалося зберегти стоп-лист: " + error.message));
+  }
+  refresh(projectId);
+  redirect(back + "&saved=1");
+}
+
+// ---------- Глобал → проекты ----------
+
+export type TransferReport = { report: { name: string; added: number; filtered: number; stopped: number }[]; error?: string };
+
+export async function transferToProjects(): Promise<TransferReport> {
+  const { supabase, team } = await getTeamContext();
+  try {
+    const fit = await fetchAll<GlobalDonor>((from, to) =>
+      supabase.from("global_donors").select(GLOBAL_COLUMNS).eq("team_id", team.id).eq("status", "fit").order("id").range(from, to),
+    );
+    const { data: projects, error: pErr } = await supabase
+      .from("projects")
+      .select("id, name, metric_filter")
+      .eq("team_id", team.id)
+      .order("created_at");
+    if (pErr) return { report: [], error: pErr.message };
+
+    const report: TransferReport["report"] = [];
+    for (const p of (projects ?? []) as { id: string; name: string; metric_filter: unknown }[]) {
+      const stop = new Set(
+        (
+          await fetchAll<{ domain: string }>((from, to) =>
+            supabase.from("project_stoplist").select("domain").eq("project_id", p.id).order("domain").range(from, to),
+          )
+        ).map((r) => r.domain),
+      );
+      const filter = normalizeFilter(p.metric_filter);
+      const candidates = fit.filter((d) => !stop.has(d.domain));
+      const passed = candidates.filter((d) => passesFilter(d, filter));
+
+      // Всё, что пришло из глобала, попадает в Стоп-лист (Глобал), чтобы не прийти повторно
+      for (const part of chunk(candidates, 500)) {
+        const { error } = await supabase
+          .from("project_stoplist")
+          .upsert(
+            part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain, source: "global" })),
+            { onConflict: "project_id,source,domain", ignoreDuplicates: true },
+          );
+        if (error) throw new Error(error.message);
+      }
+      for (const part of chunk(passed, 500)) {
+        const { error } = await supabase
+          .from("project_donors")
+          .upsert(
+            part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain })),
+            { onConflict: "project_id,domain", ignoreDuplicates: true },
+          );
+        if (error) throw new Error(error.message);
+      }
+      report.push({ name: p.name, added: passed.length, filtered: candidates.length - passed.length, stopped: fit.length - candidates.length });
+      revalidatePath(`/app/projects/${p.id}`);
+    }
+    revalidatePath("/app", "layout");
+    return { report };
+  } catch (e) {
+    return { report: [], error: e instanceof Error ? e.message : "Невідома помилка" };
+  }
+}
+
+// ---------- Донор проекта: поля и статусы ----------
+
+async function loadCustom(kind: "core_pos" | "core_neg" | "comm") {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase.from("custom_statuses").select("name").eq("team_id", team.id).eq("kind", kind);
+  return ((data ?? []) as { name: string }[]).map((r) => r.name);
+}
+
+export async function updateDonorField(id: string, field: DonorTextField, raw: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  let value: string | number | null;
+  if (field === "gp_price") {
+    const t = raw.trim();
+    value = t === "" ? null : priceNumber(t);
+    if (t !== "" && value == null) return fail("Потрібне число");
+  } else if ((DONOR_TEXT_FIELDS as readonly string[]).includes(field)) {
+    value = raw.trim().slice(0, 2000);
+  } else {
+    return fail("Це поле не редагується");
+  }
+  const { error } = await supabase.from("project_donors").update({ [field]: value }).eq("id", id).eq("team_id", team.id);
+  return error ? fail(error.message) : { ok: true };
+}
+
+export async function setFgStatus(id: string, projectId: string, status: FgStatus): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  if (!["new", "core", "out"].includes(status)) return fail("Невідомий статус");
+  const { error } = await supabase.from("project_donors").update({ fg_status: status }).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function setCoreStatus(id: string, projectId: string, status: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const allowed = ["new_core", ...CORE_POS, ...CORE_NEG, ...(await loadCustom("core_pos")), ...(await loadCustom("core_neg"))];
+  if (!allowed.includes(status)) return fail("Невідомий статус");
+
+  const { data: cur } = await supabase
+    .from("project_donors")
+    .select("med_base, price_base, gp_med, gp_price, published_at")
+    .eq("id", id)
+    .eq("team_id", team.id)
+    .maybeSingle();
+  if (!cur) return fail("Донора не знайдено");
+  const c = cur as { med_base: string; price_base: string; gp_med: string; gp_price: number | null; published_at: string | null };
+
+  const patch: Record<string, unknown> = { core_status: status };
+  if (status === OPENS_COMM) patch.in_comm = true;
+  if (OPENS_GP.includes(status)) {
+    patch.in_comm = true;
+    patch.in_gp = true;
+    if (!c.gp_med) patch.gp_med = c.med_base;
+    if (c.gp_price == null) patch.gp_price = priceNumber(c.price_base);
+  }
+  if (status === "Published" && !c.published_at) patch.published_at = new Date().toISOString();
+
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function setCommStatus(id: string, projectId: string, status: string): Promise<Ok> {
+  const allowed = ["", ...COMM_STATUSES, ...(await loadCustom("comm"))];
+  if (!allowed.includes(status)) return fail("Невідомий статус");
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase.from("project_donors").update({ comm_status: status }).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  // Accepted → донор переходит в Guest Posting
+  if (status === "Accepted") return setCoreStatus(id, projectId, "Price_ok");
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function setIndicator(id: string, projectId: string, value: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const ok = value === "" || INDICATORS.some((i) => i.value === value);
+  if (!ok) return fail("Невідоме значення");
+  const patch: Record<string, unknown> = { indicator: value || null, indicator_at: value ? new Date().toISOString() : null };
+  if (value === "replied") {
+    const { data } = await supabase.from("project_donors").select("comm_status").eq("id", id).eq("team_id", team.id).maybeSingle();
+    if ((data as { comm_status: string } | null)?.comm_status === "Contacted") patch.comm_status = "In Discussion";
+  }
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function setGpStatus(id: string, projectId: string, status: string): Promise<Ok> {
+  if (status !== "" && !GP_STATUSES.includes(status)) return fail("Невідомий статус");
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase.from("project_donors").update({ gp_status: status }).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function setAssignee(id: string, projectId: string, userId: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  if (userId) {
+    const { data } = await supabase.from("team_members").select("user_id").eq("team_id", team.id).eq("user_id", userId).maybeSingle();
+    if (!data) return fail("Цей користувач не в команді");
+  }
+  const { error } = await supabase.from("project_donors").update({ assignee: userId || null }).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  refresh(projectId);
+  return { ok: true };
+}
+
+export async function addCustomStatus(kind: "core_pos" | "core_neg" | "comm", name: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const n = name.trim().slice(0, 60);
+  if (!n) return fail("Вкажіть назву");
+  if (!["core_pos", "core_neg", "comm"].includes(kind)) return fail("Невідомий тип");
+  const { error } = await supabase
+    .from("custom_statuses")
+    .upsert({ team_id: team.id, kind, name: n }, { onConflict: "team_id,kind,name", ignoreDuplicates: true });
+  return error ? fail(error.message) : { ok: true };
+}
+
+// ---------- Communication: посредники и письма ----------
+
+export type SyncResult = { wrote: number; found: number; error?: string };
+
+export async function syncIntermediaries(projectId: string): Promise<SyncResult> {
+  const { supabase, team } = await getTeamContext();
+  try {
+    const rows = await fetchAll<{ id: string; domain: string; med_base: string; med_add: string; price_base: string; price_add: string }>(
+      (from, to) =>
+        supabase
+          .from("project_donors")
+          .select("id, domain, med_base, med_add, price_base, price_add")
+          .eq("project_id", projectId)
+          .eq("team_id", team.id)
+          .eq("in_comm", true)
+          .order("id")
+          .range(from, to),
+    );
+    if (rows.length === 0) return { wrote: 0, found: 0 };
+
+    const base = new Map<string, { intermediary: string; price: string }>();
+    for (const part of chunk(rows.map((r) => r.domain), 200)) {
+      const { data, error } = await supabase
+        .from("intermediaries")
+        .select("domain, intermediary, price")
+        .eq("team_id", team.id)
+        .in("domain", part);
+      if (error) throw new Error(error.message);
+      for (const r of (data ?? []) as { domain: string; intermediary: string; price: string }[]) base.set(r.domain, r);
+    }
+
+    let wrote = 0;
+    let found = 0;
+    for (const r of rows) {
+      const cur = base.get(r.domain);
+      if (r.med_add.trim() || r.price_add.trim()) {
+        // Новые данные вручную → в базу посредников и в поля (БАЗА)
+        const next = { intermediary: r.med_add.trim() || cur?.intermediary || "", price: r.price_add.trim() || cur?.price || "" };
+        const { error } = await supabase
+          .from("intermediaries")
+          .upsert({ team_id: team.id, domain: r.domain, ...next }, { onConflict: "team_id,domain" });
+        if (error) throw new Error(error.message);
+        await supabase
+          .from("project_donors")
+          .update({ med_base: next.intermediary, price_base: next.price, med_add: "", price_add: "" })
+          .eq("id", r.id)
+          .eq("team_id", team.id);
+        base.set(r.domain, next);
+        wrote++;
+      } else if (cur && (cur.intermediary !== r.med_base || cur.price !== r.price_base)) {
+        // Есть в базе → подтягиваем
+        await supabase
+          .from("project_donors")
+          .update({ med_base: cur.intermediary, price_base: cur.price })
+          .eq("id", r.id)
+          .eq("team_id", team.id);
+        found++;
+      }
+    }
+    refresh(projectId);
+    revalidatePath("/app/intermediaries");
+    return { wrote, found };
+  } catch (e) {
+    return { wrote: 0, found: 0, error: e instanceof Error ? e.message : "Невідома помилка" };
+  }
+}
+
+// Письма отправлены вручную → Contacted, индикатор «очікування»
+export async function markContacted(projectId: string, ids: string[]): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const now = new Date().toISOString();
+  for (const part of chunk(ids, 200)) {
+    const { error } = await supabase
+      .from("project_donors")
+      .update({ indicator: "waiting", indicator_at: now })
+      .eq("team_id", team.id)
+      .eq("project_id", projectId)
+      .in("id", part);
+    if (error) return fail(error.message);
+    await supabase
+      .from("project_donors")
+      .update({ comm_status: "Contacted" })
+      .eq("team_id", team.id)
+      .eq("project_id", projectId)
+      .eq("comm_status", "")
+      .in("id", part);
+  }
+  refresh(projectId);
+  return { ok: true };
+}
+
+// ---------- База посредников (отдельная страница) ----------
+
+export async function updateIntermediary(domain: string, field: "intermediary" | "price", value: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  if (field !== "intermediary" && field !== "price") return fail("Це поле не редагується");
+  const { error } = await supabase
+    .from("intermediaries")
+    .update({ [field]: value.trim().slice(0, 300) })
+    .eq("team_id", team.id)
+    .eq("domain", domain);
+  return error ? fail(error.message) : { ok: true };
+}
+
+export async function addIntermediary(formData: FormData) {
+  const { supabase, team } = await getTeamContext();
+  const domain = normalizeDomain(String(formData.get("domain") ?? ""));
+  if (!domain) redirect("/app/intermediaries?error=" + encodeURIComponent("Перевірте домен."));
+  const { error } = await supabase.from("intermediaries").upsert(
+    {
+      team_id: team.id,
+      domain,
+      intermediary: String(formData.get("intermediary") ?? "").trim(),
+      price: String(formData.get("price") ?? "").trim(),
+    },
+    { onConflict: "team_id,domain" },
+  );
+  if (error) redirect("/app/intermediaries?error=" + encodeURIComponent(error.message));
+  revalidatePath("/app/intermediaries");
+  redirect("/app/intermediaries");
+}

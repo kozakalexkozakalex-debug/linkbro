@@ -10,3 +10,4 @@
 - Цвета и шрифты — токены из `app/globals.css` (взяты из прототипа).
 - Каждая новая таблица в миграции: `enable row level security`, политики через `public.is_team_member(team_id)` / `public.is_team_lead(team_id)`, `revoke all ... from anon`, `grant ... to authenticated`.
 - Миграцию перед отправкой прогоняем на локальном Postgres 16 с заглушкой схемы `auth` и проверяем, что чужая команда не видит данных.
+- npm в среде Claude недоступен: перед пушем код проверяется `tsc` из /opt/node-tools с заглушками типов для next/react/@supabase (ошибки вида "Parameter 'e' implicitly has an 'any' type" и `process` — от заглушек, их игнорируем). Настоящая проверка — сборка на Vercel.
