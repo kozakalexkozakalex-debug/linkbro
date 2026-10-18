@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function CopyButton({ text }: { text: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -17,7 +19,7 @@ export default function CopyButton({ text }: { text: string }) {
 
   return (
     <button type="button" onClick={copy} className="btn btn-sm">
-      {copied ? "Скопійовано" : "Копіювати"}
+      {copied ? t("common.copied") : t("common.copy")}
     </button>
   );
 }

@@ -2,10 +2,11 @@ import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { GLOBAL_COLUMNS, type GlobalDonor } from "@/lib/global";
 import GlobalTable from "./GlobalTable";
+import { getI18n } from "@/lib/i18n/server";
 
 type Search = Promise<{ status?: string; q?: string; page?: string }>;
 const TABS = [
-  { key: "all", label: "Усі" },
+  { key: "all", label: "" },
   { key: "new", label: "NEW" },
   { key: "fit", label: "FIT" },
   { key: "drop", label: "DROP" },
@@ -18,6 +19,7 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
   const q = (sp.q ?? "").trim().toLowerCase().replace(/[%_]/g, "");
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
 
   let query = supabase.from("global_donors").select(GLOBAL_COLUMNS, { count: "exact" }).eq("team_id", team.id);
   if (status !== "all") query = query.eq("status", status);
@@ -56,45 +58,45 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-medium">Глобальна база</h1>
+          <h1 className="font-display text-xl font-medium">{t("nav.global")}</h1>
           <p className="mt-1 max-w-2xl text-mute">
-            Метрики вносяться вручну з Ahrefs / Majestic або імпортом CSV. Зміни зберігаються, щойно ви виходите з клітинки.
+            {t("global.lead")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/app/input" className="btn">+ Додати донорів</Link>
-          <Link href="/app/import" className="btn">Імпорт CSV</Link>
-          <a href="/api/export?type=global" className="btn">Експорт CSV</a>
+          <Link href="/app/input" className="btn">{t("global.addDonors")}</Link>
+          <Link href="/app/import" className="btn">{t("nav.import")}</Link>
+          <a href="/api/export?type=global" className="btn">{t("common.exportCsv")}</a>
         </div>
       </div>
 
       <form action="/app/global" className="flex flex-wrap gap-2">
         {status !== "all" && <input type="hidden" name="status" value={status} />}
-        <label htmlFor="gq" className="sr-only">Пошук домену</label>
-        <input id="gq" name="q" defaultValue={q} className="inp max-w-xs" placeholder="пошук домену" />
-        <button type="submit" className="btn">Знайти</button>
-        {q && <Link href={status === "all" ? "/app/global" : `/app/global?status=${status}`} className="btn">Скинути</Link>}
+        <label htmlFor="gq" className="sr-only">{t("common.searchDomain")}</label>
+        <input id="gq" name="q" defaultValue={q} className="inp max-w-xs" placeholder={t("common.searchDomain")} />
+        <button type="submit" className="btn">{t("common.find")}</button>
+        {q && <Link href={status === "all" ? "/app/global" : `/app/global?status=${status}`} className="btn">{t("common.reset")}</Link>}
       </form>
 
       <div className="flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((t) => (
-          <Link key={t.key} href={href({ status: t.key })} className={`tab ${status === t.key ? "tab-on" : ""}`}>
-            {t.label} <span className="font-mono text-xs">{counts[t.key]}</span>
+        {TABS.map((tb) => (
+          <Link key={tb.key} href={href({ status: tb.key })} className={`tab ${status === tb.key ? "tab-on" : ""}`}>
+            {tb.label || t("common.all")} <span className="font-mono text-xs">{counts[tb.key]}</span>
           </Link>
         ))}
       </div>
 
-      {error && <p className="note note-bad">Не вдалося завантажити базу: {error.message}</p>}
+      {error && <p className="note note-bad">{t("global.loadError", { x: error.message })}</p>}
 
       <GlobalTable initialRows={rows} />
 
       {pages > 1 && (
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Сторінки">
-          {page > 1 && <Link href={href({ page: page - 1 })} className="btn btn-sm">← Назад</Link>}
+        <nav className="flex flex-wrap items-center gap-2" aria-label={t("common.pages")}>
+          {page > 1 && <Link href={href({ page: page - 1 })} className="btn btn-sm">{t("common.prev")}</Link>}
           <span className="font-mono text-sm text-mute">
-            {page} / {pages} · усього {total}
+            {page} / {pages} · {t("common.total", { n: total })}
           </span>
-          {page < pages && <Link href={href({ page: page + 1 })} className="btn btn-sm">Далі →</Link>}
+          {page < pages && <Link href={href({ page: page + 1 })} className="btn btn-sm">{t("common.next")}</Link>}
         </nav>
       )}
     </div>

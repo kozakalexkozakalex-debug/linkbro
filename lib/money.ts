@@ -9,15 +9,15 @@ export const SOURCES: { name: string; commission: number; guaranteeDays: number 
   { name: "Collaborator", commission: 10, guaranteeDays: 90 },
   { name: "PRposting", commission: 0, guaranteeDays: 0 },
   { name: "Miralinks", commission: 10, guaranteeDays: 0 },
-  { name: "Посередник", commission: 0, guaranteeDays: 0 },
-  { name: "Напряму", commission: 0, guaranteeDays: 0 },
+  { name: "Intermediary", commission: 0, guaranteeDays: 0 },
+  { name: "Direct", commission: 0, guaranteeDays: 0 },
 ];
 
 export const PAY_STATUSES = [
-  { value: "", label: "—" },
-  { value: "due", label: "до оплати" },
-  { value: "paid", label: "оплачено" },
-  { value: "refund", label: "повернення" },
+  { value: "", key: null },
+  { value: "due", key: "pay.due" },
+  { value: "paid", key: "pay.paid" },
+  { value: "refund", key: "pay.refund" },
 ] as const;
 export type PayStatus = "" | "due" | "paid" | "refund";
 
@@ -51,16 +51,16 @@ export function addTo(map: ByCurrency, currency: string, amount: number) {
   map[c] = (map[c] ?? 0) + amount;
 }
 
-export function fmtMoney(map: ByCurrency): string {
+export function fmtMoney(map: ByCurrency, intl = "uk-UA"): string {
   const parts = CURRENCIES.filter((c) => (map[c] ?? 0) > 0).map(
-    (c) => SIGN[c] + Math.round(map[c] ?? 0).toLocaleString("uk-UA"),
+    (c) => SIGN[c] + Math.round(map[c] ?? 0).toLocaleString(intl),
   );
   return parts.length ? parts.join(" · ") : SIGN.USD + "0";
 }
 
-export function fmtAmount(amount: number, currency: string): string {
+export function fmtAmount(amount: number, currency: string, intl = "uk-UA"): string {
   const c = (CURRENCIES as readonly string[]).includes(currency) ? (currency as Currency) : "USD";
-  return SIGN[c] + (Math.round(amount * 100) / 100).toLocaleString("uk-UA");
+  return SIGN[c] + (Math.round(amount * 100) / 100).toLocaleString(intl);
 }
 
 export function daysLeft(dateIso: string | null): number | null {

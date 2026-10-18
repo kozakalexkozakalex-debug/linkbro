@@ -3,6 +3,8 @@ import { getTeamContext } from "@/lib/team";
 import { signOut } from "@/app/actions/auth";
 import { switchTeam } from "@/app/actions/team";
 import NavLink from "@/components/NavLink";
+import LangSwitch from "@/components/LangSwitch";
+import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,52 +13,53 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data } = await supabase.from("projects").select("id, name").eq("team_id", team.id).order("created_at");
   const projects = (data ?? []) as { id: string; name: string }[];
   const isLead = team.role === "lead";
+  const { t } = await getI18n();
 
   return (
     <div className="app-shell">
-      <nav className="side" aria-label="Головне меню">
+      <nav className="side" aria-label={t("nav.menu")}>
         <Link href="/app" className="font-display px-2 text-base font-bold">
           Link<span className="text-[#3fc7a4]">Bro</span>
         </Link>
 
         {teams.length > 1 ? (
           <form action={switchTeam} className="side-team">
-            <label htmlFor="team_id" className="sr-only">Команда</label>
+            <label htmlFor="team_id" className="sr-only">{t("team.title")}</label>
             <select id="team_id" name="team_id" defaultValue={team.id} className="side-select">
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>{tm.name}</option>
               ))}
             </select>
-            <button type="submit" className="side-link">Перейти</button>
+            <button type="submit" className="side-link">{t("nav.go")}</button>
           </form>
         ) : (
           <p className="side-team side-team-name">{team.name}</p>
         )}
 
         <div className="side-group">
-          <p className="side-label">Робота</p>
+          <p className="side-label">{t("nav.work")}</p>
           <div className="side-sub">
-            <NavLink href="/app" exact>Дашборд</NavLink>
-            <NavLink href="/app/tasks">Таски</NavLink>
-            <NavLink href="/app/finance">Фінанси</NavLink>
+            <NavLink href="/app" exact>{t("nav.dashboard")}</NavLink>
+            <NavLink href="/app/tasks">{t("nav.tasks")}</NavLink>
+            <NavLink href="/app/finance">{t("nav.finance")}</NavLink>
           </div>
         </div>
 
         <div className="side-group">
-          <p className="side-label">Донори</p>
+          <p className="side-label">{t("nav.donors")}</p>
           <div className="side-sub">
-            <NavLink href="/app/input">Інпут</NavLink>
-            <NavLink href="/app/global">Глобальна база</NavLink>
-            <NavLink href="/app/intermediaries">База посередників</NavLink>
-            <NavLink href="/app/import">Імпорт CSV</NavLink>
+            <NavLink href="/app/input">{t("nav.input")}</NavLink>
+            <NavLink href="/app/global">{t("nav.global")}</NavLink>
+            <NavLink href="/app/intermediaries">{t("nav.intermediaries")}</NavLink>
+            <NavLink href="/app/import">{t("nav.import")}</NavLink>
           </div>
         </div>
 
         <div className="side-group">
           <p className="side-label">
-            <span>Проєкти</span>
+            <span>{t("common.projects")}</span>
             {isLead && (
-              <Link href="/app/projects/new" className="side-plus" title="Новий проєкт" aria-label="Новий проєкт">+</Link>
+              <Link href="/app/projects/new" className="side-plus" title={t("nav.newProject")} aria-label={t("nav.newProject")}>+</Link>
             )}
           </p>
           <div className="side-sub">
@@ -65,17 +68,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 {p.name}
               </NavLink>
             ))}
-            {projects.length === 0 && <span className="side-empty">{isLead ? "Натисніть +, щоб створити" : "Поки немає"}</span>}
-            {isLead && <NavLink href="/app/projects/new" className="side-add-mobile">+ Проєкт</NavLink>}
+            {projects.length === 0 && <span className="side-empty">{isLead ? t("nav.pressPlus") : t("nav.noProjectsYet")}</span>}
+            {isLead && <NavLink href="/app/projects/new" className="side-add-mobile">{t("nav.addProject")}</NavLink>}
           </div>
         </div>
 
         <div className="side-foot">
-          <NavLink href="/app/team">Команда</NavLink>
+          <NavLink href="/app/team">{t("team.title")}</NavLink>
+          <div className="px-2"><LangSwitch dark /></div>
           <p className="truncate px-2 text-xs opacity-70">{user.email}</p>
-          <p className="px-2 text-xs opacity-70">{isLead ? "Тімлід" : "Лінкбілдер"}</p>
+          <p className="px-2 text-xs opacity-70">{isLead ? t("common.lead") : t("common.builder")}</p>
           <form action={signOut}>
-            <button type="submit" className="side-link">Вийти</button>
+            <button type="submit" className="side-link">{t("auth.logout")}</button>
           </form>
         </div>
       </nav>

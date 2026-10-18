@@ -4,6 +4,7 @@ import { fetchAll } from "@/lib/fetchAll";
 import { addTo, daysLeft, fmtAmount, fmtMoney, payState, realCost, type ByCurrency } from "@/lib/money";
 import { fmtDate } from "@/lib/global";
 import { isThisMonth } from "@/lib/project";
+import { getI18n } from "@/lib/i18n/server";
 
 type Row = {
   id: string;
@@ -25,6 +26,8 @@ type Row = {
 
 export default async function FinancePage() {
   const { supabase, team } = await getTeamContext();
+  const { t, intl } = await getI18n();
+  const money = (m: ByCurrency) => fmtMoney(m, intl);
   const rows = await fetchAll<Row>((from, to) =>
     supabase
       .from("project_donors")
@@ -48,7 +51,7 @@ export default async function FinancePage() {
   for (const r of rows) {
     const cost = realCost(r);
     const st = payState(r);
-    const med = r.gp_med || r.med_base || "без посередника";
+    const med = r.gp_med || r.med_base || t("fin.noMed");
     const m = byMed.get(med) ?? { due: {}, paid: {}, count: 0 };
     const p = byProject.get(r.project_id) ?? { due: {}, paid: {} };
     if (st === "paid") {
@@ -79,18 +82,18 @@ export default async function FinancePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-xl font-medium">Фінанси</h1>
+        <h1 className="font-display text-xl font-medium">{t("nav.finance")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
-          Реальна ціна посилання = ціна + комісія біржі. Суми по валютах окремо. Дані беруться з модуля Guest Posting усіх проєктів.
+          {t("fin.lead")}
         </p>
       </div>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          [fmtMoney(due), "до оплати"],
-          [fmtMoney(paidMonth), "оплачено цього місяця"],
-          [fmtMoney(paid), "оплачено за весь час"],
-          [fmtMoney(refund), "повернення"],
+          [money(due), t("pay.due")],
+          [money(paidMonth), t("fin.paidMonth")],
+          [money(paid), t("fin.paidAll")],
+          [money(refund), t("pay.refund")],
         ].map(([v, l]) => (
           <div key={l} className="card">
             <p className="font-mono text-xl font-semibold">{v}</p>
@@ -101,14 +104,14 @@ export default async function FinancePage() {
 
       {claimable.length > 0 && (
         <section className="card border-bad">
-          <p className="lbl mb-2 text-bad">Можна вимагати повернення: посилання знято, гарантія ще діє</p>
+          <p className="lbl mb-2 text-bad">{t("fin.claimable")}</p>
           <ul className="divide-y divide-line text-sm">
             {claimable.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
                 <Link href={`/app/projects/${r.project_id}?tab=gp`} className="font-mono underline">{r.domain}</Link>
                 <span className="pill">{pName.get(r.project_id)}</span>
-                <span className="pill">{r.gp_source || "джерело не вказано"}</span>
-                <span className="pill pill-warn" suppressHydrationWarning>гарантія ще {daysLeft(r.guarantee_until)} дн</span>
+                <span className="pill">{r.gp_source || t("fin.noSource")}</span>
+                <span className="pill pill-warn" suppressHydrationWarning>{t("fin.guaranteeLeft", { n: daysLeft(r.guarantee_until) ?? 0 })}</span>
               </li>
             ))}
           </ul>
@@ -117,36 +120,36 @@ export default async function FinancePage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section>
-          <p className="lbl mb-2">По посередниках</p>
+          <p className="lbl mb-2">{t("fin.byMed")}</p>
           <div className="tbl-wrap">
             <table className="tbl">
-              <thead><tr>{["Посередник", "Посилань", "Борг", "Оплачено"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{[t("med.intermediary"), t("fin.links"), t("fin.debt"), t("pay.paid")].map((h) => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {meds.map(([med, m]) => (
                   <tr key={med}>
                     <td className="max-w-56 truncate" title={med}>{med}</td>
                     <td className="font-mono">{m.count}</td>
-                    <td className="font-mono">{Object.keys(m.due).length ? fmtMoney(m.due) : "—"}</td>
-                    <td className="font-mono">{Object.keys(m.paid).length ? fmtMoney(m.paid) : "—"}</td>
+                    <td className="font-mono">{Object.keys(m.due).length ? money(m.due) : "—"}</td>
+                    <td className="font-mono">{Object.keys(m.paid).length ? money(m.paid) : "—"}</td>
                   </tr>
                 ))}
-                {meds.length === 0 && <tr><td colSpan={4} className="text-center text-mute">Поки немає угод у Guest Posting.</td></tr>}
+                {meds.length === 0 && <tr><td colSpan={4} className="text-center text-mute">{t("fin.noDeals")}</td></tr>}
               </tbody>
             </table>
           </div>
         </section>
 
         <section>
-          <p className="lbl mb-2">По проєктах</p>
+          <p className="lbl mb-2">{t("fin.byProject")}</p>
           <div className="tbl-wrap">
             <table className="tbl">
-              <thead><tr>{["Проєкт", "До оплати", "Оплачено"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{[t("common.project"), t("pay.due"), t("pay.paid")].map((h) => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {[...byProject.entries()].map(([pid, p]) => (
                   <tr key={pid}>
                     <td><Link href={`/app/projects/${pid}?tab=gp`} className="underline">{pName.get(pid) ?? "—"}</Link></td>
-                    <td className="font-mono">{Object.keys(p.due).length ? fmtMoney(p.due) : "—"}</td>
-                    <td className="font-mono">{Object.keys(p.paid).length ? fmtMoney(p.paid) : "—"}</td>
+                    <td className="font-mono">{Object.keys(p.due).length ? money(p.due) : "—"}</td>
+                    <td className="font-mono">{Object.keys(p.paid).length ? money(p.paid) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -156,10 +159,10 @@ export default async function FinancePage() {
       </div>
 
       <section>
-        <p className="lbl mb-2">Чекають оплати · {dueRows.length}</p>
+        <p className="lbl mb-2">{t("fin.waiting")} · {dueRows.length}</p>
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr>{["Донор", "Проєкт", "Посередник", "Джерело", "Ціна", "Комісія", "Реальна", ""].map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+            <thead><tr>{[t("med.donor"), t("common.project"), t("med.intermediary"), t("gp.source"), t("common.price"), t("fin.commission"), t("fin.real"), ""].map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
             <tbody>
               {dueRows.map((r) => (
                 <tr key={r.id}>
@@ -167,18 +170,18 @@ export default async function FinancePage() {
                   <td>{pName.get(r.project_id)}</td>
                   <td className="max-w-48 truncate">{r.gp_med || r.med_base || "—"}</td>
                   <td>{r.gp_source || "—"}</td>
-                  <td className="font-mono">{r.gp_price == null ? "—" : fmtAmount(r.gp_price, r.gp_currency)}</td>
+                  <td className="font-mono">{r.gp_price == null ? "—" : fmtAmount(r.gp_price, r.gp_currency, intl)}</td>
                   <td className="font-mono">{Number(r.gp_commission) ? `${r.gp_commission}%` : "—"}</td>
-                  <td className="font-mono">{fmtAmount(realCost(r), r.gp_currency)}</td>
-                  <td><Link href={`/app/projects/${r.project_id}?tab=gp`} className="btn btn-sm">Відкрити</Link></td>
+                  <td className="font-mono">{fmtAmount(realCost(r), r.gp_currency, intl)}</td>
+                  <td><Link href={`/app/projects/${r.project_id}?tab=gp`} className="btn btn-sm">{t("common.open")}</Link></td>
                 </tr>
               ))}
-              {dueRows.length === 0 && <tr><td colSpan={8} className="text-center text-mute">Боргів немає.</td></tr>}
+              {dueRows.length === 0 && <tr><td colSpan={8} className="text-center text-mute">{t("fin.noDebts")}</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
-      <p className="text-xs text-mute">Оновлено {fmtDate(new Date().toISOString())}</p>
+      <p className="text-xs text-mute">{t("common.updatedAt", { date: fmtDate(new Date().toISOString(), intl) })}</p>
     </div>
   );
 }

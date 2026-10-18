@@ -15,11 +15,11 @@ async function rememberTeam(teamId: string) {
 
 export async function createTeam(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) redirect("/onboarding?error=" + encodeURIComponent("Вкажіть назву команди."));
+  if (!name) redirect("/onboarding?error=" + encodeURIComponent("onb.err.noName"));
 
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("create_team", { p_name: name });
-  if (error || !data) redirect("/onboarding?error=" + encodeURIComponent(error?.message ?? "Не вдалося створити команду."));
+  if (error || !data) redirect("/onboarding?error=" + encodeURIComponent("onb.err.failed"));
 
   await rememberTeam(String(data));
   redirect("/app");
@@ -37,7 +37,8 @@ export async function acceptInvite(formData: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("accept_invite", { p_token: token });
   if (error || !data) {
-    redirect(`/invite/${encodeURIComponent(token)}?error=` + encodeURIComponent(error?.message ?? "Не вдалося приєднатися."));
+    const key = error && /запрош|invite/i.test(error.message) ? "invite.err.invalid" : "invite.err.failed";
+    redirect(`/invite/${encodeURIComponent(token)}?error=` + encodeURIComponent(key));
   }
   await rememberTeam(String(data));
   redirect("/app");
@@ -47,7 +48,7 @@ export async function createInvite(formData: FormData) {
   const { supabase, team } = await getTeamContext();
   const role = formData.get("role") === "lead" ? "lead" : "builder";
   const { error } = await supabase.from("team_invites").insert({ team_id: team.id, role });
-  if (error) redirect("/app/team?error=" + encodeURIComponent("Створювати запрошення може лише тімлід."));
+  if (error) redirect("/app/team?error=" + encodeURIComponent("team.err.onlyLeadInvite"));
   revalidatePath("/app/team");
   redirect("/app/team");
 }
@@ -63,7 +64,7 @@ export async function deleteInvite(formData: FormData) {
 export async function removeMember(formData: FormData) {
   const { supabase, user, team } = await getTeamContext();
   const userId = String(formData.get("user_id") ?? "");
-  if (userId === user.id) redirect("/app/team?error=" + encodeURIComponent("Не можна видалити себе."));
+  if (userId === user.id) redirect("/app/team?error=" + encodeURIComponent("team.err.removeSelf"));
   await supabase.from("team_members").delete().eq("team_id", team.id).eq("user_id", userId);
   revalidatePath("/app/team");
   redirect("/app/team");

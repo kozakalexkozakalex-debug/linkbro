@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getTeamContext } from "@/lib/team";
+import { getI18n } from "@/lib/i18n/server";
+import type { TFn } from "@/lib/i18n/config";
 import { chunk } from "@/lib/fetchAll";
 import { toNumber } from "@/lib/csv";
 import {
@@ -24,6 +26,7 @@ export async function addToGlobal(_prev: InputResult, formData: FormData): Promi
   const raw = String(formData.get("raw") ?? "");
   const prefix = String(formData.get("prefix") ?? "").trim();
   const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
 
   // Разбор строк: первое слово — домен, остальное — цена
   const parsed = new Map<string, string>();
@@ -39,14 +42,14 @@ export async function addToGlobal(_prev: InputResult, formData: FormData): Promi
     }
     if (!parsed.has(domain)) parsed.set(domain, (m?.[2] ?? "").trim());
   }
-  if (parsed.size === 0) return { added: [], dup: [], invalid, error: invalid.length ? undefined : "Вставте хоча б один домен." };
+  if (parsed.size === 0) return { added: [], dup: [], invalid, error: invalid.length ? undefined : t("err.needOneDomain") };
 
   // Какие уже есть в глобале (это и есть стоп-лист инпута)
   const domains = [...parsed.keys()];
   const existing = new Set<string>();
   for (const part of chunk(domains, 200)) {
     const { data, error } = await supabase.from("global_donors").select("domain").eq("team_id", team.id).in("domain", part);
-    if (error) return { added: [], dup: [], invalid, error: "Не вдалося перевірити базу: " + error.message };
+    if (error) return { added: [], dup: [], invalid, error: t("err.checkDb", { x: error.message }) };
     (data ?? []).forEach((r: { domain: string }) => existing.add(r.domain));
   }
 
@@ -69,7 +72,7 @@ export async function addToGlobal(_prev: InputResult, formData: FormData): Promi
   });
   for (const part of chunk(rows, 500)) {
     const { error } = await supabase.from("global_donors").insert(part);
-    if (error) return { added: [], dup, invalid, error: "Не вдалося зберегти: " + error.message };
+    if (error) return { added: [], dup, invalid, error: t("err.save", { x: error.message }) };
   }
 
   revalidatePath("/app/global");
@@ -81,20 +84,21 @@ export type FieldResult = { ok: true; value: string | number | null } | { ok: fa
 
 export async function updateGlobalField(id: string, field: EditableField, rawValue: string): Promise<FieldResult> {
   const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
   let value: string | number | null;
 
   if ((NUMERIC_FIELDS as readonly string[]).includes(field)) {
-    const t = rawValue.trim().replace(/\s/g, "").replace(",", ".");
-    if (t === "") value = null;
+    const num = rawValue.trim().replace(/\s/g, "").replace(",", ".");
+    if (num === "") value = null;
     else {
-      const n = Number(t);
-      if (!Number.isFinite(n) || n < 0) return { ok: false, error: "Потрібне число" };
+      const n = Number(num);
+      if (!Number.isFinite(n) || n < 0) return { ok: false, error: t("err.needNumber") };
       value = n;
     }
   } else if ((TEXT_FIELDS as readonly string[]).includes(field)) {
     value = rawValue.trim().slice(0, 200);
   } else {
-    return { ok: false, error: "Це поле не редагується" };
+    return { ok: false, error: t("err.notEditable") };
   }
 
   const { error } = await supabase.from("global_donors").update({ [field]: value }).eq("id", id).eq("team_id", team.id);
@@ -107,6 +111,7 @@ export type CheckResult = { fit: number; drop: number; skipped: number; error?: 
 
 export async function runCheck(filter: MetricFilter): Promise<CheckResult> {
   const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
 
   // Забираем всю базу команды страницами по 1000
   const all: GlobalDonor[] = [];
@@ -158,7 +163,8 @@ export async function importGlobal(
   opts: { prefix: string; updateExisting: boolean; mapped: string[] },
 ): Promise<ImportResult> {
   const { supabase, team } = await getTeamContext();
-  if (rows.length > 5000) return { added: 0, updated: 0, duplicates: 0, invalid: 0, error: "За раз можна до 5000 рядків. Розділіть файл." };
+  const { t } = await getI18n();
+  if (rows.length > 5000) return { added: 0, updated: 0, duplicates: 0, invalid: 0, error: t("err.max5000") };
 
   const metricKeys = (["dr", "keywords", "traffic", "tf", "cf"] as const).filter((k) => opts.mapped.includes(k));
   const textKeys = (["geo", "topics"] as const).filter((k) => opts.mapped.includes(k));
@@ -204,7 +210,7 @@ export async function importGlobal(
     const { error } = await supabase
       .from("global_donors")
       .insert(part.map((domain) => ({ team_id: team.id, domain, batch, price: "", ...parsed.get(domain) })));
-    if (error) return { added: 0, updated: 0, duplicates: 0, invalid, error: "Не вдалося зберегти: " + error.message };
+    if (error) return { added: 0, updated: 0, duplicates: 0, invalid, error: t("err.save", { x: error.message }) };
   }
 
   let updated = 0;
@@ -218,7 +224,7 @@ export async function importGlobal(
         return row;
       });
       const { error } = await supabase.from("global_donors").upsert(payload, { onConflict: "team_id,domain" });
-      if (error) return { added: fresh.length, updated, duplicates: 0, invalid, error: "Не вдалося оновити: " + error.message };
+      if (error) return { added: fresh.length, updated, duplicates: 0, invalid, error: t("err.update", { x: error.message }) };
       updated += part.length;
     }
   }
@@ -230,22 +236,23 @@ export async function importGlobal(
 // ---------- Пакетное сохранение из таблицы (вставка блоком, протягивание) ----------
 export type BatchChange = { id: string; field: string; value: string };
 
-function parseGlobal(field: string, raw: string): { ok: true; value: string | number | null } | { ok: false; error: string } {
+function parseGlobal(field: string, raw: string, t: TFn): { ok: true; value: string | number | null } | { ok: false; error: string } {
   if ((NUMERIC_FIELDS as readonly string[]).includes(field)) {
     const n = toNumber(raw);
-    if (raw.trim() !== "" && (n == null || n < 0)) return { ok: false, error: `«${raw}» — потрібне число` };
+    if (raw.trim() !== "" && (n == null || n < 0)) return { ok: false, error: t("err.cellNumber", { v: raw }) };
     return { ok: true, value: raw.trim() === "" ? null : n };
   }
   if ((TEXT_FIELDS as readonly string[]).includes(field)) return { ok: true, value: raw.trim().slice(0, 200) };
-  return { ok: false, error: "це поле не редагується" };
+  return { ok: false, error: t("err.notEditable") };
 }
 
 export async function updateGlobalBatch(changes: BatchChange[]): Promise<{ ok: boolean; error?: string }> {
-  if (changes.length > 10000) return { ok: false, error: "Забагато змін за раз (до 10 000)." };
   const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
+  if (changes.length > 10000) return { ok: false, error: t("err.tooMany", { n: "10 000" }) };
   const patches = new Map<string, Record<string, string | number | null>>();
   for (const c of changes) {
-    const p = parseGlobal(c.field, c.value);
+    const p = parseGlobal(c.field, c.value, t);
     if (!p.ok) return { ok: false, error: `${c.field}: ${p.error}` };
     patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: p.value });
   }

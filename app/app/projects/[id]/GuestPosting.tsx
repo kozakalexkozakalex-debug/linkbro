@@ -8,15 +8,10 @@ import LinkCheck from "@/components/LinkCheck";
 import DupeBadge from "@/components/DupeBadge";
 import { GP_STATUSES, type ProjectDonor } from "@/lib/project";
 import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, priceFromText } from "@/lib/money";
+import { useI18n } from "@/components/I18nProvider";
 
 const CUR_OPTS = CURRENCIES.map((c) => ({ value: c, label: c }));
-const PAY_OPTS = PAY_STATUSES.map((p) => ({ value: p.value, label: p.label }));
 const GP_OPTS = [{ value: "", label: "—" }, ...GP_STATUSES.map((s) => ({ value: s, label: s }))];
-const INDEX_OPTS = [
-  { value: "", label: "—" },
-  { value: "yes", label: "так" },
-  { value: "no", label: "ні" },
-];
 const SOURCE_OPTS = [{ value: "", label: "—" }, ...SOURCES.map((s) => ({ value: s.name, label: s.name }))];
 
 export default function GuestPosting({
@@ -28,6 +23,16 @@ export default function GuestPosting({
   rows: ProjectDonor[];
   dupes: Record<string, string[]>;
 }) {
+  const { t, intl } = useI18n();
+  const PAY_OPTS = useMemo(() => PAY_STATUSES.map((p) => ({ value: p.value, label: p.key ? t(p.key) : "—" })), [t]);
+  const INDEX_OPTS = useMemo(
+    () => [
+      { value: "", label: "—" },
+      { value: "yes", label: t("common.yes") },
+      { value: "no", label: t("common.no") },
+    ],
+    [t],
+  );
   const columns: SheetCol<ProjectDonor>[] = useMemo(
     () => [
       {
@@ -42,38 +47,38 @@ export default function GuestPosting({
           </span>
         ),
       },
-      { key: "gp_med", header: "Посередник", kind: "text", width: 170, placeholder: "email посередника" },
-      { key: "gp_source", header: "Джерело", kind: "text", width: 110, placeholder: "біржа / напряму" },
+      { key: "gp_med", header: t("med.intermediary"), kind: "text", width: 170, placeholder: t("gp.medPh") },
+      { key: "gp_source", header: t("gp.source"), kind: "text", width: 110, placeholder: t("gp.sourcePh") },
       { key: "gp_price", header: "Price", kind: "number", width: 70, mono: true },
-      { key: "gp_currency", header: "Валюта", kind: "select", width: 70, options: CUR_OPTS },
-      { key: "gp_commission", header: "Комісія %", kind: "number", width: 70, mono: true },
+      { key: "gp_currency", header: t("common.currency"), kind: "select", width: 70, options: CUR_OPTS },
+      { key: "gp_commission", header: t("gp.commission"), kind: "number", width: 70, mono: true },
       {
         key: "real",
-        header: "Реальна ціна",
+        header: t("gp.real"),
         kind: "readonly",
         width: 90,
         render: (_d, v) => {
           const p = priceFromText(v("gp_price"));
           if (p == null) return <span className="text-mute">—</span>;
           const c = Number(v("gp_commission").replace(",", ".")) || 0;
-          return <span className="font-mono">{fmtAmount(p * (1 + c / 100), v("gp_currency") || "USD")}</span>;
+          return <span className="font-mono">{fmtAmount(p * (1 + c / 100), v("gp_currency") || "USD", intl)}</span>;
         },
       },
       {
         key: "pay_status",
-        header: "Оплата",
+        header: t("field.pay"),
         kind: "select",
         width: 110,
         options: PAY_OPTS,
         get: (d) => d.pay_status || (payState(d) === "paid" ? "paid" : ""),
         tone: (v) => (v === "paid" ? "ok" : v === "refund" ? "bad" : v === "due" ? "warn" : ""),
       },
-      { key: "payments", header: "Payments", kind: "text", width: 130, placeholder: "лінк на оплату" },
-      { key: "article_link", header: "Link to the article", kind: "text", width: 150, placeholder: "документ або посилання" },
-      { key: "page_url", header: "Page URL", kind: "text", width: 150, placeholder: "сторінка клієнта" },
-      { key: "anchors", header: "Keywords (Anchor)", kind: "text", width: 140, placeholder: "через кому" },
+      { key: "payments", header: "Payments", kind: "text", width: 130, placeholder: t("gp.paymentsPh") },
+      { key: "article_link", header: "Link to the article", kind: "text", width: 150, placeholder: t("gp.articleLinkPh") },
+      { key: "page_url", header: "Page URL", kind: "text", width: 150, placeholder: t("gp.pagePh") },
+      { key: "anchors", header: "Keywords (Anchor)", kind: "text", width: 140, placeholder: t("gp.anchorsPh") },
       { key: "pre_anchor", header: "Pre-Anchor text", kind: "text", width: 130 },
-      { key: "article_url", header: "Article URL", kind: "text", width: 160, placeholder: "розміщена стаття" },
+      { key: "article_url", header: "Article URL", kind: "text", width: 160, placeholder: t("gp.articlePh") },
       {
         key: "gp_status",
         header: "Status (GP)",
@@ -84,7 +89,7 @@ export default function GuestPosting({
       },
       {
         key: "link",
-        header: "Посилання",
+        header: t("gp.link"),
         kind: "readonly",
         width: 150,
         render: (d) => (
@@ -93,7 +98,7 @@ export default function GuestPosting({
       },
       {
         key: "indexed",
-        header: "Індексація",
+        header: t("gp.indexed"),
         kind: "select",
         width: 80,
         options: INDEX_OPTS,
@@ -102,25 +107,25 @@ export default function GuestPosting({
       },
       {
         key: "guarantee_until",
-        header: "Гарантія до",
+        header: t("gp.guarantee"),
         kind: "date",
         width: 130,
         render: (_d, v) => {
           const val = v("guarantee_until");
-          if (!val) return <span className="sh-ph">дата</span>;
+          if (!val) return <span className="sh-ph">{t("gp.date")}</span>;
           const left = daysLeft(val);
           return (
             <span className="whitespace-nowrap font-mono" suppressHydrationWarning>
               {val.split("-").reverse().join(".")}
               {left != null && (
-                <span className={`pill ml-1 ${left < 0 ? "" : left <= 7 ? "pill-warn" : "pill-ok"}`}>{left < 0 ? "минула" : `${left} дн`}</span>
+                <span className={`pill ml-1 ${left < 0 ? "" : left <= 7 ? "pill-warn" : "pill-ok"}`}>{left < 0 ? t("gp.expired") : t("unit.days", { n: left })}</span>
               )}
             </span>
           );
         },
       },
     ],
-    [dupes, projectId],
+    [dupes, projectId, t, intl, PAY_OPTS, INDEX_OPTS],
   );
 
   const setAll = (ids: string[], field: string, value: string) =>
@@ -129,8 +134,7 @@ export default function GuestPosting({
   return (
     <>
       <p className="text-sm text-mute">
-        Посередник і ціна переносяться з Communication. Реальна ціна = ціна + комісія біржі. Посилання з Article URL перевіряються щодня,
-        кнопка ↻ — одразу. Джерело Collaborator підставляє комісію 10% і гарантію 90 днів.
+        {t("gp.lead")}
       </p>
       <Sheet
         rows={rows}
@@ -138,14 +142,14 @@ export default function GuestPosting({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkSelect label="Оплата" options={PAY_OPTS} onApply={(v) => setAll(ids, "pay_status", v)} />
+            <BulkSelect label={t("field.pay")} options={PAY_OPTS} onApply={(v) => setAll(ids, "pay_status", v)} />
             <BulkSelect label="Status (GP)" options={GP_OPTS} onApply={(v) => setAll(ids, "gp_status", v)} />
-            <BulkSelect label="Валюта" options={CUR_OPTS} onApply={(v) => setAll(ids, "gp_currency", v)} />
-            <BulkSelect label="Джерело" options={SOURCE_OPTS} onApply={(v) => setAll(ids, "gp_source", v)} />
+            <BulkSelect label={t("common.currency")} options={CUR_OPTS} onApply={(v) => setAll(ids, "gp_currency", v)} />
+            <BulkSelect label={t("gp.source")} options={SOURCE_OPTS} onApply={(v) => setAll(ids, "gp_source", v)} />
           </>
         )}
         empty={
-          <div className="card text-center text-mute">Відкривається після статусу Accepted у Communication або Price_ok у Project Core.</div>
+          <div className="card text-center text-mute">{t("gp.empty")}</div>
         }
       />
     </>

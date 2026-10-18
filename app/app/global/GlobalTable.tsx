@@ -6,6 +6,7 @@ import Link from "next/link";
 import { runCheck, updateGlobalBatch } from "./actions";
 import { transferToProjects } from "../projects/actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
+import { useI18n } from "@/components/I18nProvider";
 import { DEFAULT_FILTER, METRICS, fmtDate, fmtDateTime, type GlobalDonor, type MetricFilter } from "@/lib/global";
 
 const STATUS = {
@@ -25,6 +26,7 @@ function ratio(v: (k: string) => string) {
 
 export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[] }) {
   const router = useRouter();
+  const { t, intl } = useI18n();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<MetricFilter>(DEFAULT_FILTER);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -48,7 +50,7 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         kind: "readonly",
         width: 130,
         render: (d) => (
-          <span className={`date-chip ${d.batch % 2 ? "date-odd" : "date-even"}`} title={`Ітерація ${d.batch}`}>{fmtDateTime(d.added_at)}</span>
+          <span className={`date-chip ${d.batch % 2 ? "date-odd" : "date-even"}`} title={t("global.batch", { n: d.batch })}>{fmtDateTime(d.added_at, intl)}</span>
         ),
       },
       { key: "dr", header: "DR", kind: "number", width: 60, mono: true },
@@ -66,13 +68,13 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         kind: "readonly",
         width: 70,
         render: (d) => (
-          <span className={`pill ${STATUS[d.status].cls}`} title={d.checked_at ? `Перевірено ${fmtDate(d.checked_at)}` : "Ще не перевірявся"}>
+          <span className={`pill ${STATUS[d.status].cls}`} title={d.checked_at ? t("global.checkedAt", { date: fmtDate(d.checked_at, intl) }) : t("global.notChecked")}>
             {STATUS[d.status].label}
           </span>
         ),
       },
     ],
-    [],
+    [t, intl],
   );
 
   function check() {
@@ -84,8 +86,8 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
     startCheck(async () => {
       const r = await runCheck(filter);
       setOpen(false);
-      if (r.error) setMsg({ text: "Помилка перевірки: " + r.error, bad: true });
-      else setMsg({ text: `FIT: ${r.fit} · DROP: ${r.drop} · лишились NEW (не всі метрики): ${r.skipped}` });
+      if (r.error) setMsg({ text: t("global.checkError", { x: r.error }), bad: true });
+      else setMsg({ text: t("global.checkResult", { fit: r.fit, drop: r.drop, skipped: r.skipped }) });
       router.refresh();
     });
   }
@@ -93,14 +95,14 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
   function transfer() {
     startCheck(async () => {
       const r = await transferToProjects();
-      if (r.error) setMsg({ text: "Помилка передачі: " + r.error, bad: true });
-      else if (r.report.length === 0) setMsg({ text: "Спочатку створіть проєкт.", bad: true });
+      if (r.error) setMsg({ text: t("global.transferError", { x: r.error }), bad: true });
+      else if (r.report.length === 0) setMsg({ text: t("global.needProject"), bad: true });
       else
         setMsg({
           text:
-            "Передано у проєкти. " +
-            r.report.map((p) => `${p.name}: додано ${p.added}, не пройшли фільтр проєкту ${p.filtered}, вже в проєкті або в стоп-листі ${p.stopped}`).join(" · ") +
-            (r.report.some((p) => p.filtered > 0) ? ". Фільтр проєкту — у Профілі проєкту." : ""),
+            t("global.transferred") + " " +
+            r.report.map((p) => t("global.transferRow", { name: p.name, added: p.added, filtered: p.filtered, stopped: p.stopped })).join(" · ") +
+            (r.report.some((p) => p.filtered > 0) ? ". " + t("global.filterInProfile") : ""),
         });
       router.refresh();
     });
@@ -111,7 +113,7 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-pri" onClick={() => setOpen(true)}>CHECK</button>
         <button type="button" className="btn" onClick={transfer} disabled={checking}>
-          Передати у проєкти
+          {t("global.transfer")}
         </button>
       </div>
 
@@ -124,20 +126,19 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         refreshAfterSave={false}
         empty={
           <div className="card text-center text-mute">
-            Тут поки порожньо. <Link href="/app/input" className="underline">Додайте донорів через Інпут</Link> або{" "}
-            <Link href="/app/import" className="underline">імпорт CSV</Link>.
+            {t("global.empty")} <Link href="/app/input" className="underline">{t("global.emptyInput")}</Link> {t("common.or")}{" "}
+            <Link href="/app/import" className="underline">{t("global.emptyImport")}</Link>.
           </div>
         }
       />
 
       {open && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <div className="card flex w-full max-w-md flex-col gap-4" role="dialog" aria-label="Фільтр Global">
+          <div className="card flex w-full max-w-md flex-col gap-4" role="dialog" aria-label={t("global.filterTitle")}>
             <div>
-              <h2 className="font-display text-lg font-medium">Налаштування фільтра Global</h2>
+              <h2 className="font-display text-lg font-medium">{t("global.filterTitle")}</h2>
               <p className="mt-1 text-sm text-mute">
-                NEW → FIT / DROP. Порожній Max означає «без верхньої межі». Якщо хоч одна метрика не заповнена, донор лишається NEW.
-                GEO і Topics у фільтрі не беруть участі.
+                {t("global.filterHint")}
               </p>
             </div>
             <div className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
@@ -163,9 +164,9 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-pri" onClick={check} disabled={checking}>
-                {checking ? "Перевіряю…" : "Запустити"}
+                {checking ? t("global.checking") : t("common.run")}
               </button>
-              <button type="button" className="btn" onClick={() => setOpen(false)}>Скасувати</button>
+              <button type="button" className="btn" onClick={() => setOpen(false)}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>

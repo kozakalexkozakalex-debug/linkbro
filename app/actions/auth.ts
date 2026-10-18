@@ -4,14 +4,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/team";
 
+// Ошибки Supabase → ключ словаря (текст подставит страница на языке пользователя)
 function translate(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("invalid login credentials")) return "Невірна пошта або пароль.";
-  if (m.includes("already registered") || m.includes("already been registered")) return "Ця пошта вже зареєстрована. Увійдіть.";
-  if (m.includes("password") && m.includes("6")) return "Пароль має бути не коротший за 6 символів.";
-  if (m.includes("email not confirmed")) return "Пошту ще не підтверджено. Перевірте лист від Supabase.";
-  if (m.includes("rate limit")) return "Забагато спроб. Зачекайте хвилину й спробуйте ще раз.";
-  if (m.includes("invalid") && m.includes("email")) return "Перевірте адресу пошти.";
+  if (m.includes("invalid login credentials")) return "auth.err.badLogin";
+  if (m.includes("already registered") || m.includes("already been registered")) return "auth.err.exists";
+  if (m.includes("password") && m.includes("6")) return "auth.err.shortPassword";
+  if (m.includes("email not confirmed")) return "auth.err.notConfirmed";
+  if (m.includes("rate limit")) return "auth.err.rateLimit";
+  if (m.includes("invalid") && m.includes("email")) return "auth.err.badEmail";
   return message;
 }
 
@@ -38,7 +39,7 @@ export async function signUp(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = safeNext(formData.get("next"));
 
-  if (password.length < 6) back("signup", next, "Пароль має бути не коротший за 6 символів.");
+  if (password.length < 6) back("signup", next, "auth.err.shortPassword");
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -50,7 +51,7 @@ export async function signUp(formData: FormData) {
 
   // Если в Supabase включено подтверждение почты, сессии ещё нет.
   if (!data.session) {
-    const q = new URLSearchParams({ mode: "login", next, info: "Ми надіслали лист для підтвердження пошти. Підтвердіть і увійдіть." });
+    const q = new URLSearchParams({ mode: "login", next, info: "auth.confirmSent" });
     redirect(`/login?${q.toString()}`);
   }
 

@@ -3,8 +3,10 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { addToGlobal, type InputResult } from "../global/actions";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function InputForm() {
+  const { t } = useI18n();
   const [result, action, pending] = useActionState<InputResult, FormData>(addToGlobal, null);
 
   return (
@@ -21,13 +23,13 @@ export default function InputForm() {
           />
         </div>
         <div className="field max-w-xs">
-          <label htmlFor="prefix" className="lbl">Префікс ціни (звідки ціна)</label>
-          <input id="prefix" name="prefix" className="inp" placeholder="Наприклад, PRnews" maxLength={40} />
-          <span className="text-xs text-mute">Ціна збережеться як «PRnews 1500». Можна лишити порожнім.</span>
+          <label htmlFor="prefix" className="lbl">{t("input.prefix")}</label>
+          <input id="prefix" name="prefix" className="inp" placeholder={t("input.prefixPh")} maxLength={40} />
+          <span className="text-xs text-mute">{t("input.prefixHint")}</span>
         </div>
         <div>
           <button type="submit" className="btn btn-pri" disabled={pending}>
-            {pending ? "Передаю…" : "Передати у глобал"}
+            {pending ? t("input.sending") : t("input.send")}
           </button>
         </div>
       </form>
@@ -37,16 +39,16 @@ export default function InputForm() {
       {result && !result.error && (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="card">
-            <p className="lbl mb-2">Додано: {result.added.length}</p>
+            <p className="lbl mb-2">{t("input.added", { n: result.added.length })}</p>
             <ul className="font-mono text-sm">
               {result.added.map((d) => <li key={d}>{d}</li>)}
             </ul>
             {result.added.length > 0 && (
-              <Link href="/app/global" className="btn btn-sm mt-3">Відкрити глобальну базу</Link>
+              <Link href="/app/global" className="btn btn-sm mt-3">{t("input.openGlobal")}</Link>
             )}
           </div>
           <div className="card">
-            <p className="lbl mb-2">Вже були в базі: {result.dup.length}</p>
+            <p className="lbl mb-2">{t("input.dup", { n: result.dup.length })}</p>
             <ul className="font-mono text-sm text-mute">
               {result.dup.map((d) => <li key={d}>{d}</li>)}
             </ul>
@@ -56,7 +58,7 @@ export default function InputForm() {
 
       {result && result.invalid.length > 0 && (
         <div className="card">
-          <p className="lbl mb-2">Не схоже на домен, пропущено: {result.invalid.length}</p>
+          <p className="lbl mb-2">{t("input.invalid", { n: result.invalid.length })}</p>
           <ul className="font-mono text-sm text-bad">
             {result.invalid.map((d, i) => <li key={i}>{d}</li>)}
           </ul>

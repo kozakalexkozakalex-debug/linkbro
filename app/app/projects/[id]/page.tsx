@@ -11,6 +11,8 @@ import Core from "./Core";
 import Comm, { type MedBusy } from "./Comm";
 import GuestPosting from "./GuestPosting";
 import Profile from "./Profile";
+import { getI18n } from "@/lib/i18n/server";
+import type { MsgKey } from "@/lib/i18n/config";
 
 type Params = Promise<{ id: string }>;
 type Search = Promise<{ tab?: string; mine?: string; q?: string; error?: string; saved?: string }>;
@@ -20,21 +22,21 @@ const TABS = [
   { key: "core", label: "Project Core" },
   { key: "comm", label: "Communication" },
   { key: "gp", label: "Guest Posting" },
-  { key: "history", label: "Історія" },
-  { key: "profile", label: "Профіль" },
+  { key: "history", label: "" },
+  { key: "profile", label: "" },
 ] as const;
 
-const FIELD_LABEL: Record<string, string> = {
-  fg_status: "From Global",
-  core_status: "Статус Core",
-  comm_status: "Статус комунікації",
-  gp_status: "Статус GP",
-  assignee: "Відповідальний",
-  pay_status: "Оплата",
-  gp_price: "Ціна",
-  gp_currency: "Валюта",
-  link_status: "Перевірка посилання",
-  indicator: "Індикатор",
+const FIELD_LABEL: Record<string, MsgKey> = {
+  fg_status: "field.fg",
+  core_status: "field.core",
+  comm_status: "field.comm",
+  gp_status: "field.gp",
+  assignee: "common.assignee",
+  pay_status: "field.pay",
+  gp_price: "common.price",
+  gp_currency: "common.currency",
+  link_status: "field.link",
+  indicator: "field.indicator",
 };
 
 type OtherRow = {
@@ -56,10 +58,11 @@ type LogRow = { id: number; domain: string | null; user_id: string | null; field
 export default async function ProjectPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const { id } = await params;
   const sp = await searchParams;
-  const tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as string) : "fg";
+  const tab = TABS.some((x) => x.key === sp.tab) ? (sp.tab as string) : "fg";
   const mine = sp.mine === "1";
   const q = (sp.q ?? "").trim().toLowerCase();
   const { supabase, team, user } = await getTeamContext();
+  const { t, intl } = await getI18n();
 
   const { data: projectData } = await supabase
     .from("projects")
@@ -100,9 +103,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
         .in("domain", part);
       for (const o of (data ?? []) as OtherRow[]) {
         if (!(o.in_comm || o.in_gp || o.fg_status === "core")) continue;
-        const stage = o.core_status === "Published" ? "опубліковано" : o.in_gp ? "Guest Posting" : o.in_comm ? "Communication" : "Core";
+        const stage = o.core_status === "Published" ? t("proj.stagePublished") : o.in_gp ? "Guest Posting" : o.in_comm ? "Communication" : "Core";
         const who = o.assignee ? ` · ${memberName.get(o.assignee) ?? "?"}` : "";
-        (dupes[o.domain] ??= []).push(`${projectName.get(o.project_id) ?? "Проєкт"} · ${stage}${who}`);
+        (dupes[o.domain] ??= []).push(`${projectName.get(o.project_id) ?? t("common.project")} · ${stage}${who}`);
       }
     }
   }
@@ -123,7 +126,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
         (medBusy[o.med_base] ??= []).push({
           donorId: o.id,
           assignee: o.assignee,
-          label: `${o.assignee ? memberName.get(o.assignee) ?? "?" : "без відповідального"} · ${projectName.get(o.project_id) ?? ""} · ${o.domain}`,
+          label: `${o.assignee ? memberName.get(o.assignee) ?? "?" : t("common.withoutAssignee")} · ${projectName.get(o.project_id) ?? ""} · ${o.domain}`,
         });
       }
     }
@@ -139,8 +142,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
     profile: null,
   };
 
-  const qs = (t: string, m = mine) => {
-    const p = new URLSearchParams({ tab: t });
+  const qs = (tb: string, m = mine) => {
+    const p = new URLSearchParams({ tab: tb });
     if (m) p.set("mine", "1");
     if (q) p.set("q", q);
     return `/app/projects/${id}?${p.toString()}`;
@@ -205,34 +208,34 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
             <form className="flex gap-1" action={`/app/projects/${id}`}>
               <input type="hidden" name="tab" value={tab} />
               {mine && <input type="hidden" name="mine" value="1" />}
-              <label htmlFor="pq" className="sr-only">Пошук домену</label>
-              <input id="pq" name="q" defaultValue={q} className="inp w-44" placeholder="пошук домену" />
-              <button type="submit" className="btn btn-sm">Знайти</button>
+              <label htmlFor="pq" className="sr-only">{t("common.searchDomain")}</label>
+              <input id="pq" name="q" defaultValue={q} className="inp w-44" placeholder={t("common.searchDomain")} />
+              <button type="submit" className="btn btn-sm">{t("common.find")}</button>
             </form>
             <Link href={qs(tab, !mine)} className={`btn btn-sm ${mine ? "btn-pri" : ""}`}>
-              {mine ? "Показано: мої донори" : "Показати тільки мої"}
+              {mine ? t("proj.mineOn") : t("proj.mineOff")}
             </Link>
-            <a href={`/api/export?type=project&id=${id}`} className="btn btn-sm">Експорт CSV</a>
+            <a href={`/api/export?type=project&id=${id}`} className="btn btn-sm">{t("common.exportCsv")}</a>
           </div>
         )}
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((t) => (
-          <Link key={t.key} href={qs(t.key)} className={`tab whitespace-nowrap ${tab === t.key ? "tab-on" : ""}`}>
-            {t.label}
-            {counts[t.key] != null && <span className="ml-1 font-mono text-xs">{counts[t.key]}</span>}
+        {TABS.map((tb) => (
+          <Link key={tb.key} href={qs(tb.key)} className={`tab whitespace-nowrap ${tab === tb.key ? "tab-on" : ""}`}>
+            {tb.label || (tb.key === "history" ? t("proj.tabHistory") : t("proj.tabProfile"))}
+            {counts[tb.key] != null && <span className="ml-1 font-mono text-xs">{counts[tb.key]}</span>}
           </Link>
         ))}
       </div>
 
       {q && (
         <p className="text-sm text-mute">
-          Пошук: «{q}» · <Link href={qs(tab).replace(/&q=[^&]*/, "")} className="underline">скинути</Link>
+          {t("proj.searchFor", { q })} · <Link href={qs(tab).replace(/&q=[^&]*/, "")} className="underline">{t("common.reset").toLowerCase()}</Link>
         </p>
       )}
-      {sp.error && <p className="note note-bad" role="alert">{sp.error}</p>}
-      {sp.saved && <p className="note note-ok" role="status">Збережено.</p>}
+      {sp.error && <p className="note note-bad" role="alert">{t(sp.error as MsgKey)}</p>}
+      {sp.saved && <p className="note note-ok" role="status">{t("common.saved")}</p>}
 
       {tab === "fg" && <FromGlobal projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
       {tab === "core" && (
@@ -247,21 +250,21 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr>{["Коли", "Хто", "Донор", "Що змінено", "Було", "Стало"].map((c) => <th key={c}>{c}</th>)}</tr>
+              <tr>{(["hist.when", "hist.who", "med.donor", "hist.what", "hist.before", "hist.after"] as const).map((c) => <th key={c}>{t(c)}</th>)}</tr>
             </thead>
             <tbody>
               {log.map((l) => (
                 <tr key={l.id}>
-                  <td className="font-mono whitespace-nowrap">{fmtDateTime(l.created_at)}</td>
-                  <td className="whitespace-nowrap">{l.user_id ? memberName.get(l.user_id) ?? "?" : "система"}</td>
+                  <td className="font-mono whitespace-nowrap">{fmtDateTime(l.created_at, intl)}</td>
+                  <td className="whitespace-nowrap">{l.user_id ? memberName.get(l.user_id) ?? "?" : t("hist.system")}</td>
                   <td className="font-mono">{l.domain}</td>
-                  <td>{FIELD_LABEL[l.field] ?? l.field}</td>
+                  <td>{FIELD_LABEL[l.field] ? t(FIELD_LABEL[l.field]) : l.field}</td>
                   <td className="text-mute">{showValue(l.field, l.old_value)}</td>
                   <td>{showValue(l.field, l.new_value)}</td>
                 </tr>
               ))}
               {log.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-mute">Змін ще не було.</td></tr>
+                <tr><td colSpan={6} className="text-center text-mute">{t("hist.empty")}</td></tr>
               )}
             </tbody>
           </table>

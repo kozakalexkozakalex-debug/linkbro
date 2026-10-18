@@ -35,7 +35,7 @@ export function MonthBars({
         <g>
           <line x1="0" x2={W} y1={y(target)} y2={y(target)} stroke="var(--mute)" strokeWidth="1.5" strokeDasharray="5 4" />
           <text x={W - 4} y={y(target) - 5} textAnchor="end" fontSize="11" fill="var(--mute)">
-            {targetLabel ?? "план"} {format(target)}
+            {targetLabel ?? ""} {format(target)}
           </text>
         </g>
       )}
@@ -118,12 +118,14 @@ export function Kpi({
   sub,
   delta,
   goodWhenUp = true,
+  vs = "",
 }: {
   label: string;
   value: string;
   sub?: string;
   delta?: number | null;
   goodWhenUp?: boolean;
+  vs?: string;
 }) {
   let deltaEl = null;
   if (delta != null && Number.isFinite(delta) && delta !== 0) {
@@ -131,7 +133,7 @@ export function Kpi({
     const good = up === goodWhenUp;
     deltaEl = (
       <span className={`pill ${good ? "pill-ok" : "pill-bad"}`}>
-        {up ? "▲" : "▼"} {Math.abs(Math.round(delta))}% до мин. міс.
+        {up ? "▲" : "▼"} {Math.abs(Math.round(delta))}% {vs}
       </span>
     );
   }

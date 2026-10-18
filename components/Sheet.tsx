@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { buildClear, buildFill, buildPaste, norm, parseClipboard, toTsv, type CellChange, type GridCol, type Opt, type Range } from "@/lib/sheet";
+import { useI18n } from "@/components/I18nProvider";
 
 export type { CellChange, Opt };
 
@@ -45,6 +46,7 @@ export default function Sheet<T extends { id: string }>({
   empty?: ReactNode;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const wrap = useRef<HTMLDivElement>(null);
   const [pending, start] = useTransition();
 
@@ -121,9 +123,9 @@ export default function Sheet<T extends { id: string }>({
       const res = await onSave(real);
       if (!res.ok) {
         setVals(before);
-        setMsg({ text: res.error ?? "Не вдалося зберегти", bad: true });
+        setMsg({ text: res.error ?? t("sheet.saveFailed"), bad: true });
       } else {
-        if (real.length > 1) setMsg({ text: `Збережено змін: ${real.length}` });
+        if (real.length > 1) setMsg({ text: t("sheet.saved", { n: real.length }) });
         if (refreshAfterSave) router.refresh();
       }
     });
@@ -233,7 +235,7 @@ export default function Sheet<T extends { id: string }>({
     if (!text) return;
     e.preventDefault();
     const { changes, skipped } = buildPaste(parseClipboard(text), range, ids, grid, optionsFor);
-    if (skipped) setMsg({ text: `Пропущено клітинок: ${skipped} (не редагуються або значення не зі списку)`, bad: true });
+    if (skipped) setMsg({ text: t("sheet.skipped", { n: skipped }), bad: true });
     commit(changes);
   }
 
@@ -251,7 +253,7 @@ export default function Sheet<T extends { id: string }>({
     setChecked((s) => new Set([...s].filter((id) => ids.includes(id))));
   }, [ids]);
 
-  if (rows.length === 0) return <>{empty ?? <div className="card text-center text-mute">Немає даних.</div>}</>;
+  if (rows.length === 0) return <>{empty ?? <div className="card text-center text-mute">{t("common.noData")}</div>}</>;
 
   const fillRange = range && fillTo != null && fillTo > range.r1 ? { r0: range.r1 + 1, r1: fillTo, c0: range.c0, c1: range.c1 } : null;
 
@@ -259,15 +261,15 @@ export default function Sheet<T extends { id: string }>({
     <div className="flex flex-col gap-2">
       {bulk && checked.size > 0 && (
         <div className="bulk-bar">
-          <b>Вибрано: {checked.size}</b>
+          <b>{t("sheet.selected", { n: checked.size })}</b>
           {bulk([...checked], clear)}
-          <button type="button" className="btn btn-sm" onClick={clear}>Зняти виділення</button>
+          <button type="button" className="btn btn-sm" onClick={clear}>{t("sheet.clearSel")}</button>
         </div>
       )}
       {msg && (
         <p className={`note ${msg.bad ? "note-bad" : "note-ok"} flex items-center justify-between gap-2`} role="status">
           <span>{msg.text}</span>
-          <button type="button" className="text-xs underline" onClick={() => setMsg(null)}>сховати</button>
+          <button type="button" className="text-xs underline" onClick={() => setMsg(null)}>{t("common.hide")}</button>
         </p>
       )}
       <div
@@ -277,7 +279,7 @@ export default function Sheet<T extends { id: string }>({
         onKeyDown={onKeyDown}
         onCopy={onCopy}
         onPaste={onPaste}
-        aria-label="Таблиця. Стрілки — рух, Enter — редагування, Ctrl+V — вставка блоком"
+        aria-label={t("sheet.aria")}
       >
         <table className="tbl">
           <thead>
@@ -286,7 +288,7 @@ export default function Sheet<T extends { id: string }>({
                 <th className="sh-check">
                   <input
                     type="checkbox"
-                    aria-label="Вибрати всі"
+                    aria-label={t("sheet.selectAll")}
                     checked={allChecked}
                     onChange={() => setChecked(allChecked ? new Set() : new Set(ids))}
                   />
@@ -302,7 +304,7 @@ export default function Sheet<T extends { id: string }>({
               <tr key={row.id} className={checked.has(row.id) ? "sh-row-checked" : undefined}>
                 {bulk && (
                   <td className="sh-check">
-                    <input type="checkbox" aria-label="Вибрати рядок" checked={checked.has(row.id)} onChange={() => toggle(row.id)} />
+                    <input type="checkbox" aria-label={t("sheet.selectRow")} checked={checked.has(row.id)} onChange={() => toggle(row.id)} />
                   </td>
                 )}
                 {columns.map((col, c) => {
@@ -393,7 +395,7 @@ export default function Sheet<T extends { id: string }>({
                       {corner && (
                         <span
                           className="sh-handle"
-                          title="Потягніть вниз, щоб скопіювати"
+                          title={t("sheet.fill")}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -412,8 +414,7 @@ export default function Sheet<T extends { id: string }>({
         </table>
       </div>
       <p className="text-xs text-mute">
-        Клік — вибрати, Shift / протягування мишею — діапазон, Enter або подвійний клік — редагувати, Ctrl+C / Ctrl+V — копіювати й
-        вставляти блоком з Google Sheets, квадратик у куті — протягнути вниз, Delete — очистити.
+        {t("sheet.help")}
       </p>
     </div>
   );

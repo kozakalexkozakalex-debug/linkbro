@@ -1,3 +1,4 @@
+// Заметка хранится кодом "lc.key|параметр", текст подставляется на языке интерфейса (noteText).
 // Проверка опубликованной ссылки: страница открывается, ссылка на месте,
 // нет nofollow/sponsored/ugc, страница не закрыта от индексации, анкор совпадает.
 import { normalizeDomain } from "@/lib/global";
@@ -42,9 +43,9 @@ function withProtocol(u: string): string {
 }
 
 export async function checkLink(articleUrl: string, pageUrl: string, anchors: string): Promise<CheckOutcome> {
-  if (!articleUrl.trim()) return { status: "error", note: "Немає Article URL" };
+  if (!articleUrl.trim()) return { status: "error", note: "lc.noArticle" };
   const target = targetOf(pageUrl);
-  if (!target) return { status: "error", note: "Немає або неправильний Page URL" };
+  if (!target) return { status: "error", note: "lc.noPage" };
 
   let res: Response;
   const ctrl = new AbortController();
@@ -57,14 +58,14 @@ export async function checkLink(articleUrl: string, pageUrl: string, anchors: st
       cache: "no-store",
     });
   } catch {
-    return { status: "blocked", note: "Сайт не відповів за 12 секунд" };
+    return { status: "blocked", note: "lc.timeout" };
   } finally {
     clearTimeout(timer);
   }
 
-  if (res.status === 404 || res.status === 410) return { status: "missing", note: `Сторінка статті не знайдена (${res.status})` };
-  if ([401, 403, 429, 503].includes(res.status)) return { status: "blocked", note: `Сайт блокує автоматичну перевірку (${res.status}). Перевірте вручну.` };
-  if (res.status >= 400) return { status: "error", note: `Сторінка віддає помилку ${res.status}` };
+  if (res.status === 404 || res.status === 410) return { status: "missing", note: `lc.notFound|${res.status}` };
+  if ([401, 403, 429, 503].includes(res.status)) return { status: "blocked", note: `lc.blocked|${res.status}` };
+  if (res.status >= 400) return { status: "error", note: `lc.http|${res.status}` };
 
   const html = (await res.text()).slice(0, 3_000_000);
 
@@ -91,19 +92,26 @@ export async function checkLink(articleUrl: string, pageUrl: string, anchors: st
     found.push({ rel, text: decode(m[2]) });
   }
 
-  if (found.length === 0) return { status: "missing", note: "Посилання на вашу сторінку не знайдено на сторінці статті" };
-  if (noindex) return { status: "noindex", note: "Сторінка статті закрита від індексації (noindex)" };
+  if (found.length === 0) return { status: "missing", note: "lc.linkMissing" };
+  if (noindex) return { status: "noindex", note: "lc.noindex" };
 
   const clean = found.filter((f) => !/\b(nofollow|sponsored|ugc)\b/.test(f.rel));
-  if (clean.length === 0) return { status: "nofollow", note: `rel="${found[0].rel}"` };
+  if (clean.length === 0) return { status: "nofollow", note: `lc.rel|${found[0].rel}` };
 
   const expected = anchors
     .split(/[,;|\n]+/)
     .map((a) => decode(a))
     .filter(Boolean);
   if (expected.length > 0 && !clean.some((f) => expected.some((a) => f.text.includes(a)))) {
-    return { status: "anchor", note: `Анкор на сторінці: «${clean[0].text.slice(0, 80)}»` };
+    return { status: "anchor", note: `lc.anchor|${clean[0].text.slice(0, 80)}` };
   }
 
   return { status: "ok", note: "" };
+}
+
+// Код заметки → текст на языке интерфейса. Старые заметки (обычный текст) показываются как есть.
+export function noteText(note: string, t: import("@/lib/i18n/config").TFn): string {
+  const m = note.match(/^(lc\.[a-zA-Z]+)(?:\|([\s\S]*))?$/);
+  if (!m) return note;
+  return t(m[1] as import("@/lib/i18n/config").MsgKey, { x: m[2] ?? "" });
 }

@@ -21,10 +21,10 @@ export function shiftMonth(key: string, by: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function monthLabel(key: string, style: "long" | "short" = "long"): string {
+export function monthLabel(key: string, style: "long" | "short" = "long", intl = "uk-UA"): string {
   const [y, m] = key.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1, 15));
-  return new Intl.DateTimeFormat("uk-UA", { month: style, year: style === "long" ? "numeric" : undefined, timeZone: "UTC" }).format(d);
+  return new Intl.DateTimeFormat(intl, { month: style, year: style === "long" ? "numeric" : undefined, timeZone: "UTC" }).format(d);
 }
 
 export function isValidMonth(s: string | undefined): s is string {

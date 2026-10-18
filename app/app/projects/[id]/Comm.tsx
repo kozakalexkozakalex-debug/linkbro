@@ -8,6 +8,7 @@ import { AddStatus, BulkSelect } from "@/components/BulkTools";
 import CopyButton from "@/components/CopyButton";
 import DupeBadge from "@/components/DupeBadge";
 import { COMM_BAD, COMM_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
+import { useI18n } from "@/components/I18nProvider";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
 
@@ -15,7 +16,6 @@ const TEMPLATE_KEY = "linkbro.mailTemplate";
 const DEFAULT_TEMPLATE =
   "Hi!\n\nI'm interested in publishing a guest post on {domains}.\nCould you share your current terms and price?\n\nThanks!";
 
-const IND_OPTS = [{ value: "", label: "—" }, ...INDICATORS.map((i) => ({ value: i.value, label: i.label }))];
 
 export default function Comm({
   projectId,
@@ -33,6 +33,8 @@ export default function Comm({
   medBusy: MedBusy;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const IND_OPTS = useMemo(() => [{ value: "", label: "—" }, ...INDICATORS.map((i) => ({ value: i.value, label: t(i.key) }))], [t]);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [busy, start] = useTransition();
   const [draftsOpen, setDraftsOpen] = useState(false);
@@ -64,7 +66,7 @@ export default function Comm({
       },
       {
         key: "med_base",
-        header: "Посередник (БАЗА)",
+        header: t("comm.medBase"),
         kind: "readonly",
         width: 190,
         get: (d) => d.med_base,
@@ -72,18 +74,18 @@ export default function Comm({
           <span className="whitespace-nowrap">
             <span className="inline-block max-w-44 truncate align-middle">{d.med_base || <span className="text-mute">—</span>}</span>
             <DupeBadge
-              label="посередник у"
+              label={t("comm.medIn")}
               items={(medBusy[d.med_base] ?? []).filter((x) => x.donorId !== d.id && x.assignee !== d.assignee).map((x) => x.label)}
             />
           </span>
         ),
       },
-      { key: "med_add", header: "Посередник (ДОДАТИ)", kind: "text", width: 180, placeholder: "email або контакт" },
-      { key: "price_base", header: "Ціна (БАЗА)", kind: "readonly", width: 90, get: (d) => d.price_base || "—" },
-      { key: "price_add", header: "Ціна (ДОДАТИ)", kind: "text", width: 90 },
+      { key: "med_add", header: t("comm.medAdd"), kind: "text", width: 180, placeholder: t("med.contactPh") },
+      { key: "price_base", header: t("comm.priceBase"), kind: "readonly", width: 90, get: (d) => d.price_base || "—" },
+      { key: "price_add", header: t("comm.priceAdd"), kind: "text", width: 90 },
       {
         key: "indicator",
-        header: "Індикатор",
+        header: t("field.indicator"),
         kind: "select",
         width: 150,
         options: IND_OPTS,
@@ -97,14 +99,14 @@ export default function Comm({
           return (
             <span className={`pill ${tone}`} suppressHydrationWarning>
               {label}
-              {hrs != null && val !== "replied" ? ` (${ageLabel(hrs)})` : ""}
+              {hrs != null && val !== "replied" ? ` (${ageLabel(hrs, t)})` : ""}
             </span>
           );
         },
       },
       {
         key: "comm_status",
-        header: "Статус (Комунікація)",
+        header: t("comm.status"),
         kind: "select",
         width: 140,
         options: commOpts,
@@ -112,23 +114,23 @@ export default function Comm({
       },
       {
         key: "dialog",
-        header: "Діалог",
+        header: t("comm.dialog"),
         kind: "text",
         width: 150,
-        placeholder: "посилання на лист",
+        placeholder: t("comm.dialogPh"),
         render: (_d, v) => {
           const url = v("dialog");
-          if (!url) return <span className="sh-ph">посилання на лист</span>;
+          if (!url) return <span className="sh-ph">{t("comm.dialogPh")}</span>;
           return /^https?:\/\//.test(url) ? (
-            <a href={url} target="_blank" rel="noreferrer" className="underline">відкрити ↗</a>
+            <a href={url} target="_blank" rel="noreferrer" className="underline">{t("comm.openLink")}</a>
           ) : (
             <span className="sh-text">{url}</span>
           );
         },
       },
-      { key: "assignee", header: "Відповідальний", kind: "select", width: 140, options: memberOpts },
+      { key: "assignee", header: t("common.assignee"), kind: "select", width: 140, options: memberOpts },
     ],
-    [dupes, medBusy, commOpts, memberOpts],
+    [dupes, medBusy, commOpts, memberOpts, IND_OPTS, t],
   );
 
   // Черновики: донорам с посредником, кому ещё не писали. Один посредник — одно письмо.
@@ -146,8 +148,8 @@ export default function Comm({
   function sync() {
     start(async () => {
       const r = await syncIntermediaries(projectId);
-      if (r.error) setMsg({ text: "Помилка синхронізації: " + r.error, bad: true });
-      else setMsg({ text: `Синхронізовано. Записано в базу посередників: ${r.wrote}, підтягнуто з бази: ${r.found}.` });
+      if (r.error) setMsg({ text: t("comm.syncError", { x: r.error }), bad: true });
+      else setMsg({ text: t("comm.synced", { wrote: r.wrote, found: r.found }) });
       router.refresh();
     });
   }
@@ -157,7 +159,7 @@ export default function Comm({
     start(async () => {
       const r = await markContacted(projectId, ids);
       setDraftsOpen(false);
-      if (r.ok) setMsg({ text: `Позначено як відправлені: ${ids.length}. Статус Contacted виставлено автоматично.` });
+      if (r.ok) setMsg({ text: t("comm.marked", { n: ids.length }) });
       else setMsg({ text: r.error, bad: true });
       router.refresh();
     });
@@ -178,16 +180,15 @@ export default function Comm({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn" onClick={sync} disabled={busy}>Синхронізація</button>
+        <button type="button" className="btn" onClick={sync} disabled={busy}>{t("comm.sync")}</button>
         <button type="button" className="btn btn-pri" onClick={() => setDraftsOpen(true)} disabled={busy}>
-          Сформувати листи{groups.length ? ` (${groups.length})` : ""}
+          {t("comm.drafts")}{groups.length ? ` (${groups.length})` : ""}
         </button>
-        <button type="button" className="btn" disabled title="Версія 2">Snov.io</button>
-        <AddStatus kinds={[{ value: "comm", label: "Комунікація" }]} />
+        <button type="button" className="btn" disabled title={t("common.v2")}>Snov.io</button>
+        <AddStatus kinds={[{ value: "comm", label: t("comm.kind") }]} />
       </div>
       <p className="text-sm text-mute">
-        «Синхронізація»: порожні поля (БАЗА) підтягуються з бази посередників, а заповнені (ДОДАТИ) записуються в базу. «Accepted»
-        переводить донора в Guest Posting.
+        {t("comm.lead")}
       </p>
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}
@@ -198,33 +199,32 @@ export default function Comm({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkSelect label="Індикатор" options={IND_OPTS} onApply={(v) => setAll(ids, "indicator", v)} />
-            <BulkSelect label="Статус" options={commOpts} onApply={(v) => setAll(ids, "comm_status", v)} />
-            <BulkSelect label="Відповідальний" options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />
+            <BulkSelect label={t("field.indicator")} options={IND_OPTS} onApply={(v) => setAll(ids, "indicator", v)} />
+            <BulkSelect label={t("common.status")} options={commOpts} onApply={(v) => setAll(ids, "comm_status", v)} />
+            <BulkSelect label={t("common.assignee")} options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />
           </>
         )}
-        empty={<div className="card text-center text-mute">Сюди потрапляють донори зі статусом «In communication» у Project Core.</div>}
+        empty={<div className="card text-center text-mute">{t("comm.empty")}</div>}
       />
 
       {draftsOpen && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setDraftsOpen(false)}>
-          <div className="card flex max-h-full w-full max-w-2xl flex-col gap-4 overflow-auto" role="dialog" aria-label="Чернетки листів">
+          <div className="card flex max-h-full w-full max-w-2xl flex-col gap-4 overflow-auto" role="dialog" aria-label={t("comm.draftsTitle")}>
             <div>
-              <h2 className="font-display text-lg font-medium">Чернетки листів</h2>
+              <h2 className="font-display text-lg font-medium">{t("comm.draftsTitle")}</h2>
               <p className="mt-1 text-sm text-mute">
-                Один лист на посередника. Скопіюйте і надішліть зі своєї пошти, потім натисніть «Позначити як відправлені».
-                Автоматичні чернетки в Gmail будуть у версії 2.
+                {t("comm.draftsHint")}
               </p>
             </div>
 
             <div className="field">
-              <label htmlFor="tpl" className="lbl">Шаблон ({"{domains}"} підставляється автоматично)</label>
+              <label htmlFor="tpl" className="lbl">{t("comm.template")}</label>
               <textarea id="tpl" className="inp min-h-28 text-sm" value={template} onChange={(e) => saveTemplate(e.target.value)} />
             </div>
 
             {groups.length === 0 ? (
               <p className="text-mute">
-                Немає донорів з посередником, яким ще не писали. Спочатку заповніть «Посередник (ДОДАТИ)» і натисніть «Синхронізація».
+                {t("comm.noDrafts")}
               </p>
             ) : (
               groups.map(([to, list]) => {
@@ -232,7 +232,7 @@ export default function Comm({
                 return (
                   <div key={to} className="rounded-md border border-line p-3">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="lbl">Кому</span>
+                      <span className="lbl">{t("comm.to")}</span>
                       <span className="font-mono text-sm">{to}</span>
                       <CopyButton text={to} />
                     </div>
@@ -245,9 +245,9 @@ export default function Comm({
 
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-pri" disabled={busy || groups.length === 0} onClick={sent}>
-                Позначити як відправлені
+                {t("comm.markSent")}
               </button>
-              <button type="button" className="btn" onClick={() => setDraftsOpen(false)}>Закрити</button>
+              <button type="button" className="btn" onClick={() => setDraftsOpen(false)}>{t("common.close")}</button>
             </div>
           </div>
         </div>

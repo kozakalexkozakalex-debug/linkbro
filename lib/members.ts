@@ -12,6 +12,6 @@ export async function loadMembers(supabase: Db, teamId: string): Promise<Member[
   const byId = new Map(((p ?? []) as { id: string; email: string | null; full_name: string | null }[]).map((r) => [r.id, r]));
   return ids.map((id) => {
     const r = byId.get(id);
-    return { id, name: r?.full_name || r?.email || "Користувач" };
+    return { id, name: r?.full_name || r?.email || "—" };
   });
 }

@@ -99,11 +99,11 @@ export function normalizeDomain(raw: string): string | null {
 }
 
 const KYIV = "Europe/Kyiv";
-export function fmtDateTime(iso: string): string {
-  return new Intl.DateTimeFormat("uk-UA", {
+export function fmtDateTime(iso: string, intl = "uk-UA"): string {
+  return new Intl.DateTimeFormat(intl, {
     timeZone: KYIV, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   }).format(new Date(iso));
 }
-export function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("uk-UA", { timeZone: KYIV, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+export function fmtDate(iso: string, intl = "uk-UA"): string {
+  return new Intl.DateTimeFormat(intl, { timeZone: KYIV, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }

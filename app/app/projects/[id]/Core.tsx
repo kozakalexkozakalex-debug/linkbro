@@ -7,6 +7,7 @@ import { AddStatus, BulkSelect } from "@/components/BulkTools";
 import { metricCols } from "@/components/MetricCols";
 import DupeBadge from "@/components/DupeBadge";
 import { fmtDate } from "@/lib/global";
+import { useI18n } from "@/components/I18nProvider";
 import { CORE_NEG, CORE_POS, monthYear, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 
 export default function Core({
@@ -22,6 +23,7 @@ export default function Core({
   members: Member[];
   dupes: Record<string, string[]>;
 }) {
+  const { t, intl } = useI18n();
   const pos = useMemo(() => [...CORE_POS, ...custom.core_pos], [custom]);
   const neg = useMemo(() => [...CORE_NEG, ...custom.core_neg], [custom]);
   const statusOpts = useMemo(
@@ -48,7 +50,7 @@ export default function Core({
           </span>
         ),
       },
-      { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at) },
+      { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at, intl) },
       ...metricCols(),
       {
         key: "core_status",
@@ -60,17 +62,17 @@ export default function Core({
         render: undefined,
       },
       { key: "category_page", header: "Category Page", kind: "text", width: 130, placeholder: "/blog/" },
-      { key: "assignee", header: "Відповідальний", kind: "select", width: 140, options: memberOpts },
+      { key: "assignee", header: t("common.assignee"), kind: "select", width: 140, options: memberOpts },
       {
         key: "published",
-        header: "Опубліковано",
+        header: t("core.published"),
         kind: "readonly",
         width: 90,
         mono: true,
-        get: (d) => (d.core_status === "Published" && d.published_at ? monthYear(d.published_at) : ""),
+        get: (d) => (d.core_status === "Published" && d.published_at ? monthYear(d.published_at, intl) : ""),
       },
     ],
-    [dupes, statusOpts, memberOpts, pos, neg],
+    [dupes, statusOpts, memberOpts, pos, neg, t, intl],
   );
 
   const setAll = (ids: string[], field: string, value: string) =>
@@ -80,12 +82,12 @@ export default function Core({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-mute">
-          «In communication» відкриває модуль Communication, «Price_ok» і далі відкривають Guest Posting.
+          {t("core.lead")}
         </p>
         <AddStatus
           kinds={[
-            { value: "core_pos", label: "Схвальний" },
-            { value: "core_neg", label: "Несхвальний" },
+            { value: "core_pos", label: t("core.pos") },
+            { value: "core_neg", label: t("core.neg") },
           ]}
         />
       </div>
@@ -95,11 +97,11 @@ export default function Core({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkSelect label="Статус" options={statusOpts} onApply={(v) => setAll(ids, "core_status", v)} />
-            <BulkSelect label="Відповідальний" options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />
+            <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "core_status", v)} />
+            <BulkSelect label={t("common.assignee")} options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />
           </>
         )}
-        empty={<div className="card text-center text-mute">Сюди переходять донори, яким у From Global поставили «Core».</div>}
+        empty={<div className="card text-center text-mute">{t("core.empty")}</div>}
       />
     </>
   );

@@ -48,9 +48,9 @@ export async function GET(request: Request) {
     const csv = toCsv([
       [
         "Domain", "Date Added", "DR", "Keywords", "Traffic", "GEO", "Topics", "TF", "CF", "Price (G)",
-        "From Global", "Core status", "Category Page", "Comm status", "Посередник", "Ціна (база)", "Діалог",
-        "GP status", "Джерело", "Price", "Валюта", "Комісія %", "Реальна ціна", "Оплата",
-        "Article URL", "Page URL", "Anchors", "Pre-anchor", "Перевірка посилання", "Гарантія до", "Published",
+        "From Global", "Core status", "Category Page", "Comm status", "Intermediary", "Price (base)", "Dialog",
+        "GP status", "Source", "Price", "Currency", "Commission %", "Real cost", "Payment",
+        "Article URL", "Page URL", "Anchors", "Pre-anchor", "Link check", "Guarantee until", "Published",
       ],
       ...rows.map((d) => {
         const g = d.global_donors;

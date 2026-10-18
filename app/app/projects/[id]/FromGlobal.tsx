@@ -8,6 +8,7 @@ import { BulkButton } from "@/components/BulkTools";
 import { metricCols } from "@/components/MetricCols";
 import { fmtDate } from "@/lib/global";
 import type { ProjectDonor } from "@/lib/project";
+import { useI18n } from "@/components/I18nProvider";
 
 const FG_OPTS = [
   { value: "new", label: "NEW" },
@@ -26,10 +27,11 @@ export default function FromGlobal({
   stopTools: number;
   stopGlobal: number;
 }) {
+  const { t, intl } = useI18n();
   const columns: SheetCol<ProjectDonor>[] = useMemo(
     () => [
       { key: "domain", header: "Domain", kind: "readonly", width: 170, render: (d) => <span className="font-mono font-semibold whitespace-nowrap">{d.domain}</span> },
-      { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at) },
+      { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at, intl) },
       ...metricCols(),
       {
         key: "fg_status",
@@ -40,7 +42,7 @@ export default function FromGlobal({
         tone: (v) => (v === "core" ? "ok" : v === "out" ? "bad" : ""),
       },
     ],
-    [],
+    [intl],
   );
 
   const setAll = (ids: string[], value: string) => updateDonorsBatch(projectId, ids.map((id) => ({ id, field: "fg_status", value })));
@@ -48,9 +50,8 @@ export default function FromGlobal({
   return (
     <>
       <p className="text-sm text-mute">
-        Сюди потрапляють донори зі статусом FIT, які пройшли фільтр проєкту і яких немає в стоп-листах. GEO і Topics перевіряйте вручну:
-        підходить → <b>Core</b>, ні → <b>Out</b>. Можна вибрати кілька рядків галочками. Стоп-лист (інструменти): {stopTools} · Стоп-лист
-        (Глобал): {stopGlobal} · <Link href={`/app/projects/${projectId}?tab=profile`} className="underline">налаштувати</Link>
+        {t("fg.lead")} {t("fg.stops", { tools: stopTools, global: stopGlobal })} ·{" "}
+        <Link href={`/app/projects/${projectId}?tab=profile`} className="underline">{t("fg.configure")}</Link>
       </p>
       <Sheet
         rows={rows}
@@ -65,8 +66,8 @@ export default function FromGlobal({
         )}
         empty={
           <div className="card text-center text-mute">
-            Донорів ще немає. Натисніть «Передати у проєкти» в{" "}
-            <Link href="/app/global?status=fit" className="underline">Глобальній базі</Link>.
+            {t("fg.empty")}{" "}
+            <Link href="/app/global?status=fit" className="underline">{t("nav.global")}</Link>.
           </div>
         }
       />

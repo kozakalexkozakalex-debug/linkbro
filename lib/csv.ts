@@ -58,13 +58,13 @@ export function toCsv(rows: (string | number | boolean | null | undefined)[][]):
 
 // Поля, которые можно загрузить в глобальную базу, и как их обычно называют в выгрузках
 export const IMPORT_FIELDS = [
-  { key: "domain", label: "Domain *", hints: ["domain", "url", "site", "сайт", "домен", "referring domain", "target", "host", "donor", "донор"] },
-  { key: "price", label: "Price", hints: ["price", "ціна", "цена", "cost", "вартість", "стоимость"] },
+  { key: "domain", label: "Domain *", hints: ["domain", "url", "site", "сайт", "домен", "referring domain", "target", "host", "donor", "донор", "dominio", "sitio"] },
+  { key: "price", label: "Price", hints: ["price", "ціна", "цена", "cost", "вартість", "стоимость", "precio", "coste"] },
   { key: "dr", label: "DR", hints: ["dr", "domain rating"] },
-  { key: "keywords", label: "Keywords", hints: ["keywords", "organic keywords", "kw", "ключі", "ключи"] },
-  { key: "traffic", label: "Traffic", hints: ["traffic", "organic traffic", "трафік", "трафик"] },
-  { key: "geo", label: "GEO", hints: ["geo", "country", "top country", "країна", "страна"] },
-  { key: "topics", label: "Topics", hints: ["topics", "topic", "topical trust flow topic", "тематика", "category"] },
+  { key: "keywords", label: "Keywords", hints: ["keywords", "organic keywords", "kw", "ключі", "ключи", "palabras clave"] },
+  { key: "traffic", label: "Traffic", hints: ["traffic", "organic traffic", "трафік", "трафик", "tráfico"] },
+  { key: "geo", label: "GEO", hints: ["geo", "country", "top country", "країна", "страна", "país"] },
+  { key: "topics", label: "Topics", hints: ["topics", "topic", "topical trust flow topic", "тематика", "category", "temática"] },
   { key: "tf", label: "TF", hints: ["tf", "trust flow", "trustflow"] },
   { key: "cf", label: "CF", hints: ["cf", "citation flow", "citationflow"] },
 ] as const;

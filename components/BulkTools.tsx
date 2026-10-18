@@ -4,12 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addCustomStatus } from "@/app/app/projects/actions";
 import type { Opt } from "@/lib/sheet";
+import { useI18n } from "@/components/I18nProvider";
 
 type Result = { ok: boolean; error?: string };
 
 // Выпадающий список на панели массовых действий: выбрал значение — применилось ко всем выбранным строкам
 export function BulkSelect({ label, options, onApply }: { label: string; options: Opt[]; onApply: (value: string) => Promise<Result> }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
@@ -24,7 +26,7 @@ export function BulkSelect({ label, options, onApply }: { label: string; options
           if (v === "__none") return;
           start(async () => {
             const r = await onApply(v === "__empty" ? "" : v);
-            setError(r.ok ? null : r.error ?? "Помилка");
+            setError(r.ok ? null : r.error ?? t("common.error"));
             router.refresh();
           });
         }}
@@ -62,6 +64,7 @@ export function BulkButton({ label, onApply }: { label: string; onApply: () => P
 // Кнопка «+ свій статус» над таблицей
 export function AddStatus({ kinds }: { kinds: { value: "core_pos" | "core_neg" | "comm"; label: string }[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [kind, setKind] = useState(kinds[0].value);
@@ -70,19 +73,19 @@ export function AddStatus({ kinds }: { kinds: { value: "core_pos" | "core_neg" |
 
   return (
     <>
-      <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}>+ свій статус</button>
+      <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}>{t("cs.add")}</button>
       {open && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <div className="card flex w-full max-w-sm flex-col gap-3" role="dialog" aria-label="Свій статус">
-            <h2 className="font-display text-lg font-medium">Свій статус</h2>
-            <p className="text-sm text-mute">Збережеться для всієї команди і з&apos;явиться у списках.</p>
+          <div className="card flex w-full max-w-sm flex-col gap-3" role="dialog" aria-label={t("cs.title")}>
+            <h2 className="font-display text-lg font-medium">{t("cs.title")}</h2>
+            <p className="text-sm text-mute">{t("cs.hint")}</p>
             <div className="field">
-              <label htmlFor="cs-name" className="lbl">Назва</label>
+              <label htmlFor="cs-name" className="lbl">{t("proj.name")}</label>
               <input id="cs-name" className="inp" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} autoFocus />
             </div>
             {kinds.length > 1 && (
               <div className="field">
-                <label htmlFor="cs-kind" className="lbl">Тип</label>
+                <label htmlFor="cs-kind" className="lbl">{t("cs.type")}</label>
                 <select id="cs-kind" className="inp" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
                   {kinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                 </select>
@@ -107,9 +110,9 @@ export function AddStatus({ kinds }: { kinds: { value: "core_pos" | "core_neg" |
                   })
                 }
               >
-                Додати
+                {t("common.add")}
               </button>
-              <button type="button" className="btn" onClick={() => setOpen(false)}>Скасувати</button>
+              <button type="button" className="btn" onClick={() => setOpen(false)}>{t("common.cancel")}</button>
             </div>
           </div>
         </div>

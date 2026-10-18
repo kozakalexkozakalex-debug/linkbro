@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { importGlobal, type ImportResult, type ImportRow } from "../global/actions";
+import { useI18n } from "@/components/I18nProvider";
 import { IMPORT_FIELDS, guessMapping, parseCsv, type ImportKey } from "@/lib/csv";
 
 export default function ImportForm() {
+  const { t } = useI18n();
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<string[][]>([]);
   const [hasHeader, setHasHeader] = useState(true);
@@ -16,9 +18,9 @@ export default function ImportForm() {
   const [readError, setReadError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const header = hasHeader ? rows[0] ?? [] : (rows[0] ?? []).map((_, i) => `Колонка ${i + 1}`);
+  const header = hasHeader ? rows[0] ?? [] : (rows[0] ?? []).map((_, i) => t("import.column", { n: i + 1 }));
   const body = hasHeader ? rows.slice(1) : rows;
-  const columns = header.map((h, i) => ({ i, label: h || `Колонка ${i + 1}` }));
+  const columns = header.map((h, i) => ({ i, label: h || t("import.column", { n: i + 1 }) }));
 
   function onFile(file: File | undefined) {
     setResult(null);
@@ -29,13 +31,13 @@ export default function ImportForm() {
     reader.onload = () => {
       const parsed = parseCsv(String(reader.result ?? ""));
       if (parsed.length === 0) {
-        setReadError("Файл порожній або це не CSV.");
+        setReadError(t("import.emptyFile"));
         return;
       }
       setRows(parsed);
       setMapping(guessMapping(parsed[0]));
     };
-    reader.onerror = () => setReadError("Не вдалося прочитати файл.");
+    reader.onerror = () => setReadError(t("import.readError"));
     reader.readAsText(file, "utf-8");
   }
 
@@ -64,13 +66,13 @@ export default function ImportForm() {
     <>
       <div className="card flex flex-col gap-3">
         <div className="field">
-          <label htmlFor="csv-file" className="lbl">Файл CSV</label>
+          <label htmlFor="csv-file" className="lbl">{t("import.file")}</label>
           <input id="csv-file" type="file" accept=".csv,.txt,text/csv" className="text-sm" onChange={(e) => onFile(e.target.files?.[0])} />
         </div>
         {fileName && rows.length > 0 && (
           <p className="text-sm text-mute">
-            {fileName}: рядків {body.length}
-            {body.length > 5000 && <span className="text-bad"> · за раз можна до 5000, розділіть файл</span>}
+            {fileName}: {t("import.rows", { n: body.length })}
+            {body.length > 5000 && <span className="text-bad"> · {t("err.max5000")}</span>}
           </p>
         )}
         {readError && <p className="note note-bad">{readError}</p>}
@@ -79,10 +81,10 @@ export default function ImportForm() {
       {rows.length > 0 && (
         <div className="card flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-4">
-            <p className="lbl">Яка колонка що означає</p>
+            <p className="lbl">{t("import.mapping")}</p>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
-              Перший рядок — заголовки
+              {t("import.hasHeader")}
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -95,7 +97,7 @@ export default function ImportForm() {
                   value={mapping[f.key] ?? ""}
                   onChange={(e) => setMapping({ ...mapping, [f.key]: e.target.value === "" ? undefined : Number(e.target.value) })}
                 >
-                  <option value="">— не імпортувати —</option>
+                  <option value="">{t("import.skip")}</option>
                   {columns.map((c) => <option key={c.i} value={c.i}>{c.label}</option>)}
                 </select>
               </div>
@@ -104,12 +106,12 @@ export default function ImportForm() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="field">
-              <label htmlFor="imp-prefix" className="lbl">Префікс ціни (звідки ціна)</label>
-              <input id="imp-prefix" className="inp" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="Наприклад, Collaborator" />
+              <label htmlFor="imp-prefix" className="lbl">{t("input.prefix")}</label>
+              <input id="imp-prefix" className="inp" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder={t("import.prefixPh")} />
             </div>
             <label className="flex items-center gap-2 self-end text-sm">
               <input type="checkbox" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
-              Оновити метрики в доменах, які вже є в базі
+              {t("import.updateExisting")}
             </label>
           </div>
 
@@ -139,9 +141,9 @@ export default function ImportForm() {
               disabled={pending || mapping.domain == null || body.length === 0 || body.length > 5000}
               onClick={run}
             >
-              {pending ? "Імпортую…" : `Імпортувати ${body.length} рядків`}
+              {pending ? t("import.importing") : t("import.run", { n: body.length })}
             </button>
-            {mapping.domain == null && <span className="ml-2 text-sm text-bad">Оберіть колонку з доменом</span>}
+            {mapping.domain == null && <span className="ml-2 text-sm text-bad">{t("import.pickDomain")}</span>}
           </div>
         </div>
       )}
@@ -152,8 +154,8 @@ export default function ImportForm() {
             result.error
           ) : (
             <>
-              Додано: {result.added} · оновлено: {result.updated} · уже були в базі: {result.duplicates} · не схоже на домен: {result.invalid}.{" "}
-              <Link href="/app/global" className="underline">Відкрити Глобальну базу</Link>
+              {t("import.result", { added: result.added, updated: result.updated, dup: result.duplicates, invalid: result.invalid })}{" "}
+              <Link href="/app/global" className="underline">{t("input.openGlobal")}</Link>
             </>
           )}
         </div>

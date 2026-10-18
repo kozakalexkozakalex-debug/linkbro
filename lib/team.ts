@@ -33,7 +33,7 @@ export async function listMyTeams(): Promise<TeamRef[]> {
 
   return ((data ?? []) as MembershipRow[]).map((m) => {
     const t = Array.isArray(m.teams) ? m.teams[0] : m.teams;
-    return { id: m.team_id, name: t?.name ?? "Команда", role: m.role };
+    return { id: m.team_id, name: t?.name ?? "Team", role: m.role };
   });
 }
 

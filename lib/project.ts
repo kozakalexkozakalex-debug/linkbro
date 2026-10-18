@@ -1,5 +1,6 @@
 // Типы, статусы и правила воронки проекта.
 import { DEFAULT_FILTER, METRICS, type MetricFilter } from "@/lib/global";
+import type { MsgKey, TFn } from "@/lib/i18n/config";
 
 // Стандартные статусы из ТЗ. Команда может добавить свои (таблица custom_statuses).
 export const CORE_POS = ["OK_Cat", "In communication", "Price_ok", "client_OK", "Sent_article", "Paid", "Published"];
@@ -13,9 +14,9 @@ export const OPENS_COMM = "In communication";
 export const OPENS_GP = ["Price_ok", "client_OK", "Sent_article", "Paid", "Published"];
 
 export const INDICATORS = [
-  { value: "sent", label: "відправив" },
-  { value: "waiting", label: "очікування" },
-  { value: "replied", label: "відповіли" },
+  { value: "sent", key: "ind.sent" },
+  { value: "waiting", key: "ind.waiting" },
+  { value: "replied", key: "ind.replied" },
 ] as const;
 export type Indicator = (typeof INDICATORS)[number]["value"];
 
@@ -74,15 +75,15 @@ export type ProjectDonor = {
 };
 
 export type LinkStatus = "" | "ok" | "missing" | "nofollow" | "noindex" | "anchor" | "error" | "blocked";
-export const LINK_STATUS: Record<LinkStatus, { label: string; tone: "ok" | "bad" | "warn" | "" }> = {
-  "": { label: "не перевірялось", tone: "" },
-  ok: { label: "на місці", tone: "ok" },
-  missing: { label: "знято", tone: "bad" },
-  nofollow: { label: "nofollow", tone: "bad" },
-  noindex: { label: "noindex", tone: "bad" },
-  anchor: { label: "анкор змінено", tone: "warn" },
-  error: { label: "помилка", tone: "warn" },
-  blocked: { label: "не вдалося перевірити", tone: "warn" },
+export const LINK_STATUS: Record<LinkStatus, { key: MsgKey; tone: "ok" | "bad" | "warn" | "" }> = {
+  "": { key: "link.none", tone: "" },
+  ok: { key: "link.ok", tone: "ok" },
+  missing: { key: "link.missing", tone: "bad" },
+  nofollow: { key: "link.nofollow", tone: "bad" },
+  noindex: { key: "link.noindex", tone: "bad" },
+  anchor: { key: "link.anchor", tone: "warn" },
+  error: { key: "link.error", tone: "warn" },
+  blocked: { key: "link.blocked", tone: "warn" },
 };
 
 export const PROJECT_COLUMNS =
@@ -174,8 +175,8 @@ export function hoursSince(iso: string | null): number | null {
   return (Date.now() - new Date(iso).getTime()) / 3_600_000;
 }
 
-export function ageLabel(hours: number): string {
-  return hours < 24 ? `${Math.max(1, Math.round(hours))} год` : `${Math.round(hours / 24)} дн`;
+export function ageLabel(hours: number, t: TFn): string {
+  return hours < 24 ? t("unit.hours", { n: Math.max(1, Math.round(hours)) }) : t("unit.days", { n: Math.round(hours / 24) });
 }
 
 export function isThisMonth(iso: string | null): boolean {
@@ -185,6 +186,6 @@ export function isThisMonth(iso: string | null): boolean {
   return fmt(new Date(iso)) === fmt(new Date());
 }
 
-export function monthYear(iso: string): string {
-  return new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", month: "2-digit", year: "numeric" }).format(new Date(iso));
+export function monthYear(iso: string, intl = "uk-UA"): string {
+  return new Intl.DateTimeFormat(intl, { timeZone: "Europe/Kyiv", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }

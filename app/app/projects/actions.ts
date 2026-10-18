@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getTeamContext } from "@/lib/team";
+import { getI18n } from "@/lib/i18n/server";
+import type { MsgKey } from "@/lib/i18n/config";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
 import { checkLink } from "@/lib/linkcheck";
@@ -24,6 +26,10 @@ import {
 
 type Ok = { ok: true } | { ok: false; error: string };
 const fail = (error: string): Ok => ({ ok: false, error });
+async function tr(key: MsgKey, vars?: Record<string, string | number>) {
+  const { t } = await getI18n();
+  return t(key, vars);
+}
 
 function refresh(projectId?: string) {
   if (projectId) revalidatePath(`/app/projects/${projectId}`);
@@ -37,14 +43,14 @@ export async function createProject(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const plan = Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0);
   const niche = String(formData.get("niche") ?? "").trim().slice(0, 60);
-  if (!name) redirect("/app/projects/new?error=" + encodeURIComponent("Вкажіть назву проєкту."));
+  if (!name) redirect("/app/projects/new?error=" + encodeURIComponent(await tr("err.projectName")));
 
   const { data, error } = await supabase
     .from("projects")
     .insert({ team_id: team.id, name, niche, plan_per_month: plan, metric_filter: DEFAULT_FILTER })
     .select("id")
     .single();
-  if (error || !data) redirect("/app/projects/new?error=" + encodeURIComponent("Створювати проєкти може лише тімлід."));
+  if (error || !data) redirect("/app/projects/new?error=" + encodeURIComponent(await tr("err.onlyLeadProject")));
 
   revalidatePath("/app", "layout");
   redirect(`/app/projects/${(data as { id: string }).id}?tab=profile`);
@@ -54,7 +60,7 @@ export async function updateProject(formData: FormData) {
   const { supabase, team } = await getTeamContext();
   const id = String(formData.get("id") ?? "");
   const patch = {
-    name: String(formData.get("name") ?? "").trim() || "Проєкт",
+    name: String(formData.get("name") ?? "").trim() || "Project",
     niche: String(formData.get("niche") ?? "").trim().slice(0, 60),
     client_site: String(formData.get("client_site") ?? "").trim().slice(0, 300),
     geo: String(formData.get("geo") ?? "").trim().slice(0, 100),
@@ -70,7 +76,7 @@ export async function updateProject(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   };
   const { error } = await supabase.from("projects").update(patch).eq("id", id).eq("team_id", team.id);
-  const q = error ? "&error=" + encodeURIComponent("Змінювати проєкт може лише тімлід.") : "&saved=1";
+  const q = error ? "&error=" + encodeURIComponent(await tr("err.onlyLeadEditProject")) : "&saved=1";
   revalidatePath("/app", "layout");
   redirect(`/app/projects/${id}?tab=profile${q}`);
 }
@@ -80,7 +86,7 @@ export async function saveProjectFilter(projectId: string, filter: MetricFilter)
   const clean: Record<string, { min: string; max: string }> = {};
   for (const m of METRICS) clean[m.key] = { min: String(filter[m.key]?.min ?? "").trim(), max: String(filter[m.key]?.max ?? "").trim() };
   const { error } = await supabase.from("projects").update({ metric_filter: clean }).eq("id", projectId).eq("team_id", team.id);
-  if (error) return fail("Змінювати фільтр може лише тімлід.");
+  if (error) return fail(await tr("err.onlyLeadFilter"));
   refresh(projectId);
   return { ok: true };
 }
@@ -105,12 +111,12 @@ export async function saveStoplist(formData: FormData) {
     .eq("project_id", projectId)
     .eq("team_id", team.id)
     .eq("source", source);
-  if (delErr) redirect(back + "&error=" + encodeURIComponent("Змінювати стоп-лист може лише тімлід."));
+  if (delErr) redirect(back + "&error=" + encodeURIComponent(await tr("err.onlyLeadStoplist")));
 
   for (const part of chunk(domains, 500)) {
     const rows = part.map((domain) => ({ project_id: projectId, team_id: team.id, domain, source }));
     const { error } = await supabase.from("project_stoplist").insert(rows);
-    if (error) redirect(back + "&error=" + encodeURIComponent("Не вдалося зберегти стоп-лист: " + error.message));
+    if (error) redirect(back + "&error=" + encodeURIComponent(await tr("err.saveStoplist", { x: error.message })));
   }
   refresh(projectId);
   redirect(back + "&saved=1");
@@ -173,7 +179,7 @@ export async function transferToProjects(): Promise<TransferReport> {
     revalidatePath("/app", "layout");
     return { report };
   } catch (e) {
-    return { report: [], error: e instanceof Error ? e.message : "Невідома помилка" };
+    return { report: [], error: e instanceof Error ? e.message : await tr("err.unknown") };
   }
 }
 
@@ -191,11 +197,11 @@ export async function updateDonorField(id: string, field: DonorTextField, raw: s
   if (field === "gp_price") {
     const t = raw.trim();
     value = t === "" ? null : priceNumber(t);
-    if (t !== "" && value == null) return fail("Потрібне число");
+    if (t !== "" && value == null) return fail(await tr("err.needNumber"));
   } else if ((DONOR_TEXT_FIELDS as readonly string[]).includes(field)) {
     value = raw.trim().slice(0, 2000);
   } else {
-    return fail("Це поле не редагується");
+    return fail(await tr("err.notEditable"));
   }
   const { error } = await supabase.from("project_donors").update({ [field]: value }).eq("id", id).eq("team_id", team.id);
   return error ? fail(error.message) : { ok: true };
@@ -203,7 +209,7 @@ export async function updateDonorField(id: string, field: DonorTextField, raw: s
 
 export async function setFgStatus(id: string, projectId: string, status: FgStatus): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
-  if (!["new", "core", "out"].includes(status)) return fail("Невідомий статус");
+  if (!["new", "core", "out"].includes(status)) return fail(await tr("err.unknownStatus"));
   const { error } = await supabase.from("project_donors").update({ fg_status: status }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
   refresh(projectId);
@@ -213,7 +219,7 @@ export async function setFgStatus(id: string, projectId: string, status: FgStatu
 export async function setCoreStatus(id: string, projectId: string, status: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
   const allowed = ["new_core", ...CORE_POS, ...CORE_NEG, ...(await loadCustom("core_pos")), ...(await loadCustom("core_neg"))];
-  if (!allowed.includes(status)) return fail("Невідомий статус");
+  if (!allowed.includes(status)) return fail(await tr("err.unknownStatus"));
 
   const { data: cur } = await supabase
     .from("project_donors")
@@ -221,7 +227,7 @@ export async function setCoreStatus(id: string, projectId: string, status: strin
     .eq("id", id)
     .eq("team_id", team.id)
     .maybeSingle();
-  if (!cur) return fail("Донора не знайдено");
+  if (!cur) return fail(await tr("err.donorNotFound"));
   const c = cur as {
     med_base: string;
     price_base: string;
@@ -254,7 +260,7 @@ export async function setCoreStatus(id: string, projectId: string, status: strin
 
 export async function setCommStatus(id: string, projectId: string, status: string): Promise<Ok> {
   const allowed = ["", ...COMM_STATUSES, ...(await loadCustom("comm"))];
-  if (!allowed.includes(status)) return fail("Невідомий статус");
+  if (!allowed.includes(status)) return fail(await tr("err.unknownStatus"));
   const { supabase, team } = await getTeamContext();
   const { error } = await supabase.from("project_donors").update({ comm_status: status }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
@@ -267,7 +273,7 @@ export async function setCommStatus(id: string, projectId: string, status: strin
 export async function setIndicator(id: string, projectId: string, value: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
   const ok = value === "" || INDICATORS.some((i) => i.value === value);
-  if (!ok) return fail("Невідоме значення");
+  if (!ok) return fail(await tr("err.unknownValue"));
   const patch: Record<string, unknown> = { indicator: value || null, indicator_at: value ? new Date().toISOString() : null };
   if (value === "replied") {
     const { data } = await supabase.from("project_donors").select("comm_status").eq("id", id).eq("team_id", team.id).maybeSingle();
@@ -280,7 +286,7 @@ export async function setIndicator(id: string, projectId: string, value: string)
 }
 
 export async function setGpStatus(id: string, projectId: string, status: string): Promise<Ok> {
-  if (status !== "" && !GP_STATUSES.includes(status)) return fail("Невідомий статус");
+  if (status !== "" && !GP_STATUSES.includes(status)) return fail(await tr("err.unknownStatus"));
   const { supabase, team } = await getTeamContext();
   const patch: Record<string, unknown> = { gp_status: status };
   if (status === "Paid") {
@@ -301,7 +307,7 @@ export async function setAssignee(id: string, projectId: string, userId: string)
   const { supabase, team } = await getTeamContext();
   if (userId) {
     const { data } = await supabase.from("team_members").select("user_id").eq("team_id", team.id).eq("user_id", userId).maybeSingle();
-    if (!data) return fail("Цей користувач не в команді");
+    if (!data) return fail(await tr("err.notInTeam"));
   }
   const { error } = await supabase.from("project_donors").update({ assignee: userId || null }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
@@ -312,8 +318,8 @@ export async function setAssignee(id: string, projectId: string, userId: string)
 export async function addCustomStatus(kind: "core_pos" | "core_neg" | "comm", name: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
   const n = name.trim().slice(0, 60);
-  if (!n) return fail("Вкажіть назву");
-  if (!["core_pos", "core_neg", "comm"].includes(kind)) return fail("Невідомий тип");
+  if (!n) return fail(await tr("err.enterName"));
+  if (!["core_pos", "core_neg", "comm"].includes(kind)) return fail(await tr("err.unknownType"));
   const { error } = await supabase
     .from("custom_statuses")
     .upsert({ team_id: team.id, kind, name: n }, { onConflict: "team_id,kind,name", ignoreDuplicates: true });
@@ -383,7 +389,7 @@ export async function syncIntermediaries(projectId: string): Promise<SyncResult>
     revalidatePath("/app/intermediaries");
     return { wrote, found };
   } catch (e) {
-    return { wrote: 0, found: 0, error: e instanceof Error ? e.message : "Невідома помилка" };
+    return { wrote: 0, found: 0, error: e instanceof Error ? e.message : await tr("err.unknown") };
   }
 }
 
@@ -415,7 +421,7 @@ export async function markContacted(projectId: string, ids: string[]): Promise<O
 
 export async function updateIntermediary(domain: string, field: "intermediary" | "price", value: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
-  if (field !== "intermediary" && field !== "price") return fail("Це поле не редагується");
+  if (field !== "intermediary" && field !== "price") return fail(await tr("err.notEditable"));
   const { error } = await supabase
     .from("intermediaries")
     .update({ [field]: value.trim().slice(0, 300) })
@@ -427,7 +433,7 @@ export async function updateIntermediary(domain: string, field: "intermediary" |
 export async function addIntermediary(formData: FormData) {
   const { supabase, team } = await getTeamContext();
   const domain = normalizeDomain(String(formData.get("domain") ?? ""));
-  if (!domain) redirect("/app/intermediaries?error=" + encodeURIComponent("Перевірте домен."));
+  if (!domain) redirect("/app/intermediaries?error=" + encodeURIComponent(await tr("err.checkDomain")));
   const { error } = await supabase.from("intermediaries").upsert(
     {
       team_id: team.id,
@@ -471,23 +477,23 @@ export async function setDonorValue(id: string, projectId: string, field: DonorV
       if (!cur.guarantee_until && cur.published_at && src.guaranteeDays) patch.guarantee_until = addDays(new Date(cur.published_at), src.guaranteeDays);
     }
   } else if (field === "gp_currency") {
-    if (!(CURRENCIES as readonly string[]).includes(v)) return fail("Невідома валюта");
+    if (!(CURRENCIES as readonly string[]).includes(v)) return fail(await tr("err.unknownCurrency"));
     patch.gp_currency = v;
   } else if (field === "gp_commission") {
     const n = v === "" ? 0 : Number(v.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0 || n > 100) return fail("Комісія від 0 до 100");
+    if (!Number.isFinite(n) || n < 0 || n > 100) return fail(await tr("err.commission"));
     patch.gp_commission = n;
   } else if (field === "pay_status") {
-    if (!["", "due", "paid", "refund"].includes(v)) return fail("Невідомий статус");
+    if (!["", "due", "paid", "refund"].includes(v)) return fail(await tr("err.unknownStatus"));
     patch.pay_status = v;
     patch.paid_at = v === "paid" ? new Date().toISOString() : null;
   } else if (field === "guarantee_until") {
-    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail("Дата у форматі РРРР-ММ-ДД");
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail(await tr("err.date"));
     patch.guarantee_until = v || null;
   } else if (field === "indexed") {
     patch.indexed = v === "yes" ? true : v === "no" ? false : null;
   } else {
-    return fail("Це поле не редагується");
+    return fail(await tr("err.notEditable"));
   }
 
   const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
@@ -506,7 +512,7 @@ export async function checkDonorLink(id: string, projectId: string): Promise<Ok>
     .eq("id", id)
     .eq("team_id", team.id)
     .maybeSingle();
-  if (!data) return fail("Донора не знайдено");
+  if (!data) return fail(await tr("err.donorNotFound"));
   const d = data as { article_url: string; page_url: string; anchors: string };
   const r = await checkLink(d.article_url, d.page_url, d.anchors);
   const { error } = await supabase
@@ -529,7 +535,7 @@ export async function createReportLink(formData: FormData) {
   const { supabase, team } = await getTeamContext();
   const id = String(formData.get("project_id") ?? "");
   const { error } = await supabase.from("projects").update({ report_token: newToken() }).eq("id", id).eq("team_id", team.id);
-  const q = error ? "&error=" + encodeURIComponent("Створити звіт може лише тімлід.") : "&saved=1";
+  const q = error ? "&error=" + encodeURIComponent(await tr("err.onlyLeadReport")) : "&saved=1";
   refresh(id);
   redirect(`/app/projects/${id}?tab=profile${q}`);
 }
@@ -557,7 +563,7 @@ export type CellChange = { id: string; field: string; value: string };
 const SPECIAL = ["core_status", "comm_status", "gp_status", "indicator", "fg_status", "gp_source"] as const;
 
 export async function updateDonorsBatch(projectId: string, changes: CellChange[]): Promise<Ok> {
-  if (changes.length > 5000) return fail("Забагато змін за раз (до 5000).");
+  if (changes.length > 5000) return fail(await tr("err.tooMany", { n: 5000 }));
   const { supabase, team } = await getTeamContext();
   const simple = new Map<string, Record<string, unknown>>();
   const special: CellChange[] = [];
@@ -569,20 +575,20 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     if ((DONOR_TEXT_FIELDS as readonly string[]).includes(c.field)) put(c.id, { [c.field]: v.slice(0, 2000) });
     else if (c.field === "gp_price") {
       const n = v === "" ? null : priceNumber(v);
-      if (v !== "" && n == null) return fail(`Price: «${v}» — потрібне число`);
+      if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
       put(c.id, { gp_price: n });
     } else if (c.field === "gp_commission") {
       const n = v === "" ? 0 : Number(v.replace(",", ".").replace("%", ""));
-      if (!Number.isFinite(n) || n < 0 || n > 100) return fail(`Комісія: «${v}» — від 0 до 100`);
+      if (!Number.isFinite(n) || n < 0 || n > 100) return fail(await tr("err.cellCommission", { v }));
       put(c.id, { gp_commission: n });
     } else if (c.field === "gp_currency") {
-      if (!(CURRENCIES as readonly string[]).includes(v)) return fail(`Валюта: «${v}» — USD, EUR або UAH`);
+      if (!(CURRENCIES as readonly string[]).includes(v)) return fail(await tr("err.cellCurrency", { v }));
       put(c.id, { gp_currency: v });
     } else if (c.field === "pay_status") {
-      if (!["", "due", "paid", "refund"].includes(v)) return fail(`Оплата: «${v}» — невідомий статус`);
+      if (!["", "due", "paid", "refund"].includes(v)) return fail(await tr("err.cellPay", { v }));
       put(c.id, { pay_status: v, paid_at: v === "paid" ? new Date().toISOString() : null });
     } else if (c.field === "guarantee_until") {
-      if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail(`Гарантія: «${v}» — дата у форматі РРРР-ММ-ДД`);
+      if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail(await tr("err.cellDate", { v }));
       put(c.id, { guarantee_until: v || null });
     } else if (c.field === "indexed") {
       put(c.id, { indexed: v === "yes" ? true : v === "no" ? false : null });
@@ -591,10 +597,10 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
         const { data } = await supabase.from("team_members").select("user_id").eq("team_id", team.id);
         members = new Set(((data ?? []) as { user_id: string }[]).map((r) => r.user_id));
       }
-      if (v && !members.has(v)) return fail("Цей користувач не в команді");
+      if (v && !members.has(v)) return fail(await tr("err.notInTeam"));
       put(c.id, { assignee: v || null });
     } else if ((SPECIAL as readonly string[]).includes(c.field)) special.push(c);
-    else return fail(`Поле ${c.field} не редагується`);
+    else return fail(await tr("err.fieldNotEditable", { f: c.field }));
   }
 
   for (const part of chunk([...simple.entries()], 20)) {
@@ -625,7 +631,7 @@ export async function updateIntermediariesBatch(changes: CellChange[]): Promise<
   const { supabase, team } = await getTeamContext();
   const patches = new Map<string, Record<string, string>>();
   for (const c of changes) {
-    if (c.field !== "intermediary" && c.field !== "price") return fail("Це поле не редагується");
+    if (c.field !== "intermediary" && c.field !== "price") return fail(await tr("err.notEditable"));
     patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: c.value.trim().slice(0, 300) });
   }
   for (const part of chunk([...patches.entries()], 20)) {
