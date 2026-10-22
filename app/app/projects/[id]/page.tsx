@@ -8,12 +8,13 @@ import { fmtDateTime } from "@/lib/global";
 import { DONOR_COLUMNS, PROJECT_COLUMNS, normalizeFilter, type CustomStatuses, type Project, type ProjectDonor } from "@/lib/project";
 import FromGlobal from "./FromGlobal";
 import Work, { type MedBusy } from "./Work";
+import { STAGES, STAGE_KEY, stageOf } from "@/lib/stages";
 import Profile from "./Profile";
 import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
 
 type Params = Promise<{ id: string }>;
-type Search = Promise<{ tab?: string; mine?: string; q?: string; error?: string; saved?: string }>;
+type Search = Promise<{ tab?: string; mine?: string; q?: string; error?: string; saved?: string; view?: string }>;
 
 const TABS = [
   { key: "fg", label: "From Global" },
@@ -224,6 +225,27 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
         ))}
       </div>
 
+      {/* Воронка проекта видна на любой вкладке; клик — канбан */}
+      {(() => {
+        const core = donors.filter((d) => d.fg_status === "core");
+        const cnt = new Map<string, number>();
+        for (const d of core) {
+          const s = stageOf(d, custom.core_neg);
+          cnt.set(s, (cnt.get(s) ?? 0) + 1);
+        }
+        return (
+          <nav className="pipe" aria-label={t("work.kanban")}>
+            {STAGES.map((s, i) => (
+              <Link key={s} href={`/app/projects/${id}?tab=work&view=kanban`} className={`pipe-step ${cnt.get(s) ? "" : "pipe-empty"}`}>
+                <span className="font-mono text-base font-semibold">{cnt.get(s) ?? 0}</span>
+                <span className="truncate text-[11px]">{t(STAGE_KEY[s])}</span>
+                {i < STAGES.length - 1 && <span className="pipe-arrow" aria-hidden="true">›</span>}
+              </Link>
+            ))}
+          </nav>
+        );
+      })()}
+
       {q && (
         <p className="text-sm text-mute">
           {t("proj.searchFor", { q })} · <Link href={qs(tab).replace(/&q=[^&]*/, "")} className="underline">{t("common.reset").toLowerCase()}</Link>
@@ -234,7 +256,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
       {tab === "fg" && <FromGlobal projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
       {tab === "work" && (
-        <Work projectId={id} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
+        <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
       )}
 
       {tab === "history" && (

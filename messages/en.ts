@@ -530,4 +530,6 @@ export const en: Messages = {
   "medp.free": "Not in work yet: {n}",
   "medp.freeHint": "This intermediary's sites you haven't used yet. Offer a package in one email.",
   "medp.history": "Work with this intermediary",
+
+  "stage.monthHint": "+ unfinished from earlier months",
 };

@@ -530,4 +530,6 @@ export const es: Messages = {
   "medp.free": "Aún sin usar: {n}",
   "medp.freeHint": "Sitios de este intermediario que aún no usaste. Ofrece un paquete en un correo.",
   "medp.history": "Trabajo con este intermediario",
+
+  "stage.monthHint": "+ pendientes de meses anteriores",
 };

@@ -35,6 +35,7 @@ const num = (s: string) => {
 
 export default function Work({
   projectId,
+  initialView,
   rows,
   custom,
   members,
@@ -42,6 +43,7 @@ export default function Work({
   medBusy,
 }: {
   projectId: string;
+  initialView?: "table" | "kanban";
   rows: ProjectDonor[];
   custom: CustomStatuses;
   members: Member[];
@@ -64,7 +66,8 @@ export default function Work({
       if (g) setShown(JSON.parse(g));
       else if (window.innerWidth < 800) setShown(["med"]);
       const vw = localStorage.getItem("linkbro.workView");
-      if (vw === "kanban" || vw === "table") setView(vw);
+      if (initialView) setView(initialView);
+      else if (vw === "kanban" || vw === "table") setView(vw);
       else if (window.innerWidth < 800) setView("kanban");
       const tpl = localStorage.getItem(TEMPLATE_KEY);
       if (tpl) setTemplate(tpl);

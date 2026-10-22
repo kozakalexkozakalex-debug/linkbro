@@ -9,6 +9,7 @@ import { STAGES, STAGE_KEY, moveTo, stageOf, type Stage } from "@/lib/stages";
 import { ageLabel, hoursSince, type ProjectDonor } from "@/lib/project";
 import { fmtAmount } from "@/lib/money";
 import { useI18n } from "@/components/I18nProvider";
+import { currentMonth, monthLabel, shiftMonth } from "@/lib/analytics";
 
 export default function Kanban({ projectId, rows, customNeg, onOpen }: { projectId: string; rows: ProjectDonor[]; customNeg: string[]; onOpen: (d: ProjectDonor) => void }) {
   const { t, intl } = useI18n();
@@ -17,15 +18,28 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
   const [over, setOver] = useState<Stage | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showDropped, setShowDropped] = useState(false);
+  const now = currentMonth();
+  const [month, setMonth] = useState<string>(now);
+
+  // Месяц: взяли в работу в этом месяце, опубликовали в нём, а в текущем месяце — ещё и всё незавершённое
+  const visible = useMemo(() => {
+    if (month === "all") return rows;
+    return rows.filter((d) => {
+      const st = stageOf(d, customNeg);
+      if ((d.published_at ?? "").slice(0, 7) === month) return true;
+      if (d.added_at.slice(0, 7) === month) return true;
+      return month === now && st !== "published" && st !== "dropped" && d.added_at.slice(0, 7) < month;
+    });
+  }, [rows, month, now, customNeg]);
 
   const by = useMemo(() => {
     const m = new Map<Stage, ProjectDonor[]>();
-    for (const d of rows) {
+    for (const d of visible) {
       const s = stageOf(d, customNeg);
       m.set(s, [...(m.get(s) ?? []), d]);
     }
     return m;
-  }, [rows, customNeg]);
+  }, [visible, customNeg]);
 
   function move(d: ProjectDonor, to: Stage) {
     const ch = moveTo(to).map((c) => ({ id: d.id, ...c }));
@@ -41,6 +55,13 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
 
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1">
+        <button type="button" className="btn btn-sm" aria-label={t("dash.prevMonth")} onClick={() => setMonth(shiftMonth(month === "all" ? now : month, -1))}>←</button>
+        <span className="min-w-32 text-center font-medium capitalize">{month === "all" ? t("common.all") : monthLabel(month, "long", intl)}</span>
+        <button type="button" className="btn btn-sm" aria-label={t("dash.nextMonth")} disabled={month === "all" || month >= now} onClick={() => setMonth(shiftMonth(month, 1))}>→</button>
+        <button type="button" className={`btn btn-sm ${month === "all" ? "btn-pri" : ""}`} onClick={() => setMonth(month === "all" ? now : "all")}>{t("common.all")}</button>
+        {month === now && <span className="text-xs text-mute">{t("stage.monthHint")}</span>}
+      </div>
       <label className="flex items-center gap-2 text-sm text-mute">
         <input type="checkbox" checked={showDropped} onChange={(e) => setShowDropped(e.target.checked)} />
         {t("stage.showDropped", { n: by.get("dropped")?.length ?? 0 })}

@@ -265,3 +265,12 @@ body {
   @media (max-width: 800px) { .kanban { grid-auto-columns: 84vw; } }
 }
 
+/* Полоска воронки над вкладками проекта */
+@layer components {
+  .pipe { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .pipe-step { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-width: 0; }
+  .pipe-step:hover { border-color: var(--accent); }
+  .pipe-empty { opacity: .55; }
+  .pipe-arrow { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--mute); }
+}
+
