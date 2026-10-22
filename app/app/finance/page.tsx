@@ -108,7 +108,7 @@ export default async function FinancePage() {
           <ul className="divide-y divide-line text-sm">
             {claimable.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
-                <Link href={`/app/projects/${r.project_id}?tab=gp`} className="font-mono underline">{r.domain}</Link>
+                <Link href={`/app/projects/${r.project_id}?tab=work`} className="font-mono underline">{r.domain}</Link>
                 <span className="pill">{pName.get(r.project_id)}</span>
                 <span className="pill">{r.gp_source || t("fin.noSource")}</span>
                 <span className="pill pill-warn" suppressHydrationWarning>{t("fin.guaranteeLeft", { n: daysLeft(r.guarantee_until) ?? 0 })}</span>
@@ -147,7 +147,7 @@ export default async function FinancePage() {
               <tbody>
                 {[...byProject.entries()].map(([pid, p]) => (
                   <tr key={pid}>
-                    <td><Link href={`/app/projects/${pid}?tab=gp`} className="underline">{pName.get(pid) ?? "—"}</Link></td>
+                    <td><Link href={`/app/projects/${pid}?tab=work`} className="underline">{pName.get(pid) ?? "—"}</Link></td>
                     <td className="font-mono">{Object.keys(p.due).length ? money(p.due) : "—"}</td>
                     <td className="font-mono">{Object.keys(p.paid).length ? money(p.paid) : "—"}</td>
                   </tr>
@@ -173,7 +173,7 @@ export default async function FinancePage() {
                   <td className="font-mono">{r.gp_price == null ? "—" : fmtAmount(r.gp_price, r.gp_currency, intl)}</td>
                   <td className="font-mono">{Number(r.gp_commission) ? `${r.gp_commission}%` : "—"}</td>
                   <td className="font-mono">{fmtAmount(realCost(r), r.gp_currency, intl)}</td>
-                  <td><Link href={`/app/projects/${r.project_id}?tab=gp`} className="btn btn-sm">{t("common.open")}</Link></td>
+                  <td><Link href={`/app/projects/${r.project_id}?tab=work`} className="btn btn-sm">{t("common.open")}</Link></td>
                 </tr>
               ))}
               {dueRows.length === 0 && <tr><td colSpan={8} className="text-center text-mute">{t("fin.noDebts")}</td></tr>}

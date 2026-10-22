@@ -469,4 +469,18 @@ export const en: Messages = {
 
   "unit.days": "{n} d",
   "unit.hours": "{n} h",
+
+  "work.tab": "Work",
+  "work.find": "Find intermediaries",
+  "work.found": "Found in the base: {found}. Not found: {missing} — type the intermediary manually, it will be saved to the base.",
+  "work.groups": "Columns:",
+  "grp.metrics": "Metrics",
+  "grp.med": "Intermediary",
+  "grp.prices": "Prices",
+  "grp.pub": "Publication",
+  "work.medPrice": "Intermediary price",
+  "work.source": "Marketplace / direct",
+  "work.clientPrice": "Client price",
+  "work.margin": "Margin",
+  "work.noDrafts": "No donors with an intermediary who haven't been contacted yet. Click “Find intermediaries” or type a contact in the “Intermediary” column.",
 };

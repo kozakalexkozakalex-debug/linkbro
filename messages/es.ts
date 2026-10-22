@@ -469,4 +469,18 @@ export const es: Messages = {
 
   "unit.days": "{n} d",
   "unit.hours": "{n} h",
+
+  "work.tab": "Trabajo",
+  "work.find": "Buscar intermediarios",
+  "work.found": "Encontrados en la base: {found}. No encontrados: {missing}: escribe el intermediario a mano y se guardará en la base.",
+  "work.groups": "Columnas:",
+  "grp.metrics": "Métricas",
+  "grp.med": "Intermediario",
+  "grp.prices": "Precios",
+  "grp.pub": "Publicación",
+  "work.medPrice": "Precio intermediario",
+  "work.source": "Marketplace / directo",
+  "work.clientPrice": "Precio al cliente",
+  "work.margin": "Margen",
+  "work.noDrafts": "No hay donantes con intermediario sin contactar. Pulsa «Buscar intermediarios» o escribe un contacto en la columna «Intermediario».",
 };

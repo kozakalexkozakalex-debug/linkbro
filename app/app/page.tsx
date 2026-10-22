@@ -302,7 +302,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                 <ul className="mt-3 divide-y divide-line border-t border-line text-sm">
                   {stale.slice(0, 6).map((r) => (
                     <li key={r.id} className="flex items-center gap-2 py-1.5">
-                      <Link href={`/app/projects/${r.project_id}?tab=comm`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
+                      <Link href={`/app/projects/${r.project_id}?tab=work`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
                       <span className="pill" suppressHydrationWarning>{t("unit.days", { n: Math.round((hoursSince(r.indicator_at) ?? 0) / 24) })}</span>
                     </li>
                   ))}
@@ -474,7 +474,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
               <ul className="divide-y divide-line text-sm">
                 {guaranteeSoon.map((r) => (
                   <li key={r.id} className="flex items-center gap-2 py-1.5">
-                    <Link href={`/app/projects/${r.project_id}?tab=gp`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
+                    <Link href={`/app/projects/${r.project_id}?tab=work`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
                     <span className="pill">{pById.get(r.project_id)?.name}</span>
                     <span className="pill pill-warn" suppressHydrationWarning>{t("unit.days", { n: daysLeft(r.guarantee_until) ?? 0 })}</span>
                   </li>
@@ -490,7 +490,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
               <ul className="divide-y divide-line text-sm">
                 {broken.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center gap-2 py-1.5">
-                    <Link href={`/app/projects/${r.project_id}?tab=gp`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
+                    <Link href={`/app/projects/${r.project_id}?tab=work`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
                     <span className="pill">{pById.get(r.project_id)?.name}</span>
                     <span className="pill pill-bad">{LINK_STATUS[r.link_status as LinkStatus] ? t(LINK_STATUS[r.link_status as LinkStatus].key) : r.link_status}</span>
                     {(daysLeft(r.guarantee_until) ?? -1) >= 0 && <span className="pill pill-warn">{t("dash.hasGuarantee")}</span>}

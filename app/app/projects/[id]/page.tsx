@@ -7,9 +7,7 @@ import { fetchAll, chunk } from "@/lib/fetchAll";
 import { fmtDateTime } from "@/lib/global";
 import { DONOR_COLUMNS, PROJECT_COLUMNS, normalizeFilter, type CustomStatuses, type Project, type ProjectDonor } from "@/lib/project";
 import FromGlobal from "./FromGlobal";
-import Core from "./Core";
-import Comm, { type MedBusy } from "./Comm";
-import GuestPosting from "./GuestPosting";
+import Work, { type MedBusy } from "./Work";
 import Profile from "./Profile";
 import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
@@ -19,9 +17,7 @@ type Search = Promise<{ tab?: string; mine?: string; q?: string; error?: string;
 
 const TABS = [
   { key: "fg", label: "From Global" },
-  { key: "core", label: "Project Core" },
-  { key: "comm", label: "Communication" },
-  { key: "gp", label: "Guest Posting" },
+  { key: "work", label: "" },
   { key: "history", label: "" },
   { key: "profile", label: "" },
 ] as const;
@@ -58,7 +54,8 @@ type LogRow = { id: number; domain: string | null; user_id: string | null; field
 export default async function ProjectPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const { id } = await params;
   const sp = await searchParams;
-  const tab = TABS.some((x) => x.key === sp.tab) ? (sp.tab as string) : "fg";
+  const askTab = ["core", "comm", "gp"].includes(sp.tab ?? "") ? "work" : sp.tab;
+  const tab = TABS.some((x) => x.key === askTab) ? (askTab as string) : "fg";
   const mine = sp.mine === "1";
   const q = (sp.q ?? "").trim().toLowerCase();
   const { supabase, team, user } = await getTeamContext();
@@ -92,7 +89,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
   // ---------- Дубли: этот же донор в работе в других проектах ----------
   const dupes: Record<string, string[]> = {};
-  if (tab === "core" || tab === "comm" || tab === "gp") {
+  if (tab === "work") {
     const domains = [...new Set(donors.map((d) => d.domain))];
     for (const part of chunk(domains, 200)) {
       const { data } = await supabase
@@ -112,14 +109,14 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
   // ---------- С этим посредником уже общаются ----------
   const medBusy: MedBusy = {};
-  if (tab === "comm") {
-    const meds = [...new Set(donors.filter((d) => d.in_comm && d.med_base).map((d) => d.med_base))];
+  if (tab === "work") {
+    const meds = [...new Set(donors.filter((d) => d.fg_status === "core" && d.med_base).map((d) => d.med_base))];
     for (const part of chunk(meds, 100)) {
       const { data } = await supabase
         .from("project_donors")
         .select("id, project_id, domain, assignee, fg_status, core_status, in_comm, in_gp, med_base, indicator, comm_status")
         .eq("team_id", team.id)
-        .eq("in_comm", true)
+        .eq("fg_status", "core")
         .in("med_base", part);
       for (const o of (data ?? []) as OtherRow[]) {
         if (!o.indicator && !o.comm_status) continue;
@@ -135,9 +132,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
   const count = (pred: (d: ProjectDonor) => boolean) => donors.filter(pred).length;
   const counts: Record<string, number | null> = {
     fg: donors.length,
-    core: count((d) => d.fg_status === "core"),
-    comm: count((d) => d.in_comm),
-    gp: count((d) => d.in_gp),
+    work: count((d) => d.fg_status === "core"),
     history: null,
     profile: null,
   };
@@ -223,7 +218,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
       <div className="flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((tb) => (
           <Link key={tb.key} href={qs(tb.key)} className={`tab whitespace-nowrap ${tab === tb.key ? "tab-on" : ""}`}>
-            {tb.label || (tb.key === "history" ? t("proj.tabHistory") : t("proj.tabProfile"))}
+            {tb.label || (tb.key === "work" ? t("work.tab") : tb.key === "history" ? t("proj.tabHistory") : t("proj.tabProfile"))}
             {counts[tb.key] != null && <span className="ml-1 font-mono text-xs">{counts[tb.key]}</span>}
           </Link>
         ))}
@@ -238,13 +233,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
       {sp.saved && <p className="note note-ok" role="status">{t("common.saved")}</p>}
 
       {tab === "fg" && <FromGlobal projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
-      {tab === "core" && (
-        <Core projectId={id} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} />
+      {tab === "work" && (
+        <Work projectId={id} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
       )}
-      {tab === "comm" && (
-        <Comm projectId={id} rows={donors.filter((d) => d.in_comm)} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
-      )}
-      {tab === "gp" && <GuestPosting projectId={id} rows={donors.filter((d) => d.in_gp)} dupes={dupes} />}
 
       {tab === "history" && (
         <div className="tbl-wrap">

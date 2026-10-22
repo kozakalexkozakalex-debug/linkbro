@@ -577,6 +577,10 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
       const n = v === "" ? null : priceNumber(v);
       if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
       put(c.id, { gp_price: n });
+    } else if (c.field === "client_price") {
+      const n = v === "" ? null : priceNumber(v);
+      if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
+      put(c.id, { client_price: n });
     } else if (c.field === "gp_commission") {
       const n = v === "" ? 0 : Number(v.replace(",", ".").replace("%", ""));
       if (!Number.isFinite(n) || n < 0 || n > 100) return fail(await tr("err.cellCommission", { v }));
@@ -611,6 +615,21 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     if (bad?.error) return fail(bad.error.message);
   }
 
+  // Посредник или его цена изменены вручную → запоминаем в базе посредников команды
+  const medIds = [...new Set(changes.filter((c) => ["med_base", "price_base", "gp_price"].includes(c.field)).map((c) => c.id))];
+  for (const part of chunk(medIds, 200)) {
+    const { data } = await supabase
+      .from("project_donors")
+      .select("domain, med_base, price_base, gp_price")
+      .eq("team_id", team.id)
+      .in("id", part);
+    const rows = ((data ?? []) as { domain: string; med_base: string; price_base: string; gp_price: number | null }[])
+      .filter((r) => r.med_base.trim())
+      .map((r) => ({ team_id: team.id, domain: r.domain, intermediary: r.med_base.trim(), price: r.price_base.trim() || (r.gp_price == null ? "" : String(r.gp_price)) }));
+    if (rows.length) await supabase.from("intermediaries").upsert(rows, { onConflict: "team_id,domain" });
+  }
+  if (medIds.length) revalidatePath("/app/intermediaries");
+
   // Статусы с последствиями (переход между модулями, даты) — по одному
   for (const c of special) {
     let r: Ok;
@@ -643,4 +662,37 @@ export async function updateIntermediariesBatch(changes: CellChange[]): Promise<
   }
   revalidatePath("/app/intermediaries");
   return { ok: true };
+}
+
+// Кнопка «Знайти посередників»: для доноров проекта без посредника ищем контакт и цену в базе посредников
+export async function findIntermediaries(projectId: string): Promise<{ found: number; missing: number; error?: string }> {
+  const { supabase, team } = await getTeamContext();
+  const rows = await fetchAll<{ id: string; domain: string; gp_price: number | null }>((from, to) =>
+    supabase
+      .from("project_donors")
+      .select("id, domain, gp_price")
+      .eq("project_id", projectId)
+      .eq("team_id", team.id)
+      .eq("fg_status", "core")
+      .eq("med_base", "")
+      .order("id")
+      .range(from, to),
+  );
+  const base = new Map<string, { intermediary: string; price: string }>();
+  for (const part of chunk(rows.map((r) => r.domain), 200)) {
+    const { data, error } = await supabase.from("intermediaries").select("domain, intermediary, price").eq("team_id", team.id).in("domain", part);
+    if (error) return { found: 0, missing: rows.length, error: error.message };
+    for (const r of (data ?? []) as { domain: string; intermediary: string; price: string }[]) if (r.intermediary) base.set(r.domain, r);
+  }
+  let found = 0;
+  for (const r of rows) {
+    const m = base.get(r.domain);
+    if (!m) continue;
+    const patch: Record<string, unknown> = { med_base: m.intermediary, price_base: m.price };
+    if (r.gp_price == null && priceNumber(m.price) != null) patch.gp_price = priceNumber(m.price);
+    await supabase.from("project_donors").update(patch).eq("id", r.id).eq("team_id", team.id);
+    found++;
+  }
+  refresh(projectId);
+  return { found, missing: rows.length - found };
 }
