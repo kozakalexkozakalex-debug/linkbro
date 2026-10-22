@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <MobileNav teamName={team.name} />
       <nav className="side" aria-label={t("nav.menu")}>
         <Link href="/app" className="font-display px-2 text-base font-bold">
-          Link<span className="text-[#3fc7a4]">Bro</span>
+          Link<span className="text-[#ff8a3d]">Bro</span>
         </Link>
 
         {teams.length > 1 ? (

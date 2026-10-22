@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
-/* Цвета из прототипа LinkBro. Светлая тема по умолчанию, тёмная — по настройке системы. */
+/* Цвета LinkBro: графит + оранжевый. Светлая тема по умолчанию, тёмная — по настройке системы. */
 :root {
-  --bg: #f3f5f4;
+  --bg: #f4f4f2;
   --panel: #ffffff;
-  --ink: #16211e;
-  --mute: #5f6f6a;
-  --line: #dce3e0;
-  --side: #12201c;
-  --side-ink: #d5e2dd;
-  --accent: #0b7a63;
+  --ink: #1f2226;
+  --mute: #686c73;
+  --line: #e1e1de;
+  --side: #25282d;
+  --side-ink: #d9dbdf;
+  --side-accent: #ff8a3d;
+  --accent: #c4460f;
   --accent-ink: #ffffff;
-  --accent-soft: #ddf1ea;
+  --accent-soft: #fdeadb;
   --ok: #1b7f4b;
   --ok-soft: #dff3e6;
   --bad: #b4342b;
   --bad-soft: #fbe4e1;
-  --warn: #8a5800;
-  --warn-soft: #fcefd2;
+  --warn: #866800;
+  --warn-soft: #f8efc8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1513;
-    --panel: #16201d;
-    --ink: #e6eeea;
-    --mute: #93a49e;
-    --line: #26332f;
-    --side: #0a100e;
-    --side-ink: #d5e2dd;
-    --accent: #3fc7a4;
-    --accent-ink: #06241c;
-    --accent-soft: #143229;
+    --bg: #16181b;
+    --panel: #1f2226;
+    --ink: #ececea;
+    --mute: #9b9fa6;
+    --line: #30343a;
+    --side: #111315;
+    --side-ink: #d9dbdf;
+    --side-accent: #ff8a3d;
+    --accent: #ff8a3d;
+    --accent-ink: #1d1206;
+    --accent-soft: #3b2415;
     --ok: #5fd08f;
     --ok-soft: #143021;
     --bad: #f08a80;
     --bad-soft: #3a1a17;
-    --warn: #e8b45a;
-    --warn-soft: #3a2c10;
+    --warn: #e2c14f;
+    --warn-soft: #3a3210;
     color-scheme: dark;
   }
 }
@@ -108,7 +110,7 @@ body {
   .side-soon:hover { background: none; }
   .side-team { display: flex; gap: 6px; align-items: center; }
   .side-select { background: #ffffff14; color: var(--side-ink); border: 0; border-radius: 6px; padding: 6px 8px; min-width: 0; flex: 1; }
-  .side-select option { color: #16211e; }
+  .side-select option { color: #1f2226; }
   .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
 
   /* Телефон: боковое меню выезжает слева, внизу — панель с главными разделами */
@@ -190,17 +192,17 @@ body {
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
     color: #ffffff; padding: 0 6px 6px 10px; margin: 0;
   }
-  .side-label::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: #3fc7a4; margin-right: 8px; flex: none; }
+  .side-label::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--side-accent); margin-right: 8px; flex: none; }
   .side-label > span { flex: 1; }
   .side-sub { display: flex; flex-direction: column; gap: 1px; margin-left: 13px; padding-left: 8px; border-left: 1px solid #ffffff1f; }
-  .side-sub .side-link { font-size: 13.5px; padding: 6px 10px; color: #c3d2cc; }
+  .side-sub .side-link { font-size: 13.5px; padding: 6px 10px; color: #c4c7cc; }
   .side-sub .side-link:hover { color: #ffffff; }
-  .side-active, .side-sub .side-active { background: #3fc7a426; color: #ffffff; font-weight: 600; box-shadow: inset 2px 0 0 #3fc7a4; }
+  .side-active, .side-sub .side-active { background: #ff8a3d26; color: #ffffff; font-weight: 600; box-shadow: inset 2px 0 0 var(--side-accent); }
   .side-plus {
     display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
     border-radius: 6px; background: #ffffff14; color: #ffffff; font-size: 16px; font-weight: 500; line-height: 1;
   }
-  .side-plus:hover { background: #3fc7a4; color: #06241c; }
+  .side-plus:hover { background: var(--side-accent); color: #1d1206; }
   .side-empty { font-size: 12px; opacity: .5; padding: 6px 10px; }
   .side-add-mobile { display: none; }
   .side-team-name { padding: 6px 10px; border-radius: 6px; background: #ffffff0d; font-size: 13px; font-weight: 600; }
