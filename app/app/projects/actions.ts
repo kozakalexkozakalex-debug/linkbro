@@ -630,6 +630,17 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
   }
   if (medIds.length) revalidatePath("/app/intermediaries");
 
+  // Вставили Article URL → донор опубликован (если ещё не отмечен)
+  const pubIds = changes.filter((c) => c.field === "article_url" && c.value.trim()).map((c) => c.id);
+  if (pubIds.length) {
+    const { data } = await supabase.from("project_donors").select("id, core_status").eq("team_id", team.id).in("id", pubIds);
+    for (const r of (data ?? []) as { id: string; core_status: string }[]) {
+      if (r.core_status !== "Published" && !special.some((c) => c.id === r.id && c.field === "core_status")) {
+        special.push({ id: r.id, field: "core_status", value: "Published" });
+      }
+    }
+  }
+
   // Статусы с последствиями (переход между модулями, даты) — по одному
   for (const c of special) {
     let r: Ok;
@@ -695,4 +706,39 @@ export async function findIntermediaries(projectId: string): Promise<{ found: nu
   }
   refresh(projectId);
   return { found, missing: rows.length - found };
+}
+
+// Карточка донора: история изменений и что известно о его посреднике
+export type DonorExtra = {
+  log: { field: string; old_value: string | null; new_value: string | null; created_at: string; user_id: string | null }[];
+  med: { project: string; domain: string; status: string; price: number | null; currency: string }[];
+};
+
+export async function getDonorExtra(donorId: string, med: string): Promise<DonorExtra> {
+  const { supabase, team } = await getTeamContext();
+  const { data: log } = await supabase
+    .from("activity_log")
+    .select("field, old_value, new_value, created_at, user_id")
+    .eq("team_id", team.id)
+    .eq("donor_id", donorId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  let medRows: DonorExtra["med"] = [];
+  if (med.trim()) {
+    const { data } = await supabase
+      .from("project_donors")
+      .select("id, domain, core_status, gp_price, gp_currency, projects(name)")
+      .eq("team_id", team.id)
+      .eq("med_base", med.trim())
+      .neq("id", donorId)
+      .limit(50);
+    medRows = ((data ?? []) as unknown as { domain: string; core_status: string; gp_price: number | null; gp_currency: string; projects: { name: string } | { name: string }[] | null }[]).map((r) => ({
+      project: (Array.isArray(r.projects) ? r.projects[0]?.name : r.projects?.name) ?? "",
+      domain: r.domain,
+      status: r.core_status,
+      price: r.gp_price,
+      currency: r.gp_currency,
+    }));
+  }
+  return { log: (log ?? []) as DonorExtra["log"], med: medRows };
 }

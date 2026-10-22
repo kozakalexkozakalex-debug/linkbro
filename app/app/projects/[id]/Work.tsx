@@ -15,6 +15,8 @@ import { fmtDate } from "@/lib/global";
 import { CORE_NEG, CORE_POS, GP_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, priceFromText } from "@/lib/money";
 import { useI18n } from "@/components/I18nProvider";
+import Kanban from "./Kanban";
+import DonorCard from "./DonorCard";
 import type { MsgKey } from "@/lib/i18n/config";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
@@ -53,12 +55,17 @@ export default function Work({
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [shown, setShown] = useState<Group[]>(["med", "prices", "pub"]);
+  const [view, setView] = useState<"table" | "kanban">("table");
+  const [card, setCard] = useState<ProjectDonor | null>(null);
 
   useEffect(() => {
     try {
       const g = localStorage.getItem(GROUPS_STORE);
       if (g) setShown(JSON.parse(g));
       else if (window.innerWidth < 800) setShown(["med"]);
+      const vw = localStorage.getItem("linkbro.workView");
+      if (vw === "kanban" || vw === "table") setView(vw);
+      else if (window.innerWidth < 800) setView("kanban");
       const tpl = localStorage.getItem(TEMPLATE_KEY);
       if (tpl) setTemplate(tpl);
     } catch {
@@ -319,17 +326,42 @@ export default function Work({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        <div className="seg" role="group" aria-label={t("work.view")}>
+          {(["kanban", "table"] as const).map((vw) => (
+            <button
+              key={vw}
+              type="button"
+              className={view === vw ? "seg-on" : ""}
+              aria-pressed={view === vw}
+              onClick={() => {
+                setView(vw);
+                try {
+                  localStorage.setItem("linkbro.workView", vw);
+                } catch {
+                  /* не страшно */
+                }
+              }}
+            >
+              {t(vw === "kanban" ? "work.kanban" : "work.table")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === "table" && <div className="flex flex-wrap items-center gap-1.5 text-sm">
         <span className="text-mute">{t("work.groups")}</span>
         {GROUPS.map((g) => (
           <button key={g} type="button" className={`btn btn-sm ${shown.includes(g) ? "btn-pri" : ""}`} aria-pressed={shown.includes(g)} onClick={() => toggle(g)}>
             {t(GROUP_KEY[g])}
           </button>
         ))}
-      </div>
+      </div>}
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}
 
-      <Sheet
+      {view === "kanban" && <Kanban projectId={projectId} rows={rows} customNeg={custom.core_neg} onOpen={setCard} />}
+      {card && <DonorCard projectId={projectId} donor={card} statusOpts={statusOpts} onClose={() => setCard(null)} />}
+
+      {view === "table" && <Sheet
         key={shown.join(",")}
         rows={rows}
         columns={columns}
@@ -343,7 +375,7 @@ export default function Work({
           </>
         )}
         empty={<div className="card text-center text-mute">{t("core.empty")}</div>}
-      />
+      />}
 
       {draftsOpen && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setDraftsOpen(false)}>

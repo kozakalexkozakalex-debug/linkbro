@@ -14,6 +14,7 @@ const ICON: Record<string, React.ReactNode> = {
   money: <path d="M11.8 10.9c-2.3-.6-3-1.2-3-2.1 0-1.1 1-1.9 2.7-1.9 1.8 0 2.4.8 2.5 2.1h2.2c-.1-1.7-1.1-3.3-3.2-3.8V3h-3v2.2c-1.9.4-3.5 1.7-3.5 3.6 0 2.3 1.9 3.5 4.7 4.1 2.5.6 3 1.5 3 2.4 0 .7-.5 1.8-2.7 1.8-2.1 0-2.9-.9-3-2.1H5.3c.1 2.2 1.8 3.5 3.7 3.9V21h3v-2.1c1.9-.4 3.5-1.5 3.5-3.6 0-2.9-2.5-3.9-4.7-4.4" />,
   folder: <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z" />,
   plus: <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />,
+  today: <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 16H5V9h14zM7 11h5v5H7z" />,
   menu: <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />,
 };
 
@@ -38,6 +39,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
   }, [open]);
 
   const items = [
+    { href: "/app/today", icon: "today", label: t("nav.today") },
     { href: "/app/projects", icon: "folder", label: t("common.projects") },
     { href: "/app/input", icon: "plus", label: t("nav.input") },
     { href: "/app/global", icon: "global", label: t("nav.global") },

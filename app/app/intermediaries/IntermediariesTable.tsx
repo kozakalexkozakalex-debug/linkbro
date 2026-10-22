@@ -5,6 +5,7 @@ import { updateIntermediariesBatch } from "../projects/actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
 import { fmtDate } from "@/lib/global";
 import { useI18n } from "@/components/I18nProvider";
+import Link from "next/link";
 
 export type IntermediaryRow = { domain: string; intermediary: string; price: string; updated_at: string };
 type Row = IntermediaryRow & { id: string };
@@ -24,6 +25,13 @@ export default function IntermediariesTable({ rows }: { rows: IntermediaryRow[] 
       { key: "domain", header: t("med.donor"), kind: "readonly", width: 200, render: (r) => <span className="font-mono font-semibold">{r.domain}</span> },
       { key: "intermediary", header: t("med.intermediary"), kind: "text", width: 260, placeholder: t("med.contactPh") },
       { key: "price", header: t("common.price"), kind: "text", width: 110 },
+      {
+        key: "profile",
+        header: "",
+        kind: "readonly",
+        width: 90,
+        render: (r) => (r.intermediary ? <Link href={`/app/intermediaries/profile?c=${encodeURIComponent(r.intermediary)}`} className="underline">{t("medp.open")}</Link> : null),
+      },
       { key: "updated", header: t("med.updated"), kind: "readonly", width: 100, mono: true, get: (r) => fmtDate(r.updated_at, intl) },
     ],
     [t, intl],
