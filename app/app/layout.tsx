@@ -4,6 +4,7 @@ import { signOut } from "@/app/actions/auth";
 import { switchTeam } from "@/app/actions/team";
 import NavLink from "@/components/NavLink";
 import LangSwitch from "@/components/LangSwitch";
+import MobileNav from "@/components/MobileNav";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
+      <MobileNav teamName={team.name} />
       <nav className="side" aria-label={t("nav.menu")}>
         <Link href="/app" className="font-display px-2 text-base font-bold">
           Link<span className="text-[#3fc7a4]">Bro</span>

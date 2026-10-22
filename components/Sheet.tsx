@@ -75,6 +75,8 @@ export default function Sheet<T extends { id: string }>({
   const [editing, setEditing] = useState<{ r: number; c: number; draft: string } | null>(null);
   const [fillTo, setFillTo] = useState<number | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const touchRef = useRef(false);
+  const tapPrev = useRef<Pos | null>(null);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const dragging = useRef(false);
   const filling = useRef(false);
@@ -275,7 +277,7 @@ export default function Sheet<T extends { id: string }>({
       <div
         ref={wrap}
         tabIndex={0}
-        className={`tbl-wrap sheet ${pending ? "sheet-saving" : ""}`}
+        className={`tbl-wrap sheet ${bulk ? "sheet-bulk" : ""} ${pending ? "sheet-saving" : ""}`}
         onKeyDown={onKeyDown}
         onCopy={onCopy}
         onPaste={onPaste}
@@ -295,7 +297,7 @@ export default function Sheet<T extends { id: string }>({
                 </th>
               )}
               {columns.map((c) => (
-                <th key={c.key} style={{ minWidth: c.width }}>{c.header}</th>
+                <th key={c.key} className={c === columns[0] ? "sh-first" : undefined} style={{ minWidth: c.width }}>{c.header}</th>
               ))}
             </tr>
           </thead>
@@ -318,6 +320,7 @@ export default function Sheet<T extends { id: string }>({
                   const value = v(col.key);
                   const cls = [
                     "sh-cell",
+                    c === 0 ? "sh-first" : "",
                     col.kind !== "readonly" ? "sh-edit" : "",
                     inRange ? "sh-sel" : "",
                     isFocus ? "sh-focus" : "",
@@ -334,6 +337,17 @@ export default function Sheet<T extends { id: string }>({
                       onMouseDown={(e) => onCellDown(e, r, c)}
                       onMouseEnter={() => onCellEnter(r, c)}
                       onDoubleClick={() => startEdit(r, c)}
+                      onTouchStart={() => {
+                        touchRef.current = true;
+                        tapPrev.current = focus;
+                      }}
+                      onClick={() => {
+                        // Телефон: первое касание выбирает клетку, второе — открывает правку
+                        if (!touchRef.current) return;
+                        touchRef.current = false;
+                        const p = tapPrev.current;
+                        if (!editing && p && p.r === r && p.c === c) startEdit(r, c);
+                      }}
                     >
                       {isEdit && editing ? (
                         col.kind === "select" ? (
@@ -413,9 +427,8 @@ export default function Sheet<T extends { id: string }>({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-mute">
-        {t("sheet.help")}
-      </p>
+      <p className="sheet-help text-xs text-mute">{t("sheet.help")}</p>
+      <p className="sheet-touch-help text-xs text-mute">{t("sheet.touchHelp")}</p>
     </div>
   );
 }

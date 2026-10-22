@@ -111,11 +111,50 @@ body {
   .side-select option { color: #16211e; }
   .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
 
+  /* Телефон: боковое меню выезжает слева, внизу — панель с главными разделами */
+  .m-top, .m-bottom, .m-backdrop { display: none; }
   @media (max-width: 800px) {
     .app-shell { grid-template-columns: minmax(0, 1fr); }
-    .side { flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 16px; gap: 12px; }
-    .side-group { flex-direction: row; }
-    .side-foot { margin-top: 0; flex-direction: row; align-items: center; }
+    .m-top {
+      display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 30;
+      background: var(--side); color: var(--side-ink); padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top));
+    }
+    .side {
+      position: fixed; top: 0; bottom: 0; left: 0; z-index: 45; width: min(300px, 84vw);
+      overflow-y: auto; transform: translateX(-100%); transition: transform .2s ease;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+    html[data-nav-open] .side { transform: none; box-shadow: 4px 0 24px #0006; }
+    html[data-nav-open] body { overflow: hidden; }
+    .side .side-link { padding: 10px 12px; font-size: 15px; }
+    .m-backdrop { display: block; position: fixed; inset: 0; z-index: 44; background: #0007; border: 0; }
+    .m-bottom {
+      display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 46;
+      background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+    }
+    .m-item {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px;
+      font-size: 10.5px; color: var(--mute); background: none; border: 0; cursor: pointer; padding: 4px 2px; text-align: center; line-height: 1.15;
+    }
+    .m-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-on { color: var(--accent); font-weight: 600; }
+    .app-shell > main { padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; padding-left: 12px !important; padding-right: 12px !important; padding-top: 16px !important; }
+
+    /* Крупнее кнопки и поля под палец; 16px в полях — чтобы iPhone не увеличивал страницу */
+    .btn { min-height: 40px; padding: 8px 14px; }
+    .btn-sm { min-height: 36px; padding: 6px 11px; font-size: 13px; }
+    .inp, select, textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="number"] { font-size: 16px; }
+    .tab { padding: 10px 12px; }
+    .card { padding: 14px; }
+
+    /* Окна выезжают снизу и прокручиваются */
+    .modal { align-items: flex-end; padding: 0; }
+    .modal > .card { max-height: 88vh; overflow-y: auto; border-radius: 14px 14px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); max-width: none; width: 100%; }
+
+    /* Таблицы листаются пальцем, подсказки про клавиатуру не нужны */
+    .tbl-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+    .sheet-help { display: none; }
+    .sheet-touch-help { display: block; }
   }
 }
 
@@ -165,12 +204,6 @@ body {
   .side-empty { font-size: 12px; opacity: .5; padding: 6px 10px; }
   .side-add-mobile { display: none; }
   .side-team-name { padding: 6px 10px; border-radius: 6px; background: #ffffff0d; font-size: 13px; font-weight: 600; }
-  @media (max-width: 800px) {
-    .side-label { display: none; }
-    .side-sub { flex-direction: row; margin-left: 0; padding-left: 0; border-left: 0; }
-    .side-add-mobile { display: block; }
-    .side-empty { display: none; }
-  }
 }
 
 /* ---------- Таблица как в Google Sheets ---------- */
@@ -192,3 +225,13 @@ body {
   .bulk-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: var(--ink); color: var(--panel); }
   .bulk-bar .stsel, .bulk-bar .btn { color: var(--ink); }
 }
+
+/* ---------- Закреплённая первая колонка таблиц (домен виден при прокрутке вбок) ---------- */
+@layer components {
+  .sheet .sh-check { position: sticky; left: 0; z-index: 2; background: var(--panel); }
+  .sheet .sh-first { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: 1px 0 0 var(--line); }
+  .sheet-bulk .sh-first { left: 34px; }
+  .sh-row-checked .sh-first, .sh-row-checked .sh-check { background: var(--bg); }
+  .sheet-touch-help { display: none; }
+}
+
