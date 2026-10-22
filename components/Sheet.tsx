@@ -168,7 +168,11 @@ export default function Sheet<T extends { id: string }>({
       }
     }
     window.addEventListener("mouseup", up);
-    return () => window.removeEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+    return () => {
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+    };
   });
 
   // ---------- Правка ----------
