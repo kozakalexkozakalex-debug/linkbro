@@ -438,7 +438,7 @@ export const en: Messages = {
   "sheet.aria": "Table. Arrows — move, Enter — edit, Ctrl+V — paste a block",
   "sheet.clearSel": "Clear selection",
   "sheet.fill": "Drag down to copy",
-  "sheet.touchHelp": "Tap a cell to select it, tap again to edit. Swipe sideways to scroll the table.",
+  "sheet.touchHelp": "Tap ✎ next to the domain to open a card with all fields. Or tap a cell twice.",
   "sheet.help": "Click — select, Shift / mouse drag — range, Enter or double-click — edit, Ctrl+C / Ctrl+V — copy and paste blocks from Google Sheets, the square in the corner — drag down, Delete — clear.",
   "sheet.saveFailed": "Couldn't save",
   "sheet.saved": "Changes saved: {n}",
@@ -483,4 +483,6 @@ export const en: Messages = {
   "work.clientPrice": "Client price",
   "work.margin": "Margin",
   "work.noDrafts": "No donors with an intermediary who haven't been contacted yet. Click “Find intermediaries” or type a contact in the “Intermediary” column.",
+
+  "sheet.openRow": "Open row",
 };

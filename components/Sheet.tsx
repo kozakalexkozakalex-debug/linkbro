@@ -76,6 +76,21 @@ export default function Sheet<T extends { id: string }>({
   const [fillTo, setFillTo] = useState<number | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const touchRef = useRef(false);
+  const [rowEdit, setRowEdit] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  function openRow(r: number) {
+    setDraft({ ...(vals[ids[r]] ?? {}) });
+    setRowEdit(r);
+  }
+  function saveRow() {
+    if (rowEdit == null) return;
+    const id = ids[rowEdit];
+    const changes = columns
+      .filter((c) => c.kind !== "readonly")
+      .map((c) => ({ id, field: c.key, value: c.kind === "select" ? draft[c.key] ?? "" : (draft[c.key] ?? "").trim() }));
+    setRowEdit(null);
+    commit(changes);
+  }
   const tapPrev = useRef<Pos | null>(null);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const dragging = useRef(false);
@@ -410,6 +425,11 @@ export default function Sheet<T extends { id: string }>({
                       ) : (
                         <span className="sh-ph">{col.placeholder ?? ""}</span>
                       )}
+                      {c === 0 && (
+                        <button type="button" className="sh-open" aria-label={t("sheet.openRow")} title={t("sheet.openRow")} onClick={() => openRow(r)}>
+                          ✎
+                        </button>
+                      )}
                       {corner && (
                         <span
                           className="sh-handle"
@@ -431,6 +451,50 @@ export default function Sheet<T extends { id: string }>({
           </tbody>
         </table>
       </div>
+      {rowEdit != null && rows[rowEdit] && (
+        <div className="modal" onClick={(e) => e.target === e.currentTarget && setRowEdit(null)}>
+          <div className="card flex w-full max-w-lg flex-col gap-3" role="dialog" aria-label={t("sheet.openRow")}>
+            {columns.map((col, c) => {
+              const row = rows[rowEdit];
+              const v = (key: string) => draft[key] ?? "";
+              if (c === 0) return <h2 key={col.key} className="font-display text-lg font-medium">{col.render ? col.render(row, v) : v(col.key)}</h2>;
+              const id = `re-${col.key}`;
+              let body: ReactNode;
+              if (col.kind === "readonly") {
+                body = col.render ? col.render(row, v) : <span className="font-mono text-sm">{v(col.key) || "—"}</span>;
+              } else if (col.kind === "select") {
+                body = (
+                  <select id={id} className="inp" value={v(col.key)} onChange={(e) => setDraft({ ...draft, [col.key]: e.target.value })}>
+                    {(optionsFor(rowEdit, c) ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                );
+              } else {
+                body = (
+                  <input
+                    id={id}
+                    className="inp"
+                    type={col.kind === "date" ? "date" : "text"}
+                    inputMode={col.kind === "number" ? "decimal" : undefined}
+                    placeholder={col.placeholder}
+                    value={v(col.key)}
+                    onChange={(e) => setDraft({ ...draft, [col.key]: e.target.value })}
+                  />
+                );
+              }
+              return (
+                <div key={col.key} className="grid grid-cols-[minmax(0,40%)_minmax(0,1fr)] items-center gap-2">
+                  <label htmlFor={id} className="lbl">{col.header}</label>
+                  <div className="min-w-0">{body}</div>
+                </div>
+              );
+            })}
+            <div className="sticky bottom-0 flex gap-2 bg-panel pt-2">
+              <button type="button" className="btn btn-pri flex-1" onClick={saveRow}>{t("common.save")}</button>
+              <button type="button" className="btn" onClick={() => setRowEdit(null)}>{t("common.cancel")}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <p className="sheet-help text-xs text-mute">{t("sheet.help")}</p>
       <p className="sheet-touch-help text-xs text-mute">{t("sheet.touchHelp")}</p>
     </div>

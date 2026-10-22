@@ -41,6 +41,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
     { href: "/app/projects", icon: "folder", label: t("common.projects") },
     { href: "/app/input", icon: "plus", label: t("nav.input") },
     { href: "/app/global", icon: "global", label: t("nav.global") },
+    { href: "/app/tasks", icon: "tasks", label: t("nav.tasks") },
   ];
 
   return (

@@ -204,13 +204,13 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
               <input type="hidden" name="tab" value={tab} />
               {mine && <input type="hidden" name="mine" value="1" />}
               <label htmlFor="pq" className="sr-only">{t("common.searchDomain")}</label>
-              <input id="pq" name="q" defaultValue={q} className="inp w-44" placeholder={t("common.searchDomain")} />
+              <input id="pq" name="q" defaultValue={q} className="inp w-44 max-sm:w-full" placeholder={t("common.searchDomain")} />
               <button type="submit" className="btn btn-sm">{t("common.find")}</button>
             </form>
             <Link href={qs(tab, !mine)} className={`btn btn-sm ${mine ? "btn-pri" : ""}`}>
               {mine ? t("proj.mineOn") : t("proj.mineOff")}
             </Link>
-            <a href={`/api/export?type=project&id=${id}`} className="btn btn-sm">{t("common.exportCsv")}</a>
+            <a href={`/api/export?type=project&id=${id}`} className="btn btn-sm max-sm:hidden">{t("common.exportCsv")}</a>
           </div>
         )}
       </div>

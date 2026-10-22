@@ -129,7 +129,7 @@ body {
     .side .side-link { padding: 10px 12px; font-size: 15px; }
     .m-backdrop { display: block; position: fixed; inset: 0; z-index: 44; background: #0007; border: 0; }
     .m-bottom {
-      display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 46;
+      display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 46;
       background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
     }
     .m-item {
@@ -242,3 +242,11 @@ body {
   @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
   @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 }
+
+/* Кнопка «открыть строку карточкой» в первой колонке */
+@layer components {
+  .sh-open { margin-left: 6px; padding: 0 6px; border-radius: 4px; color: var(--mute); background: none; border: 1px solid var(--line); cursor: pointer; font-size: 12px; line-height: 20px; vertical-align: middle; }
+  .sh-open:hover { color: var(--accent); border-color: var(--accent); }
+  @media (max-width: 800px) { .sh-open { padding: 4px 10px; font-size: 14px; color: var(--accent); border-color: var(--accent); } }
+}
+

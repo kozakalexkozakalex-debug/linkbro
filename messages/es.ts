@@ -438,7 +438,7 @@ export const es: Messages = {
   "sheet.aria": "Tabla. Flechas — mover, Enter — editar, Ctrl+V — pegar un bloque",
   "sheet.clearSel": "Quitar selección",
   "sheet.fill": "Arrastra hacia abajo para copiar",
-  "sheet.touchHelp": "Toca una celda para seleccionarla y otra vez para editarla. Desliza de lado para mover la tabla.",
+  "sheet.touchHelp": "Pulsa ✎ junto al dominio para abrir una ficha con todos los campos. O toca una celda dos veces.",
   "sheet.help": "Clic — seleccionar, Shift / arrastrar con el ratón — rango, Enter o doble clic — editar, Ctrl+C / Ctrl+V — copiar y pegar bloques de Google Sheets, el cuadrito de la esquina — arrastrar hacia abajo, Delete — borrar.",
   "sheet.saveFailed": "No se pudo guardar",
   "sheet.saved": "Cambios guardados: {n}",
@@ -483,4 +483,6 @@ export const es: Messages = {
   "work.clientPrice": "Precio al cliente",
   "work.margin": "Margen",
   "work.noDrafts": "No hay donantes con intermediario sin contactar. Pulsa «Buscar intermediarios» o escribe un contacto en la columna «Intermediario».",
+
+  "sheet.openRow": "Abrir fila",
 };
