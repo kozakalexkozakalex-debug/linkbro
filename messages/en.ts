@@ -532,4 +532,16 @@ export const en: Messages = {
   "medp.history": "Work with this intermediary",
 
   "stage.monthHint": "+ unfinished from earlier months",
+
+  "nav.home": "Home",
+  "dash.planPubs": "Publications this month",
+  "dash.planBudget": "Monthly budget, {cur}",
+  "dash.forecast": "forecast for month end: {n}",
+  "dash.marginMonth": "Margin this month",
+  "dash.marginOf": "from {n} published",
+  "dash.marginHint": "set the “Client price”",
+  "dash.process": "Process: where donors are now",
+  "dash.processHint": "% — how many made it from the previous stage",
+  "dash.allTasks": "all tasks →",
+  "dash.dynamics": "6-month trend",
 };

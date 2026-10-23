@@ -54,7 +54,7 @@ export const getTeamContext = cache(async () => {
 });
 
 // Безопасный адрес для перехода после входа: только внутренние пути.
-export function safeNext(next: unknown, fallback = "/app/today"): string {
+export function safeNext(next: unknown, fallback = "/app"): string {
   if (typeof next !== "string") return fallback;
   if (!next.startsWith("/") || next.startsWith("//")) return fallback;
   return next;

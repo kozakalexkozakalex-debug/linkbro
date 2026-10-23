@@ -530,4 +530,16 @@ export const uk = {
   "medp.history": "Робота з посередником",
 
   "stage.monthHint": "+ незавершені з минулих місяців",
+
+  "nav.home": "Головна",
+  "dash.planPubs": "Публікації цього місяця",
+  "dash.planBudget": "Бюджет місяця, {cur}",
+  "dash.forecast": "прогноз на кінець місяця: {n}",
+  "dash.marginMonth": "Маржа місяця",
+  "dash.marginOf": "з {n} опублікованих",
+  "dash.marginHint": "вкажіть «Ціну для клієнта»",
+  "dash.process": "Процес: де зараз донори",
+  "dash.processHint": "% — скільки дійшли з попереднього етапу",
+  "dash.allTasks": "усі справи →",
+  "dash.dynamics": "Динаміка за 6 місяців",
 };

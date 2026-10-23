@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
 import { fetchAll } from "@/lib/fetchAll";
-import { CORE_NEG, LINK_STATUS, hoursSince, type LinkStatus } from "@/lib/project";
+import { CORE_NEG, LINK_STATUS, type LinkStatus } from "@/lib/project";
 import { daysLeft, fmtAmount, fmtMoney, payState, realCost, addTo, type ByCurrency } from "@/lib/money";
 import {
   AN_COLUMNS,
@@ -18,6 +18,8 @@ import {
   type AnRow,
 } from "@/lib/analytics";
 import { HBars, Kpi, MonthBars, Progress } from "@/components/Charts";
+import { STAGES, STAGE_KEY, stageOf } from "@/lib/stages";
+import { ATT_TITLE, ATT_TONE, attention } from "@/lib/attention";
 import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
 
@@ -113,21 +115,43 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const prevAvgCost = ps.paidCount[cur] ? (ps.spend[cur] ?? 0) / (ps.paidCount[cur] ?? 1) : null;
   const contacted = rows.filter((r) => r.indicator).length;
   const replied = rows.filter((r) => r.indicator === "replied").length;
-  const talked = rows.filter((r) => r.comm_status).length;
-  const accepted = rows.filter((r) => r.comm_status === "Accepted").length;
-  const due: ByCurrency = {};
-  for (const r of rows) if (payState(r) === "due") addTo(due, r.gp_currency, realCost(r));
 
   // 6 месяцев для графиков
   const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5));
   const series = months.map((m) => ({ m, s: monthStats(rows, m, commStart) }));
 
-  const stale = rows.filter((r) => r.indicator === "waiting" && (hoursSince(r.indicator_at) ?? 0) > 72);
   const broken = rows.filter((r) => ["missing", "nofollow", "noindex", "anchor"].includes(r.link_status));
   const guaranteeSoon = rows.filter((r) => {
     const d = daysLeft(r.guarantee_until);
     return d != null && d >= 0 && d <= 7;
   });
+
+  // Прогноз публикаций на конец месяца по текущему темпу
+  const today = new Date();
+  const dim = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const forecast = month === now && today.getDate() > 2 ? Math.round((ms.published / today.getDate()) * dim) : null;
+  // Обязательства: погодили, но ещё не оплатили
+  const owedAll = rows.filter((r) => payState(r) === "due" && (r.gp_currency || "USD") === cur).reduce((a, r) => a + realCost(r), 0);
+  // Маржа месяца по опубликованным с ценой для клиента
+  const pubWithClient = rows.filter((r) => r.core_status === "Published" && (r.published_at ?? "").slice(0, 7) === month && r.client_price != null && (r.gp_currency || "USD") === cur);
+  const margin = pubWithClient.reduce((a, r) => a + (r.client_price ?? 0) - realCost(r), 0);
+  const marginCount = pubWithClient.length;
+  // Воронка: сколько доноров на каждом этапе и сколько дошли до этапа
+  const coreRows = rows.filter((r) => r.fg_status === "core");
+  const stageCount = new Map<string, number>();
+  for (const r of coreRows) {
+    const st = stageOf(r);
+    stageCount.set(st, (stageCount.get(st) ?? 0) + 1);
+  }
+  const reached = STAGES.map((_, k) => STAGES.slice(k).reduce((a, st) => a + (stageCount.get(st) ?? 0), 0));
+  const reachedMax = Math.max(1, ...STAGES.map((st) => stageCount.get(st) ?? 0));
+  const dropCounts = new Map<string, number>();
+  for (const r of rows) {
+    if (CORE_NEG.includes(r.core_status)) dropCounts.set(r.core_status, (dropCounts.get(r.core_status) ?? 0) + 1);
+    if (r.fg_status === "out") dropCounts.set("Out Geo/Topics", (dropCounts.get("Out Geo/Topics") ?? 0) + 1);
+  }
+  const dropData = [...dropCounts.entries()].sort((x, y) => y[1] - x[1]).map(([label, value]) => ({ label, value }));
+  const att = attention(rows).filter((a) => a.list.length > 0);
 
   const qs = (over: { project?: string; tab?: string; m?: string }) => {
     const p = new URLSearchParams();
@@ -184,132 +208,145 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
         ))}
       </div>
 
-      {/* ---------------- ОГЛЯД ---------------- */}
+      {/* ---------------- ОГЛЯД: план → процес → що робити → динаміка ---------------- */}
       {tab === "overview" && (
         <>
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Kpi
-              label={t("core.published")}
-              value={plan ? `${ms.published} / ${plan}` : String(ms.published)}
-              sub={plan ? t("dash.ofPlan", { p: pctTxt(rate(ms.published, plan)) }) : t("dash.noPlan")}
-              vs={t("dash.vsPrev")} delta={delta(ms.published, ps.published)}
-            />
-            <Kpi
-              label={t("dash.spent", { cur })}
-              value={money(spend)}
-              sub={budget ? t("dash.ofBudget", { b: money(budget), p: pctTxt(rate(spend, budget)) }) : t("dash.noBudget")}
-              vs={t("dash.vsPrev")} delta={delta(spend, ps.spend[cur] ?? 0)}
-              goodWhenUp={false}
-            />
-            <Kpi
-              label={t("dash.avgCost")}
-              value={avgCost == null ? "—" : money(avgCost)}
-              sub={t("dash.withCommission")}
-              vs={t("dash.vsPrev")} delta={delta(avgCost, prevAvgCost)}
-              goodWhenUp={false}
-            />
-            <Kpi
-              label={t("dash.timeToPublish")}
-              value={daysTxt(avg(ms.days))}
-              sub={t("dash.fromFirstContact")}
-              vs={t("dash.vsPrev")} delta={delta(avg(ms.days), avg(ps.days))}
-              goodWhenUp={false}
-            />
-            <Kpi label={t("dash.replyRate")} value={pctTxt(rate(replied, contacted))} sub={t("dash.ofLetters", { a: replied, b: contacted })} />
-            <Kpi label={t("dash.acceptRate")} value={pctTxt(rate(accepted, talked))} sub={t("dash.ofTalks", { a: accepted, b: talked, due: fm(due) })} />
+          {/* 1. План місяця */}
+          <section className="grid gap-3 lg:grid-cols-2">
+            <div className="card flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="lbl">{t("dash.planPubs")}</p>
+                {(() => {
+                  const d = delta(ms.published, ps.published);
+                  return d != null && Number.isFinite(d) && d !== 0 ? (
+                    <span className={`pill ${d > 0 ? "pill-ok" : "pill-bad"}`}>{d > 0 ? "▲" : "▼"} {Math.abs(Math.round(d))}% {t("dash.vsPrev")}</span>
+                  ) : null;
+                })()}
+              </div>
+              <p className="font-mono text-3xl font-semibold tabular-nums">
+                {ms.published}
+                {plan > 0 && <span className="text-lg font-normal text-mute"> / {plan}</span>}
+              </p>
+              {plan > 0 ? <Progress value={ms.published} max={plan} /> : <p className="text-sm text-mute">{t("dash.noPlan")}</p>}
+              <p className="text-sm text-mute" suppressHydrationWarning>
+                {plan > 0 && <>{t("dash.ofPlan", { p: pctTxt(rate(ms.published, plan)) })}</>}
+                {forecast != null && <> · {t("dash.forecast", { n: forecast })}</>}
+              </p>
+            </div>
+            <div className="card flex flex-col gap-2">
+              <p className="lbl">{t("dash.planBudget", { cur })}</p>
+              <p className="font-mono text-3xl font-semibold tabular-nums">
+                {money(spend)}
+                {budget > 0 && <span className="text-lg font-normal text-mute"> / {money(budget)}</span>}
+              </p>
+              {budget > 0 ? (
+                <>
+                  <Progress value={spend + owedAll} max={budget} warnOver />
+                  <p className={`text-sm ${budget - spend - owedAll < 0 ? "text-bad" : "text-mute"}`}>
+                    {budget - spend - owedAll >= 0 ? t("dash.left", { x: money(budget - spend - owedAll) }) : t("dash.over", { x: money(spend + owedAll - budget) })} ·{" "}
+                    {t("dash.owed", { x: money(owedAll) })}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-mute">{t("dash.noBudget")}</p>
+              )}
+            </div>
           </section>
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <section className="card">
-              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                <p className="lbl">{t("dash.pubs6")}</p>
-                {plan > 0 && <span className="text-xs text-mute">{t("dash.planLine", { n: plan })}</span>}
-              </div>
-              <MonthBars
-                data={series.map(({ m, s }) => ({ label: ml(m, "short"), value: s.published, hint: t("dash.pubsHint", { m: ml(m), n: s.published }) }))}
-                target={plan || null}
-                targetLabel={t("dash.plan")}
-                format={(n) => String(Math.round(n))}
-              />
-            </section>
-            <section className="card">
-              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                <p className="lbl">{t("dash.spend6", { cur })}</p>
-                {budget > 0 && <span className="text-xs text-mute">{t("dash.budgetLine", { b: money(budget) })}</span>}
-              </div>
-              <MonthBars
-                data={series.map(({ m, s }) => ({ label: ml(m, "short"), value: s.spend[cur] ?? 0, hint: `${ml(m)}: ${money(s.spend[cur] ?? 0)}` }))}
-                target={budget || null}
-                targetLabel={t("dash.budget")}
-                format={(n) => (n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(Math.round(n)))}
-              />
-            </section>
-          </div>
+          {/* 2. Ключові показники — лише 4 */}
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <Kpi label={t("dash.avgCost")} value={avgCost == null ? "—" : money(avgCost)} sub={t("dash.withCommission")} vs={t("dash.vsPrev")} delta={delta(avgCost, prevAvgCost)} goodWhenUp={false} />
+            <Kpi label={t("dash.marginMonth")} value={marginCount ? money(margin) : "—"} sub={marginCount ? t("dash.marginOf", { n: marginCount }) : t("dash.marginHint")} />
+            <Kpi label={t("dash.timeToPublish")} value={daysTxt(avg(ms.days))} sub={t("dash.fromFirstContact")} vs={t("dash.vsPrev")} delta={delta(avg(ms.days), avg(ps.days))} goodWhenUp={false} />
+            <Kpi label={t("dash.replyRate")} value={pctTxt(rate(replied, contacted))} sub={t("dash.ofLetters", { a: replied, b: contacted })} />
+          </section>
 
-          <div className="grid gap-3 lg:grid-cols-3">
+          {/* 3. Процес і що робити */}
+          <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
             <section className="card">
-              <p className="lbl mb-3">{t("dash.funnel")}</p>
-              <HBars
-                data={[
-                  { label: "From Global", value: rows.length },
-                  { label: "Project Core", value: rows.filter((r) => r.fg_status === "core").length },
-                  { label: "Communication", value: rows.filter((r) => r.in_comm).length },
-                  { label: "Guest Posting", value: rows.filter((r) => r.in_gp).length },
-                  { label: t("core.published"), value: rows.filter((r) => r.core_status === "Published").length },
-                ]}
-                format={(n) => String(n)}
-              />
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <p className="lbl">{t("dash.process")}</p>
+                <span className="text-xs text-mute">{t("dash.processHint")}</span>
+              </div>
+              <ol className="flex flex-col gap-1.5">
+                {STAGES.map((st, k) => {
+                  const n = stageCount.get(st) ?? 0;
+                  const conv = k > 0 && reached[k - 1] ? Math.round((reached[k] / reached[k - 1]) * 100) : null;
+                  return (
+                    <li key={st} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-2 text-sm">
+                      <span className="truncate">{t(STAGE_KEY[st])}</span>
+                      <span className="h-2 overflow-hidden rounded bg-bg">
+                        <span className="block h-full rounded bg-accent" style={{ width: `${reachedMax ? (n / reachedMax) * 100 : 0}%` }} />
+                      </span>
+                      <span className="w-20 text-right font-mono tabular-nums">
+                        {n}
+                        {conv != null && <span className="ml-1 text-xs text-mute">{conv}%</span>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              {dropData.length > 0 && (
+                <details className="mt-3 border-t border-line pt-2 text-sm">
+                  <summary className="cursor-pointer text-mute">{t("dash.dropReasons")} · {dropData.reduce((a, d) => a + d.value, 0)}</summary>
+                  <div className="mt-2"><HBars data={dropData} format={(n) => String(n)} tone={() => "var(--mute)"} /></div>
+                </details>
+              )}
             </section>
+
             <section className="card">
-              <p className="lbl mb-3">{t("dash.dropReasons")}</p>
-              {(() => {
-                const counts = new Map<string, number>();
-                for (const r of rows) {
-                  if (CORE_NEG.includes(r.core_status)) counts.set(r.core_status, (counts.get(r.core_status) ?? 0) + 1);
-                  if (r.fg_status === "out") counts.set("Out Geo/Topics", (counts.get("Out Geo/Topics") ?? 0) + 1);
-                  if (r.comm_status === "Declined" || r.comm_status === "No Response")
-                    counts.set(r.comm_status, (counts.get(r.comm_status) ?? 0) + 1);
-                }
-                const data = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
-                return data.length ? (
-                  <HBars data={data} format={(n) => String(n)} tone={() => "var(--mute)"} />
-                ) : (
-                  <p className="text-sm text-mute">{t("dash.noDrops")}</p>
-                );
-              })()}
-            </section>
-            <section className="card">
-              <p className="lbl mb-3">{t("dash.attention")}</p>
-              <ul className="flex flex-col gap-2 text-sm">
-                <li className="flex items-center justify-between gap-2">
-                  <Link href={qs({ tab: "links" })} className="underline">{t("dash.brokenLinks")}</Link>
-                  <span className={`pill ${broken.length ? "pill-bad" : "pill-ok"}`}>{broken.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-2">
-                  <span>{t("dash.noReply3")}</span>
-                  <span className={`pill ${stale.length ? "pill-warn" : "pill-ok"}`}>{stale.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-2">
-                  <Link href="/app/finance" className="underline">{t("dash.guarantee7")}</Link>
-                  <span className={`pill ${guaranteeSoon.length ? "pill-warn" : "pill-ok"}`}>{guaranteeSoon.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-2">
-                  <Link href="/app/finance" className="underline">{t("pay.due")}</Link>
-                  <span className="pill">{fm(due)}</span>
-                </li>
-              </ul>
-              {stale.length > 0 && (
-                <ul className="mt-3 divide-y divide-line border-t border-line text-sm">
-                  {stale.slice(0, 6).map((r) => (
-                    <li key={r.id} className="flex items-center gap-2 py-1.5">
-                      <Link href={`/app/projects/${r.project_id}?tab=work`} className="min-w-0 flex-1 truncate font-mono underline">{r.domain}</Link>
-                      <span className="pill" suppressHydrationWarning>{t("unit.days", { n: Math.round((hoursSince(r.indicator_at) ?? 0) / 24) })}</span>
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <p className="lbl">{t("dash.attention")}</p>
+                <Link href="/app/today" className="text-sm underline">{t("dash.allTasks")}</Link>
+              </div>
+              {att.length === 0 ? (
+                <p className="text-sm text-mute">{t("today.clear")}</p>
+              ) : (
+                <ul className="divide-y divide-line text-sm">
+                  {att.map((a) => (
+                    <li key={a.key}>
+                      <Link href={`/app/today#${a.key}`} className="flex items-center gap-2 py-2">
+                        <span className={`pill ${ATT_TONE[a.key]}`}>{a.list.length}</span>
+                        <span className="min-w-0 flex-1 truncate">{t(ATT_TITLE[a.key])}</span>
+                        <span className="text-mute" aria-hidden="true">›</span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
           </div>
+
+          {/* 4. Динаміка */}
+          <details className="card" open>
+            <summary className="cursor-pointer list-none lbl">{t("dash.dynamics")} ▾</summary>
+            <div className="mt-3 grid gap-4 lg:grid-cols-2">
+              <div>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium">{t("dash.pubs6")}</p>
+                  {plan > 0 && <span className="text-xs text-mute">{t("dash.planLine", { n: plan })}</span>}
+                </div>
+                <MonthBars
+                  data={series.map(({ m, s }) => ({ label: ml(m, "short"), value: s.published, hint: t("dash.pubsHint", { m: ml(m), n: s.published }) }))}
+                  target={plan || null}
+                  targetLabel={t("dash.plan")}
+                  format={(n) => String(Math.round(n))}
+                />
+              </div>
+              <div>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium">{t("dash.spend6", { cur })}</p>
+                  {budget > 0 && <span className="text-xs text-mute">{t("dash.budgetLine", { b: money(budget) })}</span>}
+                </div>
+                <MonthBars
+                  data={series.map(({ m, s }) => ({ label: ml(m, "short"), value: s.spend[cur] ?? 0, hint: `${ml(m)}: ${money(s.spend[cur] ?? 0)}` }))}
+                  target={budget || null}
+                  targetLabel={t("dash.budget")}
+                  format={(n) => (n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(Math.round(n)))}
+                />
+              </div>
+            </div>
+          </details>
         </>
       )}
 

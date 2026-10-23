@@ -39,7 +39,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
   }, [open]);
 
   const items = [
-    { href: "/app/today", icon: "today", label: t("nav.today") },
+    { href: "/app", icon: "dash", label: t("nav.home"), exact: true },
     { href: "/app/projects", icon: "folder", label: t("common.projects") },
     { href: "/app/input", icon: "plus", label: t("nav.input") },
     { href: "/app/global", icon: "global", label: t("nav.global") },
@@ -59,7 +59,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
 
       <nav className="m-bottom" aria-label={t("nav.menu")}>
         {items.map((it) => {
-          const active = path === it.href || path.startsWith(it.href + "/");
+          const active = "exact" in it ? path === it.href : path === it.href || path.startsWith(it.href + "/");
           return (
             <Link key={it.href} href={it.href} className={`m-item ${active ? "m-on" : ""}`} aria-current={active ? "page" : undefined}>
               <Icon name={it.icon} />

@@ -532,4 +532,16 @@ export const ru: Messages = {
   "medp.history": "Работа с посредником",
 
   "stage.monthHint": "+ незавершённые с прошлых месяцев",
+
+  "nav.home": "Главная",
+  "dash.planPubs": "Публикации этого месяца",
+  "dash.planBudget": "Бюджет месяца, {cur}",
+  "dash.forecast": "прогноз на конец месяца: {n}",
+  "dash.marginMonth": "Маржа месяца",
+  "dash.marginOf": "из {n} опубликованных",
+  "dash.marginHint": "укажите «Цену для клиента»",
+  "dash.process": "Процесс: где сейчас доноры",
+  "dash.processHint": "% — сколько дошли с предыдущего этапа",
+  "dash.allTasks": "все дела →",
+  "dash.dynamics": "Динамика за 6 месяцев",
 };

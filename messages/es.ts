@@ -532,4 +532,16 @@ export const es: Messages = {
   "medp.history": "Trabajo con este intermediario",
 
   "stage.monthHint": "+ pendientes de meses anteriores",
+
+  "nav.home": "Inicio",
+  "dash.planPubs": "Publicaciones del mes",
+  "dash.planBudget": "Presupuesto del mes, {cur}",
+  "dash.forecast": "previsión a fin de mes: {n}",
+  "dash.marginMonth": "Margen del mes",
+  "dash.marginOf": "de {n} publicados",
+  "dash.marginHint": "indica el «Precio al cliente»",
+  "dash.process": "Proceso: dónde están los donantes",
+  "dash.processHint": "% — cuántos pasaron de la etapa anterior",
+  "dash.allTasks": "todas las tareas →",
+  "dash.dynamics": "Tendencia de 6 meses",
 };

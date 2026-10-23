@@ -2,9 +2,9 @@ import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { fetchAll } from "@/lib/fetchAll";
 import { getI18n } from "@/lib/i18n/server";
-import type { MsgKey } from "@/lib/i18n/config";
-import { CORE_NEG, hoursSince } from "@/lib/project";
-import { daysLeft, fmtAmount, payState, realCost } from "@/lib/money";
+import { hoursSince } from "@/lib/project";
+import { daysLeft, fmtAmount, realCost } from "@/lib/money";
+import { ATT_HINT, ATT_TITLE, ATT_TONE, attention, type AttKey } from "@/lib/attention";
 import FindButton from "./FindButton";
 
 // «Сьогодні»: что нужно сделать прямо сейчас. Список собирается сам из данных проектов.
@@ -13,6 +13,7 @@ type Row = {
   project_id: string;
   domain: string;
   assignee: string | null;
+  fg_status: string;
   core_status: string;
   med_base: string;
   indicator: string | null;
@@ -39,7 +40,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const rows = await fetchAll<Row>((from, to) => {
     let q = supabase
       .from("project_donors")
-      .select("id, project_id, domain, assignee, core_status, med_base, indicator, indicator_at, gp_price, gp_currency, gp_commission, pay_status, gp_status, in_gp, link_status, guarantee_until, article_url")
+      .select("id, project_id, domain, assignee, fg_status, core_status, med_base, indicator, indicator_at, gp_price, gp_currency, gp_commission, pay_status, gp_status, in_gp, link_status, guarantee_until, article_url")
       .eq("team_id", team.id)
       .eq("fg_status", "core");
     if (!all) q = q.eq("assignee", user.id);
@@ -48,39 +49,20 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const { data: pData } = await supabase.from("projects").select("id, name").eq("team_id", team.id);
   const pName = new Map(((pData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
-  const live = rows.filter((r) => !CORE_NEG.includes(r.core_status) && r.core_status !== "Published");
-  const early = (r: Row) => ["new_core", "OK_Cat", "In communication", ""].includes(r.core_status);
-  const sections: { key: MsgKey; hint: MsgKey; tone: string; list: Row[]; extra?: (r: Row) => string; find?: boolean }[] = [
-    { key: "today.broken", hint: "today.brokenHint", tone: "pill-bad", list: rows.filter((r) => ["missing", "nofollow", "noindex"].includes(r.link_status) && (daysLeft(r.guarantee_until) ?? -1) >= 0) },
-    {
-      key: "today.stale",
-      hint: "today.staleHint",
-      tone: "pill-warn",
-      list: live.filter((r) => r.indicator === "waiting" && (hoursSince(r.indicator_at) ?? 0) > 72),
-      extra: (r) => t("unit.days", { n: Math.round((hoursSince(r.indicator_at) ?? 0) / 24) }),
-    },
-    { key: "today.replied", hint: "today.repliedHint", tone: "pill-ok", list: live.filter((r) => r.indicator === "replied" && early(r)) },
-    { key: "today.toWrite", hint: "today.toWriteHint", tone: "", list: live.filter((r) => r.med_base && !r.indicator && early(r)) },
-    { key: "today.noMed", hint: "today.noMedHint", tone: "", list: live.filter((r) => !r.med_base && early(r)), find: true },
-    {
-      key: "today.toPay",
-      hint: "today.toPayHint",
-      tone: "pill-warn",
-      list: rows.filter((r) => payState(r) === "due"),
-      extra: (r) => fmtAmount(realCost(r), r.gp_currency || "USD", intl),
-    },
-    { key: "today.noArticle", hint: "today.noArticleHint", tone: "", list: live.filter((r) => ["Price_ok", "client_OK", "Paid"].includes(r.core_status) && !r.article_url) },
-    {
-      key: "today.guarantee",
-      hint: "today.guaranteeHint",
-      tone: "pill-warn",
-      list: rows.filter((r) => {
-        const d = daysLeft(r.guarantee_until);
-        return d != null && d >= 0 && d <= 7;
-      }),
-      extra: (r) => t("unit.days", { n: daysLeft(r.guarantee_until) ?? 0 }),
-    },
-  ];
+  const extra: Partial<Record<AttKey, (r: Row) => string>> = {
+    stale: (r) => t("unit.days", { n: Math.round((hoursSince(r.indicator_at) ?? 0) / 24) }),
+    toPay: (r) => fmtAmount(realCost(r), r.gp_currency || "USD", intl),
+    guarantee: (r) => t("unit.days", { n: daysLeft(r.guarantee_until) ?? 0 }),
+  };
+  const sections = attention(rows).map((a) => ({
+    ...a,
+    key: ATT_TITLE[a.key],
+    hint: ATT_HINT[a.key],
+    tone: ATT_TONE[a.key],
+    extra: extra[a.key],
+    find: a.key === "noMed",
+    anchor: a.key,
+  }));
   const total = sections.reduce((a, s) => a + s.list.length, 0);
 
   return (
@@ -101,7 +83,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
         .map((s) => {
           const byProject = [...new Set(s.list.map((r) => r.project_id))];
           return (
-            <details key={s.key} className="card" open={s.list.length <= 8}>
+            <details key={s.key} id={s.anchor} className="card" open={s.list.length <= 8}>
               <summary className="flex cursor-pointer list-none items-center gap-2">
                 <span className={`pill ${s.tone}`}>{s.list.length}</span>
                 <span className="flex-1 font-semibold">{t(s.key)}</span>
