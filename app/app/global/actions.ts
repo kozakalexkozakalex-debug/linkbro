@@ -263,6 +263,6 @@ export async function updateGlobalBatch(changes: BatchChange[]): Promise<{ ok: b
     const bad = res.find((r) => r.error);
     if (bad?.error) return { ok: false, error: bad.error.message };
   }
-  revalidatePath("/app/global");
+  // Таблица уже показывает новые значения — страницу не перерисовываем
   return { ok: true };
 }

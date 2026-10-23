@@ -34,7 +34,7 @@ export default function Sheet<T extends { id: string }>({
   rows,
   columns,
   onSave,
-  refreshAfterSave = true,
+  refreshAfterSave = false,
   bulk,
   empty,
 }: {
@@ -76,6 +76,8 @@ export default function Sheet<T extends { id: string }>({
   const [fillTo, setFillTo] = useState<number | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const touchRef = useRef(false);
+  // Рисуем строки порциями: тысячи строк сразу тормозят браузер, особенно на телефоне
+  const [limit, setLimit] = useState(100);
   const [rowEdit, setRowEdit] = useState<number | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   function openRow(r: number) {
@@ -214,7 +216,7 @@ export default function Sheet<T extends { id: string }>({
   // ---------- Клавиатура ----------
   function onKeyDown(e: React.KeyboardEvent) {
     if (editing || !focus) return;
-    const max = { r: ids.length - 1, c: columns.length - 1 };
+    const max = { r: Math.min(ids.length, limit) - 1, c: columns.length - 1 };
     const moveTo = (p: Pos, extend: boolean) => {
       const q = { r: Math.max(0, Math.min(max.r, p.r)), c: Math.max(0, Math.min(max.c, p.c)) };
       setFocus(q);
@@ -321,7 +323,7 @@ export default function Sheet<T extends { id: string }>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, r) => (
+            {rows.slice(0, limit).map((row, r) => (
               <tr key={row.id} className={checked.has(row.id) ? "sh-row-checked" : undefined}>
                 {bulk && (
                   <td className="sh-check">
@@ -451,6 +453,11 @@ export default function Sheet<T extends { id: string }>({
           </tbody>
         </table>
       </div>
+      {rows.length > limit && (
+        <button type="button" className="btn self-start" onClick={() => setLimit(limit + 200)}>
+          {t("sheet.more", { shown: limit, total: rows.length })}
+        </button>
+      )}
       {rowEdit != null && rows[rowEdit] && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setRowEdit(null)}>
           <div className="card flex w-full max-w-lg flex-col gap-3" role="dialog" aria-label={t("sheet.openRow")}>

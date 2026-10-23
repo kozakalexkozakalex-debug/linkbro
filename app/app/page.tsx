@@ -83,10 +83,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const month = isValidMonth(sp.m) && sp.m <= now ? sp.m : now;
   const prev = shiftMonth(month, -1);
 
-  const all = await fetchAll<AnRow>((from, to) =>
+  // Все независимые запросы — параллельно
+  const [all, log, members] = await Promise.all([
+    fetchAll<AnRow>((from, to) =>
     supabase.from("project_donors").select(AN_COLUMNS).eq("team_id", team.id).order("id").range(from, to),
-  );
-  const log = await fetchAll<{ donor_id: string | null; created_at: string }>((from, to) =>
+    ),
+    fetchAll<{ donor_id: string | null; created_at: string }>((from, to) =>
     supabase
       .from("activity_log")
       .select("donor_id, created_at")
@@ -95,11 +97,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
       .eq("new_value", "In communication")
       .order("created_at")
       .range(from, to),
-  );
+    ),
+    loadMembers(supabase, team.id),
+  ]);
   const commStart = new Map<string, string>();
   for (const l of log) if (l.donor_id && !commStart.has(l.donor_id)) commStart.set(l.donor_id, l.created_at);
 
-  const members = await loadMembers(supabase, team.id);
   const pById = new Map(projects.map((p) => [p.id, p]));
   const rows = scope === "all" ? all : all.filter((r) => r.project_id === scope);
   const shown = scope === "all" ? projects : projects.filter((p) => p.id === scope);

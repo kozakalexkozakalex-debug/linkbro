@@ -653,7 +653,8 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     if (!r.ok) return r;
   }
 
-  refresh(projectId);
+  // Простые поля уже показаны в таблице — перерисовывать всю страницу не нужно (это и тормозило)
+  if (special.length || medIds.length) refresh(projectId);
   return { ok: true };
 }
 
@@ -671,7 +672,7 @@ export async function updateIntermediariesBatch(changes: CellChange[]): Promise<
     const bad = res.find((r) => r.error);
     if (bad?.error) return fail(bad.error.message);
   }
-  revalidatePath("/app/intermediaries");
+  // Таблица уже показывает новые значения — страницу не перерисовываем
   return { ok: true };
 }
 

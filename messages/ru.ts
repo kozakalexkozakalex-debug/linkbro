@@ -544,4 +544,6 @@ export const ru: Messages = {
   "dash.processHint": "% — сколько дошли с предыдущего этапа",
   "dash.allTasks": "все дела →",
   "dash.dynamics": "Динамика за 6 месяцев",
+
+  "sheet.more": "Показать ещё (показано {shown} из {total})",
 };

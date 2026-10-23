@@ -542,4 +542,6 @@ export const uk = {
   "dash.processHint": "% — скільки дійшли з попереднього етапу",
   "dash.allTasks": "усі справи →",
   "dash.dynamics": "Динаміка за 6 місяців",
+
+  "sheet.more": "Показати ще (показано {shown} з {total})",
 };

@@ -544,4 +544,6 @@ export const es: Messages = {
   "dash.processHint": "% — cuántos pasaron de la etapa anterior",
   "dash.allTasks": "todas las tareas →",
   "dash.dynamics": "Tendencia de 6 meses",
+
+  "sheet.more": "Mostrar más ({shown} de {total})",
 };

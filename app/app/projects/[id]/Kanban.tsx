@@ -18,6 +18,8 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
   const [over, setOver] = useState<Stage | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showDropped, setShowDropped] = useState(false);
+  const [openCols, setOpenCols] = useState<Stage[]>([]);
+  const PER_COL = 30;
   const now = currentMonth();
   const [month, setMonth] = useState<string>(now);
 
@@ -90,7 +92,7 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
                 {t(STAGE_KEY[s])} <span className="font-mono text-xs text-mute">{list.length}</span>
               </h3>
               <div className="flex flex-col gap-2">
-                {list.map((d) => {
+                {(openCols.includes(s) ? list : list.slice(0, PER_COL)).map((d) => {
                   const hrs = d.indicator === "waiting" ? hoursSince(d.indicator_at) : null;
                   return (
                     <article
@@ -120,6 +122,11 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
                     </article>
                   );
                 })}
+                {list.length > PER_COL && !openCols.includes(s) && (
+                  <button type="button" className="btn btn-sm" onClick={() => setOpenCols([...openCols, s])}>
+                    {t("sheet.more", { shown: PER_COL, total: list.length })}
+                  </button>
+                )}
               </div>
             </section>
           );

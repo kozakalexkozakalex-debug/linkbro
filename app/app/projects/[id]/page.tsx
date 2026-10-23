@@ -62,30 +62,29 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
   const { supabase, team, user } = await getTeamContext();
   const { t, intl } = await getI18n();
 
-  const { data: projectData } = await supabase
+  // Все независимые запросы — параллельно
+  const [{ data: projectData }, donors, members, { data: customData }, { data: projData }] = await Promise.all([
+    supabase
     .from("projects")
     .select(PROJECT_COLUMNS + ", report_token, report_show_prices")
     .eq("id", id)
     .eq("team_id", team.id)
-    .maybeSingle();
-  if (!projectData) notFound();
-  const project = projectData as unknown as Project & { report_token: string | null; report_show_prices: boolean };
-
-  const donors = await fetchAll<ProjectDonor>((from, to) => {
+    .maybeSingle(),
+    fetchAll<ProjectDonor>((from, to) => {
     let query = supabase.from("project_donors").select(DONOR_COLUMNS).eq("project_id", id).eq("team_id", team.id);
     if (mine) query = query.eq("assignee", user.id);
     if (q) query = query.ilike("domain", `%${q.replace(/[%_]/g, "")}%`);
     return query.order("added_at", { ascending: false }).order("domain").range(from, to);
-  });
-
-  const members = await loadMembers(supabase, team.id);
+  }),
+    loadMembers(supabase, team.id),
+    supabase.from("custom_statuses").select("kind, name").eq("team_id", team.id).order("created_at"),
+    supabase.from("projects").select("id, name").eq("team_id", team.id),
+  ]);
+  if (!projectData) notFound();
+  const project = projectData as unknown as Project & { report_token: string | null; report_show_prices: boolean };
   const memberName = new Map(members.map((m) => [m.id, m.name]));
-
-  const { data: customData } = await supabase.from("custom_statuses").select("kind, name").eq("team_id", team.id).order("created_at");
   const custom: CustomStatuses = { core_pos: [], core_neg: [], comm: [] };
   for (const r of (customData ?? []) as { kind: keyof CustomStatuses; name: string }[]) custom[r.kind]?.push(r.name);
-
-  const { data: projData } = await supabase.from("projects").select("id, name").eq("team_id", team.id);
   const projectName = new Map(((projData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
   // ---------- Дубли: этот же донор в работе в других проектах ----------
