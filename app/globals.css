@@ -116,7 +116,8 @@ body {
   /* Телефон: боковое меню выезжает слева, внизу — панель с главными разделами */
   .m-top, .m-bottom, .m-backdrop { display: none; }
   @media (max-width: 800px) {
-    .app-shell { grid-template-columns: minmax(0, 1fr); }
+    /* Блок вместо сетки: иначе свободная высота экрана растягивала шапку на полэкрана */
+    .app-shell { display: block; }
     .m-top {
       display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 30;
       background: var(--side); color: var(--side-ink); padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top));
