@@ -181,7 +181,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         {/* Шапка: домен, метрики, статус, следующий шаг */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="truncate font-display text-lg font-medium">{donor.domain}</h2>
+            <h2 className="truncate font-display text-lg font-semibold">{donor.domain}</h2>
             <p className="font-mono text-xs text-mute">
               DR {g?.dr ?? "—"} · Traffic {g?.traffic ?? "—"} · TF/CF {g?.tf ?? "—"}/{g?.cf ?? "—"} · {g?.geo || "—"}
             </p>

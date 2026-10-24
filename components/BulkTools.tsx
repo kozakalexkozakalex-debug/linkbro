@@ -77,7 +77,7 @@ export function AddStatus({ kinds }: { kinds: { value: "core_pos" | "core_neg" |
       {open && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="card flex w-full max-w-sm flex-col gap-3" role="dialog" aria-label={t("cs.title")}>
-            <h2 className="font-display text-lg font-medium">{t("cs.title")}</h2>
+            <h2 className="font-display text-lg font-semibold">{t("cs.title")}</h2>
             <p className="text-sm text-mute">{t("cs.hint")}</p>
             <div className="field">
               <label htmlFor="cs-name" className="lbl">{t("proj.name")}</label>

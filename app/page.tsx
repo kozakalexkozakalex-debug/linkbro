@@ -17,12 +17,12 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4 py-12">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-display text-2xl font-bold tracking-tight">
+        <p className="font-logo text-2xl font-bold tracking-tight">
           Link<span className="text-accent">Bro</span>
         </p>
         <LangSwitch />
       </div>
-      <h1 className="font-display text-xl font-medium text-balance">{t("common.tagline")}</h1>
+      <h1 className="font-display text-2xl font-semibold tracking-tight text-balance">{t("common.tagline")}</h1>
       <p className="text-mute">{t("home.lead")}</p>
       <div className="flex flex-wrap gap-2">
         <Link href="/login?mode=signup" className="btn btn-pri">{t("auth.signup")}</Link>

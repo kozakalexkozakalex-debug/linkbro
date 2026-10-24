@@ -8,7 +8,7 @@ export default async function ImportPage() {
     <div className="flex max-w-4xl flex-col gap-6">
       <BaseTabs />
       <div>
-        <h1 className="font-display text-xl font-medium">{t("nav.import")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.import")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
           {t("import.lead")}
         </p>

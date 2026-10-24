@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Chevron from "@/components/Chevron";
 import { getTeamContext } from "@/lib/team";
 import { fetchAll } from "@/lib/fetchAll";
 import { getI18n } from "@/lib/i18n/server";
@@ -72,7 +73,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
     <div className="flex max-w-3xl flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="font-display text-xl font-medium">{t("nav.today")}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.today")}</h1>
           <p className="mt-1 text-mute">{total ? t("today.lead", { n: total }) : t("today.clear")}</p>
         </div>
         <div className="seg" role="group">
@@ -90,7 +91,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
               <summary className="flex cursor-pointer list-none items-center gap-2">
                 <span className={`pill ${s.tone}`}>{s.list.length}</span>
                 <span className="flex-1 font-semibold">{t(s.key)}</span>
-                <span className="text-mute" aria-hidden="true">▾</span>
+                <Chevron dir="down" className="text-mute" />
               </summary>
               <p className="mt-1 text-sm text-mute">{t(s.hint)}</p>
               {s.find && (
@@ -108,7 +109,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
                       <span className="min-w-0 flex-1 truncate font-mono">{r.domain}</span>
                       <span className="pill max-sm:hidden">{pName.get(r.project_id)}</span>
                       {s.extra && <span className="font-mono text-xs" suppressHydrationWarning>{s.extra(r)}</span>}
-                      <span className="text-mute" aria-hidden="true">›</span>
+                      <Chevron className="text-mute" />
                     </Link>
                   </li>
                 ))}

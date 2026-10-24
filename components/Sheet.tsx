@@ -466,7 +466,7 @@ export default function Sheet<T extends { id: string }>({
             {columns.map((col, c) => {
               const row = rows[rowEdit];
               const v = (key: string) => draft[key] ?? "";
-              if (c === 0) return <h2 key={col.key} className="font-display text-lg font-medium">{col.render ? col.render(row, v) : v(col.key)}</h2>;
+              if (c === 0) return <h2 key={col.key} className="font-display text-lg font-semibold">{col.render ? col.render(row, v) : v(col.key)}</h2>;
               const id = `re-${col.key}`;
               let body: ReactNode;
               if (col.kind === "readonly") {

@@ -48,7 +48,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
   return (
     <>
       <header className="m-top">
-        <Link href="/app" className="font-display text-base font-bold">
+        <Link href="/app" className="font-logo text-base font-bold">
           Link<span className="text-[#ff8a3d]">Bro</span>
         </Link>
         <span className="truncate text-sm opacity-80">{teamName}</span>

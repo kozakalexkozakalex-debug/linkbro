@@ -20,7 +20,7 @@ export default async function IntermediariesPage({ searchParams }: { searchParam
     <div className="flex flex-col gap-5">
       <BaseTabs />
       <div>
-        <h1 className="font-display text-xl font-medium">{t("nav.intermediaries")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.intermediaries")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
           {t("med.lead")}
         </p>

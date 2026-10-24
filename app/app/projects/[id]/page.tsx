@@ -180,7 +180,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex flex-wrap items-center gap-2 font-display text-xl font-medium">
+          <h1 className="flex flex-wrap items-center gap-2 font-display text-2xl font-semibold tracking-tight">
             {project.name}
             {project.niche && <span className="pill font-sans">{project.niche}</span>}
             {project.geo && <span className="pill font-sans">{project.geo}</span>}
@@ -238,7 +238,6 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
               <Link key={s} href={`/app/projects/${id}?tab=work&view=kanban`} className={`pipe-step ${cnt.get(s) ? "" : "pipe-empty"}`}>
                 <span className="font-mono text-base font-semibold">{cnt.get(s) ?? 0}</span>
                 <span className="truncate text-[11px]">{t(STAGE_KEY[s])}</span>
-                {i < STAGES.length - 1 && <span className="pipe-arrow" aria-hidden="true">›</span>}
               </Link>
             ))}
           </nav>

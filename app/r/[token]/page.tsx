@@ -40,7 +40,7 @@ export default async function ReportPage({ params }: { params: Params }) {
   if (!report) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-3 px-4 py-12 text-center">
-        <h1 className="font-display text-xl font-medium">{t("rep.unavailable")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("rep.unavailable")}</h1>
         <p className="text-mute">{t("rep.unavailableHint")}</p>
       </main>
     );

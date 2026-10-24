@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4 py-12">
       <div className="flex items-center justify-between gap-3">
-        <Link href="/" className="font-display text-2xl font-bold tracking-tight">
+        <Link href="/" className="font-logo text-2xl font-bold tracking-tight">
           Link<span className="text-accent">Bro</span>
         </Link>
         <LangSwitch />

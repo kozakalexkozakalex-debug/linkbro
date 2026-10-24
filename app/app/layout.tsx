@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="app-shell">
       <MobileNav teamName={team.name} />
       <nav className="side" aria-label={t("nav.menu")}>
-        <Link href="/app" className="font-display px-2 text-base font-bold">
+        <Link href="/app" className="font-logo px-3 text-lg font-bold">
           Link<span className="text-[#ff8a3d]">Bro</span>
         </Link>
 

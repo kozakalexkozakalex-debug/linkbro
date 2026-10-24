@@ -17,13 +17,13 @@ export default async function Onboarding({ searchParams }: { searchParams: Searc
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4 py-12">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-display text-2xl font-bold tracking-tight">
+        <p className="font-logo text-2xl font-bold tracking-tight">
           Link<span className="text-accent">Bro</span>
         </p>
         <LangSwitch />
       </div>
       <div>
-        <h1 className="font-display text-xl font-medium">{t("onb.title")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("onb.title")}</h1>
         <p className="mt-1 text-mute">{t("onb.lead")}</p>
       </div>
 

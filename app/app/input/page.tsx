@@ -8,7 +8,7 @@ export default async function InputPage() {
     <div className="flex max-w-3xl flex-col gap-6">
       <BaseTabs />
       <div>
-        <h1 className="font-display text-xl font-medium">{t("nav.input")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.input")}</h1>
         <p className="mt-1 text-mute">{t("input.lead")}</p>
       </div>
       <InputForm />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Chevron from "@/components/Chevron";
 import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
 import { fetchAll } from "@/lib/fetchAll";
@@ -64,7 +65,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   if (projects.length === 0) {
     return (
       <div className="flex max-w-3xl flex-col gap-6">
-        <h1 className="font-display text-xl font-medium">{t("nav.dashboard")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.dashboard")}</h1>
         <div className="card flex flex-col gap-3">
           <p>{t("dash.ready", { name: team.name })}</p>
           <div className="flex flex-wrap gap-2">
@@ -174,7 +175,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
       {/* Шапка: период и проект */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-medium">{t("nav.dashboard")}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.dashboard")}</h1>
           <p className="mt-1 text-mute">
             {scope === "all" ? t("dash.allOfTeam", { name: team.name }) : pById.get(scope)?.name}
           </p>
@@ -226,7 +227,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                   ) : null;
                 })()}
               </div>
-              <p className="font-mono text-3xl font-semibold tabular-nums">
+              <p className="text-3xl font-bold tabular-nums tracking-tight">
                 {ms.published}
                 {plan > 0 && <span className="text-lg font-normal text-mute"> / {plan}</span>}
               </p>
@@ -238,7 +239,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
             </div>
             <div className="card flex flex-col gap-2">
               <p className="lbl">{t("dash.planBudget", { cur })}</p>
-              <p className="font-mono text-3xl font-semibold tabular-nums">
+              <p className="text-3xl font-bold tabular-nums tracking-tight">
                 {money(spend)}
                 {budget > 0 && <span className="text-lg font-normal text-mute"> / {money(budget)}</span>}
               </p>
@@ -311,7 +312,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                       <Link href={`/app/today#${a.key}`} className="flex items-center gap-2 py-2">
                         <span className={`pill ${ATT_TONE[a.key]}`}>{a.list.length}</span>
                         <span className="min-w-0 flex-1 truncate">{t(ATT_TITLE[a.key])}</span>
-                        <span className="text-mute" aria-hidden="true">›</span>
+                        <Chevron className="text-mute" />
                       </Link>
                     </li>
                   ))}
@@ -322,7 +323,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
 
           {/* 4. Динаміка */}
           <details className="card" open>
-            <summary className="cursor-pointer list-none lbl">{t("dash.dynamics")} ▾</summary>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="lbl">{t("dash.dynamics")}</span><Chevron dir="down" className="text-mute" /></summary>
             <div className="mt-3 grid gap-4 lg:grid-cols-2">
               <div>
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
@@ -420,7 +421,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                   </div>
                   {b > 0 ? (
                     <>
-                      <p className="font-mono text-2xl font-semibold tabular-nums">
+                      <p className="text-2xl font-bold tabular-nums tracking-tight">
                         {fa(spent, c)} <span className="text-base font-normal text-mute">/ {fa(b, c)}</span>
                       </p>
                       <div className="flex flex-col gap-1.5 text-sm">

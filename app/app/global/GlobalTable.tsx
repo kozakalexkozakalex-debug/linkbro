@@ -136,7 +136,7 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="card flex w-full max-w-md flex-col gap-4" role="dialog" aria-label={t("global.filterTitle")}>
             <div>
-              <h2 className="font-display text-lg font-medium">{t("global.filterTitle")}</h2>
+              <h2 className="font-display text-lg font-semibold">{t("global.filterTitle")}</h2>
               <p className="mt-1 text-sm text-mute">
                 {t("global.filterHint")}
               </p>

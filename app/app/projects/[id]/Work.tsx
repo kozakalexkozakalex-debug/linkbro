@@ -410,7 +410,7 @@ export default function Work({
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setDraftsOpen(false)}>
           <div className="card flex max-h-full w-full max-w-2xl flex-col gap-4 overflow-auto" role="dialog" aria-label={t("comm.draftsTitle")}>
             <div>
-              <h2 className="font-display text-lg font-medium">{t("comm.draftsTitle")}</h2>
+              <h2 className="font-display text-lg font-semibold">{t("comm.draftsTitle")}</h2>
               <p className="mt-1 text-sm text-mute">{t("comm.draftsHint")}</p>
             </div>
             <div className="field">

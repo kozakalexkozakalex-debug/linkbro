@@ -140,7 +140,7 @@ export function Kpi({
   return (
     <div className="card flex min-w-0 flex-col gap-1">
       <p className="lbl">{label}</p>
-      <p className="truncate font-mono text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="truncate text-2xl font-bold tabular-nums tracking-tight">{value}</p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
         {deltaEl}
         {sub && <span>{sub}</span>}

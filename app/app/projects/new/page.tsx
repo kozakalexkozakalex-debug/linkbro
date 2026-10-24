@@ -16,7 +16,7 @@ export default async function NewProject({ searchParams }: { searchParams: Searc
   return (
     <div className="flex max-w-md flex-col gap-6">
       <div>
-        <h1 className="font-display text-xl font-medium">{t("nav.newProject")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.newProject")}</h1>
         <p className="mt-1 text-mute">{t("proj.newLead")}</p>
       </div>
       {sp.error && <p className="note note-bad" role="alert">{t(sp.error as MsgKey)}</p>}

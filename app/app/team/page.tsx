@@ -53,7 +53,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="font-display text-xl font-medium">{t("team.title")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("team.title")}</h1>
         <p className="mt-1 text-mute">{t("team.subtitle", { name: team.name, n: members.length })}</p>
       </div>
 

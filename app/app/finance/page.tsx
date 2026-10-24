@@ -82,7 +82,7 @@ export default async function FinancePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-xl font-medium">{t("nav.finance")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.finance")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
           {t("fin.lead")}
         </p>

@@ -60,7 +60,7 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
       <BaseTabs />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-medium">{t("nav.global")}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.global")}</h1>
           <p className="mt-1 max-w-2xl text-mute">
             {t("global.lead")}
           </p>
