@@ -53,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="side-sub">
             <NavLink href="/app/global">{t("nav.sites")}</NavLink>
             <NavLink href="/app/intermediaries">{t("nav.contacts")}</NavLink>
+            <NavLink href="/app/writers">{t("nav.writers")}</NavLink>
             <NavLink href="/app/input">{t("nav.add")}</NavLink>
           </div>
         </div>

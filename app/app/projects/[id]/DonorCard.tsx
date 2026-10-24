@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateDonorsBatch } from "../actions";
-import { addOffer, deleteActivity, getDealPanel, logActivity, saveContact, type Channel, type Contact, type DealPanel } from "../deal-actions";
+import { addOffer, addPayment, deleteActivity, getDealPanel, logActivity, saveContact, setPaymentStatus, type Channel, type Contact, type DealPanel } from "../deal-actions";
 import { CURRENCIES, SOURCES, fmtAmount, priceFromText } from "@/lib/money";
 import { type ProjectDonor } from "@/lib/project";
 import { fmtDateTime } from "@/lib/global";
@@ -16,7 +16,7 @@ import type { Opt } from "@/lib/sheet";
 const FIELDS = [
   "core_status", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
   "gp_price", "gp_currency", "gp_source", "gp_commission", "client_price",
-  "article_writer", "article_doc", "article_deadline", "article_status",
+  "article_writer", "writer_id", "article_cost", "brief", "article_doc", "article_deadline", "article_status",
   "page_url", "anchors", "pre_anchor", "article_url",
 ] as const;
 type F = (typeof FIELDS)[number];
@@ -56,7 +56,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         setPanel(p);
         setContact(p.contact);
       })
-      .catch(() => setPanel({ activities: [], contact: null, offers: [], sameMed: [] }));
+      .catch(() => setPanel({ writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
   }, [donor.id, donor.domain, d.med_base]);
   useEffect(() => {
     load();
@@ -159,6 +159,46 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
     start(async () => {
       const r = await addOffer(donor.domain, d.med_base, d.gp_price, cur);
       if (!r.ok) setErr(r.error);
+      load();
+    });
+  }
+
+  const BRIEF_KEY = "linkbro.briefTemplate";
+  const DEFAULT_BRIEF = "Сайт: {domain}\nТема: \nОбсяг: 3000–4000 знаків\nАнкор: {anchor}\nПосилання на: {page}\nВимоги площадки: \nДедлайн: {deadline}";
+  function fillBrief() {
+    let tpl = DEFAULT_BRIEF;
+    try {
+      tpl = localStorage.getItem(BRIEF_KEY) || DEFAULT_BRIEF;
+    } catch {
+      /* шаблон по умолчанию */
+    }
+    const text = tpl
+      .replaceAll("{domain}", donor.domain)
+      .replaceAll("{anchor}", d.anchors)
+      .replaceAll("{page}", d.page_url)
+      .replaceAll("{deadline}", d.article_deadline ? d.article_deadline.split("-").reverse().join(".") : "");
+    setD({ ...d, brief: text });
+  }
+  function saveBriefTemplate() {
+    try {
+      localStorage.setItem(BRIEF_KEY, d.brief.replaceAll(donor.domain, "{domain}"));
+    } catch {
+      /* не страшно */
+    }
+  }
+  function payWriter() {
+    const w = panel?.writers.find((x) => x.id === d.writer_id);
+    start(async () => {
+      const r = await addPayment({
+        projectId,
+        donorId: donor.id,
+        payeeKind: "writer",
+        payee: w?.name || d.article_writer,
+        amount: d.article_cost,
+        currency: w?.currency || cur,
+        note: donor.domain,
+      });
+      if (!r.ok) return setErr(r.error);
       load();
     });
   }
@@ -345,17 +385,69 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
 
         {tab === "article" && (
           <div className="flex flex-col gap-2">
-            {row(t("deal.writer"), inp("article_writer", t("deal.writerPh")), "dc-article_writer")}
+            {row(t("deal.writer"), (
+              panel && panel.writers.length > 0 ? (
+                <select
+                  id="dc-writer"
+                  className="inp"
+                  value={d.writer_id}
+                  onChange={(e) => {
+                    const w = panel.writers.find((x) => x.id === e.target.value);
+                    setD({ ...d, writer_id: e.target.value, article_writer: w?.name ?? d.article_writer, article_cost: d.article_cost || (w?.rate != null && w.rate_unit === "article" ? String(w.rate) : d.article_cost) });
+                  }}
+                >
+                  <option value="">{d.article_writer || "—"}</option>
+                  {panel.writers.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}{w.rate != null ? ` · ${w.rate} ${w.currency}` : ""}</option>
+                  ))}
+                </select>
+              ) : (
+                inp("article_writer", t("deal.writerPh"))
+              )
+            ), "dc-writer")}
+            {panel && panel.writers.length === 0 && <Link href="/app/writers" className="self-end text-xs underline">{t("wr.addFirst")}</Link>}
+            {row(t("wr.cost"), inp("article_cost", "", "text", "decimal"), "dc-article_cost")}
             {row(t("deal.doc"), inp("article_doc", "docs.google.com/…"), "dc-article_doc")}
             {d.article_doc && (
               <a href={/^https?:\/\//.test(d.article_doc) ? d.article_doc : `https://${d.article_doc}`} target="_blank" rel="noreferrer" className="self-end text-sm underline">{t("comm.openLink")}</a>
             )}
             {row(t("deal.deadline"), inp("article_deadline", "", "date"), "dc-article_deadline")}
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="dc-brief" className="lbl">{t("wr.brief")}</label>
+              <div className="flex gap-1">
+                <button type="button" className="btn btn-sm" onClick={fillBrief}>{t("wr.fillBrief")}</button>
+                {d.brief && <button type="button" className="btn btn-sm" onClick={() => navigator.clipboard?.writeText(d.brief)}>{t("common.copy")}</button>}
+              </div>
+            </div>
+            <textarea id="dc-brief" className="inp min-h-32 text-sm" value={d.brief} onChange={set("brief")} onBlur={() => d.brief && saveBriefTemplate()} />
             {row(t("common.status"), (
               <select id="dc-article_status" className="inp" value={d.article_status} onChange={set("article_status")}>
                 {ART_STATUS.map((s) => <option key={s} value={s}>{s ? t(`art.${s}` as MsgKey) : "—"}</option>)}
               </select>
             ), "dc-article_status")}
+            <div className="flex items-center justify-between gap-2 border-t border-line pt-2">
+              <p className="lbl">{t("pay.title")}</p>
+              <button type="button" className="btn btn-sm" onClick={payWriter} disabled={pending || !d.article_cost || !(d.writer_id || d.article_writer)}>
+                {t("wr.payWriter")}
+              </button>
+            </div>
+            {panel && panel.payments.length > 0 && (
+              <ul className="divide-y divide-line text-sm">
+                {panel.payments.map((pm) => (
+                  <li key={pm.id} className="flex items-center gap-2 py-1.5">
+                    <span className="min-w-0 flex-1 truncate">{pm.payee || "—"}</span>
+                    <span className="font-mono">{fmtAmount(Number(pm.amount), pm.currency, intl)}</span>
+                    <button
+                      type="button"
+                      className={`pill ${pm.status === "paid" ? "pill-ok" : "pill-bad"}`}
+                      onClick={() => start(async () => { await setPaymentStatus(pm.id, pm.status !== "paid"); load(); })}
+                    >
+                      {pm.status === "paid" ? t("pay.paid") : t("pay.due")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

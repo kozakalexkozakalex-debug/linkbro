@@ -41,7 +41,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
   const items: { href: string; icon: string; label: string; also?: string[] }[] = [
     { href: "/app/today", icon: "today", label: t("nav.today") },
     { href: "/app/projects", icon: "folder", label: t("common.projects") },
-    { href: "/app/global", icon: "global", label: t("nav.base"), also: ["/app/intermediaries", "/app/input", "/app/import"] },
+    { href: "/app/global", icon: "global", label: t("nav.base"), also: ["/app/intermediaries", "/app/writers", "/app/input", "/app/import"] },
     { href: "/app/finance", icon: "money", label: t("nav.money") },
   ];
 

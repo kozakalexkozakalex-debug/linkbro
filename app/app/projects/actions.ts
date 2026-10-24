@@ -583,6 +583,16 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     } else if (c.field === "article_status") {
       if (!["", "todo", "writing", "review", "ready", "sent"].includes(v)) return fail(await tr("err.unknownStatus"));
       put(c.id, { article_status: v });
+    } else if (c.field === "article_cost") {
+      const n = v === "" ? null : priceNumber(v);
+      if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
+      put(c.id, { article_cost: n });
+    } else if (c.field === "writer_id") {
+      if (v) {
+        const { data: w } = await supabase.from("writers").select("id, name").eq("team_id", team.id).eq("id", v).maybeSingle();
+        if (!w) return fail(await tr("err.unknownValue"));
+        put(c.id, { writer_id: v, article_writer: (w as { name: string }).name });
+      } else put(c.id, { writer_id: null });
     } else if (c.field === "client_price") {
       const n = v === "" ? null : priceNumber(v);
       if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));

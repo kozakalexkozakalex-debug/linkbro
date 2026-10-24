@@ -5,6 +5,8 @@ import { addTo, daysLeft, fmtAmount, fmtMoney, payState, realCost, type ByCurren
 import { fmtDate } from "@/lib/global";
 import { isThisMonth } from "@/lib/project";
 import { getI18n } from "@/lib/i18n/server";
+import PaymentsBlock from "./PaymentsBlock";
+import type { Payment } from "../projects/deal-actions";
 
 type Row = {
   id: string;
@@ -37,7 +39,11 @@ export default async function FinancePage() {
       .order("id")
       .range(from, to),
   );
-  const { data: pData } = await supabase.from("projects").select("id, name").eq("team_id", team.id);
+  const [{ data: pData }, { data: payData }] = await Promise.all([
+    supabase.from("projects").select("id, name").eq("team_id", team.id).order("created_at"),
+    supabase.from("payments").select("id, payee_kind, payee, amount, currency, status, paid_at, note, created_at, project_id, donor_id").eq("team_id", team.id).order("created_at", { ascending: false }).limit(500),
+  ]);
+  const payments = ((payData ?? []) as Payment[]).sort((a, b) => (a.status === b.status ? 0 : a.status === "due" ? -1 : 1));
   const pName = new Map(((pData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
   const paid: ByCurrency = {};
@@ -82,7 +88,7 @@ export default async function FinancePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.finance")}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.money")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
           {t("fin.lead")}
         </p>
@@ -101,6 +107,8 @@ export default async function FinancePage() {
           </div>
         ))}
       </section>
+
+      <PaymentsBlock rows={payments} projects={(pData ?? []) as { id: string; name: string }[]} isLead={team.role === "lead"} />
 
       {claimable.length > 0 && (
         <section className="card border-bad">

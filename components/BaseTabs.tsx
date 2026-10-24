@@ -9,6 +9,7 @@ import type { MsgKey } from "@/lib/i18n/config";
 const ITEMS: { href: string; key: MsgKey }[] = [
   { href: "/app/global", key: "nav.sites" },
   { href: "/app/intermediaries", key: "nav.contacts" },
+  { href: "/app/writers", key: "nav.writers" },
   { href: "/app/input", key: "nav.add" },
   { href: "/app/import", key: "nav.import" },
 ];

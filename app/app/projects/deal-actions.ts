@@ -14,7 +14,11 @@ const CHANNELS: Channel[] = ["email", "telegram", "whatsapp", "exchange", "call"
 export type Contact = { handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string; other: string; notes: string };
 export type Activity = { id: string; channel: Channel; body: string; handle: string; created_at: string; created_by: string | null; project_id: string | null; donor_id: string | null };
 export type Offer = { id: string; domain: string; handle: string; price: number; currency: string; note: string; created_at: string };
+export type WriterLite = { id: string; name: string; contact: string; rate: number | null; rate_unit: string; currency: string };
+export type Payment = { id: string; payee_kind: string; payee: string; amount: number; currency: string; status: string; paid_at: string | null; note: string; created_at: string; project_id: string | null; donor_id: string | null };
 export type DealPanel = {
+  writers: WriterLite[];
+  payments: Payment[];
   activities: Activity[];
   contact: Contact | null;
   offers: Offer[];
@@ -35,15 +39,19 @@ const EMPTY_CONTACT = (handle: string): Contact => ({
 export async function getDealPanel(donorId: string, domain: string, handle: string): Promise<DealPanel> {
   const { supabase, team } = await getTeamContext();
   const h = handle.trim();
-  const [acts, contact, offers, same] = await Promise.all([
+  const [acts, contact, offers, same, writers, pays] = await Promise.all([
     supabase.from("activities").select("id, channel, body, handle, created_at, created_by, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }).limit(100),
     h ? supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", h).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("offers").select("id, domain, handle, price, currency, note, created_at").eq("team_id", team.id).eq("domain", domain).order("created_at", { ascending: false }).limit(50),
     h
       ? supabase.from("project_donors").select("domain, core_status, projects(name)").eq("team_id", team.id).eq("med_base", h).neq("id", donorId).limit(50)
       : Promise.resolve({ data: [] }),
+    supabase.from("writers").select("id, name, contact, rate, rate_unit, currency").eq("team_id", team.id).order("name"),
+    supabase.from("payments").select("id, payee_kind, payee, amount, currency, status, paid_at, note, created_at, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }),
   ]);
   return {
+    writers: (writers.data ?? []) as WriterLite[],
+    payments: (pays.data ?? []) as Payment[],
     activities: (acts.data ?? []) as Activity[],
     contact: h ? ((contact.data as Contact | null) ?? EMPTY_CONTACT(h)) : null,
     offers: (offers.data ?? []) as Offer[],
@@ -168,4 +176,58 @@ export async function addOffer(domainRaw: string, handle: string, priceRaw: stri
   const currency = (CURRENCIES as readonly string[]).includes(currencyRaw) ? currencyRaw : "USD";
   const { error } = await supabase.from("offers").insert({ team_id: team.id, domain, handle: handle.trim(), price, currency, note: note.slice(0, 300) });
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ---------- Выплаты: посредникам, авторам, биржам ----------
+export async function addPayment(input: {
+  projectId?: string | null;
+  donorId?: string | null;
+  payeeKind: string;
+  payee: string;
+  amount: string;
+  currency: string;
+  note?: string;
+  paid?: boolean;
+}): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
+  const amount = Number(input.amount.replace(/\s/g, "").replace(",", "."));
+  if (!input.amount.trim() || !Number.isFinite(amount) || amount < 0) return { ok: false, error: t("err.needNumber") };
+  const kind = ["intermediary", "writer", "exchange", "other"].includes(input.payeeKind) ? input.payeeKind : "other";
+  const currency = (CURRENCIES as readonly string[]).includes(input.currency) ? input.currency : "USD";
+  const { error } = await supabase.from("payments").insert({
+    team_id: team.id,
+    project_id: input.projectId || null,
+    donor_id: input.donorId || null,
+    payee_kind: kind,
+    payee: input.payee.trim().slice(0, 300),
+    amount,
+    currency,
+    note: (input.note ?? "").slice(0, 1000),
+    status: input.paid ? "paid" : "due",
+    paid_at: input.paid ? new Date().toISOString() : null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/app/finance");
+  return { ok: true };
+}
+
+export async function setPaymentStatus(id: string, paid: boolean): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase
+    .from("payments")
+    .update({ status: paid ? "paid" : "due", paid_at: paid ? new Date().toISOString() : null })
+    .eq("id", id)
+    .eq("team_id", team.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/app/finance");
+  return { ok: true };
+}
+
+export async function deletePayment(id: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase.from("payments").delete().eq("id", id).eq("team_id", team.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/app/finance");
+  return { ok: true };
 }
