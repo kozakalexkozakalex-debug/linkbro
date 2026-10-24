@@ -49,7 +49,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
     if (!all) q = q.eq("assignee", user.id);
     return q.order("id").range(from, to);
   });
-  const { data: pData } = await supabase.from("projects").select("id, name").eq("team_id", team.id);
+  const [{ data: pData }, { count: unread }] = await Promise.all([
+    supabase.from("projects").select("id, name").eq("team_id", team.id),
+    supabase.from("activities").select("id", { count: "exact", head: true }).eq("team_id", team.id).eq("is_read", false),
+  ]);
   const pName = new Map(((pData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
   const extra: Partial<Record<AttKey, (r: Row) => string>> = {
@@ -81,6 +84,14 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
           <Link href="/app/today?who=all" className={`px-3 py-1.5 text-sm ${all ? "seg-on" : ""}`}>{t("task.all")}</Link>
         </div>
       </div>
+
+      {(unread ?? 0) > 0 && (
+        <Link href="/app/inbox" className="card flex items-center gap-3 border-accent">
+          <span className="pill pill-ok">{unread}</span>
+          <span className="flex-1 font-semibold">{t("inbox.unread", { n: unread ?? 0 })}</span>
+          <Chevron className="text-mute" />
+        </Link>
+      )}
 
       {sections
         .filter((s) => s.list.length > 0)

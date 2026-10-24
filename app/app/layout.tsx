@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="side-label">{t("nav.work")}</p>
           <div className="side-sub">
             <NavLink href="/app/today">{t("nav.today")}</NavLink>
+            <NavLink href="/app/inbox">{t("nav.inbox")}</NavLink>
             <NavLink href="/app" exact>{t("nav.dashboard")}</NavLink>
             <NavLink href="/app/tasks">{t("nav.tasks")}</NavLink>
             <NavLink href="/app/finance">{t("nav.money")}</NavLink>
@@ -79,6 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="side-foot">
           <NavLink href="/app/team">{t("team.title")}</NavLink>
+          <NavLink href="/app/mail">{t("nav.mail")}</NavLink>
           <div className="px-2"><LangSwitch dark /></div>
           <p className="truncate px-2 text-xs opacity-70">{user.email}</p>
           <p className="px-2 text-xs opacity-70">{isLead ? t("common.lead") : t("common.builder")}</p>

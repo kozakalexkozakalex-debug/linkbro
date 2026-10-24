@@ -10,6 +10,7 @@ import { CURRENCIES, SOURCES, fmtAmount, priceFromText } from "@/lib/money";
 import { type ProjectDonor } from "@/lib/project";
 import { fmtDateTime } from "@/lib/global";
 import { useI18n } from "@/components/I18nProvider";
+import { markRead, sendDealEmail, syncMyMail } from "../../mail/actions";
 import type { MsgKey } from "@/lib/i18n/config";
 import type { Opt } from "@/lib/sheet";
 
@@ -48,6 +49,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
   const [contact, setContact] = useState<Contact | null>(null);
   const [editContact, setEditContact] = useState(false);
   const [msgTpl, setMsgTpl] = useState("");
+  const [compose, setCompose] = useState<{ to: string; subject: string; body: string } | null>(null);
   const [briefTpl, setBriefTpl] = useState("");
   const [log, setLog] = useState({ channel: "telegram" as Channel, body: "", price: "", currency: donor.gp_currency || "USD", replied: false });
   const g = donor.global_donors;
@@ -58,10 +60,17 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         setPanel(p);
         setContact(p.contact);
       })
-      .catch(() => setPanel({ templates: [], writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
+      .catch(() => setPanel({ mail: null, templates: [], writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
   }, [donor.id, donor.domain, d.med_base]);
   useEffect(() => {
     load();
+    // Свежая почта и отметка «прочитано» при открытии карточки
+    syncMyMail()
+      .then((r) => {
+        if (r.added) load();
+      })
+      .catch(() => undefined);
+    markRead(donor.id).catch(() => undefined);
     // при смене посредника — перечитать его каналы
   }, [donor.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -289,7 +298,12 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
                         {panel.templates.filter((x) => x.kind === "message").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                       </select>
                     )}
-                    {contact.email && <button type="button" className="btn btn-sm" onClick={() => reach("email")}>📧 {t("deal.write")}</button>}
+                    {contact.email && panel?.mail && (
+                      <button type="button" className="btn btn-pri btn-sm" onClick={() => setCompose({ to: contact.email, subject: `Guest post: ${donor.domain}`, body: message() })}>
+                        📧 {t("mail.compose")}
+                      </button>
+                    )}
+                    {contact.email && !panel?.mail && <button type="button" className="btn btn-sm" onClick={() => reach("email")}>📧 {t("deal.write")}</button>}
                     {contact.telegram && <button type="button" className="btn btn-sm" onClick={() => reach("telegram")}>✈️ Telegram</button>}
                     {contact.whatsapp && <button type="button" className="btn btn-sm" onClick={() => reach("whatsapp")}>💬 WhatsApp</button>}
                     {d.exchange_url && <button type="button" className="btn btn-sm" onClick={() => reach("exchange")}>🏪 {t("deal.exchange")}</button>}
@@ -302,6 +316,35 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
             )}
             {d.med_base !== init.med_base && d.med_base.trim() && (
               <button type="button" className="btn btn-sm self-start" onClick={() => saveFields(false)} disabled={pending}>{t("deal.saveMed")}</button>
+            )}
+
+            {compose && (
+              <div className="flex flex-col gap-2 rounded-xl border border-accent p-3">
+                <p className="lbl">{t("mail.from", { email: panel?.mail ?? "" })}</p>
+                <input aria-label={t("mail.to")} className="inp" value={compose.to} onChange={(e) => setCompose({ ...compose, to: e.target.value })} />
+                <input aria-label={t("mail.subject")} className="inp" value={compose.subject} onChange={(e) => setCompose({ ...compose, subject: e.target.value })} />
+                <textarea aria-label={t("mail.body")} className="inp min-h-40 text-sm" value={compose.body} onChange={(e) => setCompose({ ...compose, body: e.target.value })} />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-pri flex-1"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        const r = await sendDealEmail({ projectId, donorId: donor.id, ...compose });
+                        if (!r.ok) return setErr(r.error);
+                        setCompose(null);
+                        setErr(null);
+                        load();
+                        router.refresh();
+                      })
+                    }
+                  >
+                    {pending ? t("mail.sending") : t("mail.send")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setCompose(null)}>{t("common.cancel")}</button>
+                </div>
+              </div>
             )}
 
             {/* Быстрая запись в ленту */}
@@ -335,10 +378,13 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
             ) : (
               <ul className="flex max-h-60 flex-col gap-1 overflow-auto text-sm">
                 {panel.activities.map((a) => (
-                  <li key={a.id} className="flex gap-2">
-                    <span aria-hidden="true">{CH_ICON[a.channel]}</span>
+                  <li key={a.id} className={`flex gap-2 rounded-md p-1 ${a.direction === "in" ? "bg-elev" : ""}`}>
+                    <span aria-hidden="true">{CH_ICON[a.channel]}{a.direction === "in" ? "↘" : ""}</span>
                     <span className="shrink-0 font-mono text-xs text-mute">{fmtDateTime(a.created_at, intl)}</span>
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">{a.body}</span>
+                    <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                      {a.subject && <b className="block">{a.subject}</b>}
+                      {a.body}
+                    </span>
                     <button
                       type="button"
                       className="text-xs text-mute"
