@@ -21,7 +21,6 @@ import {
 import { HBars, Kpi, MonthBars, Progress } from "@/components/Charts";
 import ModuleHead from "@/components/ModuleHead";
 import { getScope } from "@/lib/scope";
-import ProjectView from "./projects/[id]/ProjectView";
 import { STAGES, STAGE_KEY, stageOf } from "@/lib/stages";
 import { ATT_TITLE, ATT_TONE, attention } from "@/lib/attention";
 import { getI18n } from "@/lib/i18n/server";
@@ -105,6 +104,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
     ),
     loadMembers(supabase, team.id),
   ]);
+  // Счётчики для блока «Сьогодні» и потока по модулям — тоже параллельно, только head-запросы
+  const [{ count: unreadIn }, { count: freeFit }] = await Promise.all([
+    supabase.from("activities").select("id", { count: "exact", head: true }).eq("team_id", team.id).eq("is_read", false).eq("direction", "in"),
+    supabase.from("global_donors_usage").select("id", { count: "exact", head: true }).eq("team_id", team.id).eq("status", "fit").eq("projects", 0),
+  ]);
   const commStart = new Map<string, string>();
   for (const l of log) if (l.donor_id && !commStart.has(l.donor_id)) commStart.set(l.donor_id, l.created_at);
 
@@ -161,6 +165,49 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const dropData = [...dropCounts.entries()].sort((x, y) => y[1] - x[1]).map(([label, value]) => ({ label, value }));
   const att = attention(rows).filter((a) => a.list.length > 0);
 
+  // ---------- Сьогодні: що зробити зараз ----------
+  const todayIso = today.toISOString().slice(0, 10);
+  const waitBorder = Date.now() - 3 * 86_400_000;
+  const liveRows = rows.filter((r) => { const st = stageOf(r); return st !== "published" && st !== "lost"; });
+  const planToday = liveRows.filter((r) => r.next_action_at && r.next_action_at <= todayIso).length;
+  const silent = liveRows.filter((r) => stageOf(r) === "contacted" && !(r.next_action_at && r.next_action_at <= todayIso) && (!r.indicator_at || new Date(r.indicator_at).getTime() < waitBorder)).length;
+  const guarantee7 = guaranteeSoon.length;
+
+  // ---------- Потік по модулях: Confero → Prefero → Outreach → Опубліковано → Моніторинг ----------
+  const preferoFit = rows.filter((r) => r.fg_status === "new" || r.fg_status === "ok").length;
+  const inOutreach = rows.filter((r) => r.fg_status === "core" && !["published", "lost"].includes(stageOf(r))).length;
+  const linksOk = rows.filter((r) => stageOf(r) === "published" && r.link_status === "ok").length;
+  const go = (next: string) => (scope === "all" ? next : `/app/scope?p=${scope}&next=${encodeURIComponent(next)}`);
+
+  // ---------- Команда: листи й відповіді за місяць (лише на вкладці «Команда») ----------
+  const sentBy = new Map<string, number>();
+  const repliesTo = new Map<string, number>();
+  if (tab === "team") {
+    const from = `${month}-01T00:00:00Z`;
+    const to = `${shiftMonth(month, 1)}-01T00:00:00Z`;
+    const acts = await fetchAll<{ created_by: string | null; direction: string; donor_id: string | null }>((a, b) =>
+      supabase
+        .from("activities")
+        .select("created_by, direction, donor_id")
+        .eq("team_id", team.id)
+        .neq("channel", "note")
+        .gte("created_at", from)
+        .lt("created_at", to)
+        .order("created_at")
+        .range(a, b),
+    );
+    const owner = new Map(rows.map((r) => [r.id, r.assignee]));
+    const inScope = new Set(rows.map((r) => r.id));
+    for (const a of acts) {
+      if (scope !== "all" && !(a.donor_id && inScope.has(a.donor_id))) continue;
+      if (a.direction === "out" && a.created_by) sentBy.set(a.created_by, (sentBy.get(a.created_by) ?? 0) + 1);
+      if (a.direction === "in" && a.donor_id) {
+        const who = owner.get(a.donor_id) ?? "none";
+        repliesTo.set(who ?? "none", (repliesTo.get(who ?? "none") ?? 0) + 1);
+      }
+    }
+  }
+
   const qs = (over: { project?: string; tab?: string; m?: string }) => {
     const p = new URLSearchParams();
     const pr = over.project ?? scope;
@@ -205,6 +252,41 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
       {/* ---------------- ОГЛЯД: план → процес → що робити → динаміка ---------------- */}
       {tab === "overview" && (
         <>
+          {/* 0. Сьогодні — що зробити зараз */}
+          <section className="flex flex-col gap-2">
+            <p className="lbl">{t("dash.today")}</p>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {[
+                { n: planToday + silent, label: t("dash.tFollow", { a: planToday, b: silent }), href: go("/app/followup"), tone: planToday + silent ? "text-accent" : "" },
+                { n: unreadIn ?? 0, label: t("dash.tReplies"), href: "/app/inbox?f=new", tone: unreadIn ? "text-accent" : "" },
+                { n: broken.length, label: t("dash.tBroken"), href: go("/app/monitoring"), tone: broken.length ? "text-bad" : "" },
+                { n: guarantee7, label: t("dash.guarantee7"), href: qs({ tab: "links" }), tone: guarantee7 ? "text-accent" : "" },
+              ].map((x) => (
+                <Link key={x.href + x.label} href={x.href} className="card flex items-center gap-3 py-3 hover:border-accent">
+                  <span className={`font-mono text-2xl font-bold tabular-nums ${x.tone}`}>{x.n}</span>
+                  <span className="min-w-0 flex-1 text-sm leading-tight">{x.label}</span>
+                  <Chevron className="text-mute" />
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Потік по модулях */}
+          <nav className="pipe" aria-label={t("dash.flow")}>
+            {[
+              ...(scope === "all" ? [{ n: freeFit ?? 0, label: t("dash.fConfero"), href: "/app/global?status=fit&use=free" }] : []),
+              { n: preferoFit, label: t("dash.fPrefero"), href: go("/app/domains") },
+              { n: inOutreach, label: t("dash.fOutreach"), href: go("/app/outreach") },
+              { n: ms.published, label: t("dash.fPublished", { m: ml(month, "short") }), href: go("/app/outreach") },
+              { n: linksOk, label: t("dash.fLinksOk"), href: go("/app/monitoring") },
+            ].map((x) => (
+              <Link key={x.label} href={x.href} className={`pipe-step ${x.n ? "" : "pipe-empty"}`}>
+                <span className="text-base font-bold tabular-nums">{x.n}</span>
+                <span className="truncate text-[11px] text-mute">{x.label}</span>
+              </Link>
+            ))}
+          </nav>
+
           {/* 1. План місяця */}
           <section className="grid gap-3 lg:grid-cols-2">
             <div className="card flex flex-col gap-2">
@@ -311,13 +393,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
             </section>
           </div>
 
-          {scope !== "all" && (
-            <section className="flex flex-col gap-2">
-              <p className="lbl">{t("mod.projectBoard")}</p>
-              <ProjectView id={scope} sp={{ tab: "overview" }} base="/app" embed />
-            </section>
-          )}
-
           {/* 4. Динаміка */}
           <details className="card" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="lbl">{t("dash.dynamics")}</span><Chevron dir="down" className="text-mute" /></summary>
@@ -386,7 +461,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                     <td className="font-mono">{pr.filter((r) => r.in_comm && !r.in_gp).length}</td>
                     <td className="font-mono">{pr.filter((r) => r.in_gp && r.core_status !== "Published").length}</td>
                     <td>{probs ? <span className="pill pill-bad">{probs}</span> : <span className="text-mute">—</span>}</td>
-                    <td><Link href={`/app/projects/${p.id}`} className="btn btn-sm">{t("common.open")}</Link></td>
+                    <td><Link href={`/app/scope?p=${p.id}&next=${encodeURIComponent("/app/outreach")}`} className="btn btn-sm">{t("common.open")}</Link></td>
                   </tr>
                 );
               })}
@@ -451,7 +526,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
           <table className="tbl">
             <thead>
               <tr>
-                {[t("common.builder"), t("dash.inCore"), t("dash.talks"), t("dash.reply"), t("dash.agreed"), `${t("core.published")} (${ml(month, "short")})`, t("dash.timeToPublish"), t("dash.spentWord")].map((h) => (
+                {[t("common.builder"), `${t("dash.letters")} (${ml(month, "short")})`, `${t("dash.repliesM")} (${ml(month, "short")})`, t("dash.inCore"), t("dash.talks"), t("dash.reply"), t("dash.agreed"), `${t("core.published")} (${ml(month, "short")})`, t("dash.timeToPublish"), t("dash.spentWord")].map((h) => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
@@ -466,6 +541,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                 return (
                   <tr key={m.id ?? "none"}>
                     <td className="whitespace-nowrap font-medium">{m.name}</td>
+                    <td className="font-mono">{m.id ? sentBy.get(m.id) ?? 0 : "—"}</td>
+                    <td className="font-mono">{repliesTo.get(m.id ?? "none") ?? 0}</td>
                     <td className="font-mono">{mr.filter((r) => r.fg_status === "core").length}</td>
                     <td className="font-mono">{mr.filter((r) => r.in_comm && !r.in_gp).length}</td>
                     <td className="font-mono">{pctTxt(rate(rep, con))}</td>
