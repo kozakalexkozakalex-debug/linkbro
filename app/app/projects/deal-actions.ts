@@ -16,7 +16,9 @@ export type Activity = { id: string; channel: Channel; body: string; handle: str
 export type Offer = { id: string; domain: string; handle: string; price: number; currency: string; note: string; created_at: string };
 export type WriterLite = { id: string; name: string; contact: string; rate: number | null; rate_unit: string; currency: string };
 export type Payment = { id: string; payee_kind: string; payee: string; amount: number; currency: string; status: string; paid_at: string | null; note: string; created_at: string; project_id: string | null; donor_id: string | null };
+export type TemplateLite = { id: string; kind: "message" | "brief"; name: string; body: string };
 export type DealPanel = {
+  templates: TemplateLite[];
   writers: WriterLite[];
   payments: Payment[];
   activities: Activity[];
@@ -39,7 +41,7 @@ const EMPTY_CONTACT = (handle: string): Contact => ({
 export async function getDealPanel(donorId: string, domain: string, handle: string): Promise<DealPanel> {
   const { supabase, team } = await getTeamContext();
   const h = handle.trim();
-  const [acts, contact, offers, same, writers, pays] = await Promise.all([
+  const [acts, contact, offers, same, writers, pays, tpls] = await Promise.all([
     supabase.from("activities").select("id, channel, body, handle, created_at, created_by, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }).limit(100),
     h ? supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", h).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("offers").select("id, domain, handle, price, currency, note, created_at").eq("team_id", team.id).eq("domain", domain).order("created_at", { ascending: false }).limit(50),
@@ -48,8 +50,10 @@ export async function getDealPanel(donorId: string, domain: string, handle: stri
       : Promise.resolve({ data: [] }),
     supabase.from("writers").select("id, name, contact, rate, rate_unit, currency").eq("team_id", team.id).order("name"),
     supabase.from("payments").select("id, payee_kind, payee, amount, currency, status, paid_at, note, created_at, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }),
+    supabase.from("templates").select("id, kind, name, body").eq("team_id", team.id).order("name"),
   ]);
   return {
+    templates: (tpls.data ?? []) as TemplateLite[],
     writers: (writers.data ?? []) as WriterLite[],
     payments: (pays.data ?? []) as Payment[],
     activities: (acts.data ?? []) as Activity[],

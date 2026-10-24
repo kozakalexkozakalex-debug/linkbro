@@ -617,4 +617,15 @@ export const en: Messages = {
   "pay.amount": "Amount",
   "pay.note": "What for",
   "pay.markPaid": "mark paid",
+
+  "nav.templates": "Templates",
+  "tpl.lead": "Shared by the whole team. Pick them in the deal card: messages on the Conversation tab, briefs on the Article tab.",
+  "tpl.messages": "Messages to intermediaries",
+  "tpl.briefs": "Briefs for writers",
+  "tpl.vars": "Filled in automatically: {domain} {anchor} {page} {price} {deadline}",
+  "tpl.new": "New template",
+  "tpl.namePh": "Name, e.g. “First email EN”",
+  "tpl.body": "Template text",
+  "tpl.choose": "Template",
+  "tpl.default": "Default template",
 };

@@ -47,6 +47,8 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
   const [d, setD] = useState(init);
   const [contact, setContact] = useState<Contact | null>(null);
   const [editContact, setEditContact] = useState(false);
+  const [msgTpl, setMsgTpl] = useState("");
+  const [briefTpl, setBriefTpl] = useState("");
   const [log, setLog] = useState({ channel: "telegram" as Channel, body: "", price: "", currency: donor.gp_currency || "USD", replied: false });
   const g = donor.global_donors;
 
@@ -56,7 +58,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         setPanel(p);
         setContact(p.contact);
       })
-      .catch(() => setPanel({ writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
+      .catch(() => setPanel({ templates: [], writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
   }, [donor.id, donor.domain, d.med_base]);
   useEffect(() => {
     load();
@@ -81,14 +83,26 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
     });
   }
 
+  // Подстановка переменных в любой шаблон
+  function fill(tpl: string): string {
+    return tpl
+      .replaceAll("{domains}", donor.domain)
+      .replaceAll("{domain}", donor.domain)
+      .replaceAll("{anchor}", d.anchors)
+      .replaceAll("{page}", d.page_url)
+      .replaceAll("{price}", d.gp_price ? `${d.gp_price} ${cur}` : "")
+      .replaceAll("{deadline}", d.article_deadline ? d.article_deadline.split("-").reverse().join(".") : "");
+  }
   function message(): string {
+    const chosen = panel?.templates.find((x) => x.id === msgTpl && x.kind === "message");
+    if (chosen) return fill(chosen.body);
     let tpl = DEFAULT_TEMPLATE;
     try {
       tpl = localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
     } catch {
       /* шаблон по умолчанию */
     }
-    return tpl.replaceAll("{domains}", donor.domain).replaceAll("{domain}", donor.domain).replaceAll("{anchor}", d.anchors).replaceAll("{page}", d.page_url);
+    return fill(tpl);
   }
 
   // Кнопка канала: текст в буфер, открыть чат/почту, записать «написал» в ленту
@@ -166,6 +180,8 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
   const BRIEF_KEY = "linkbro.briefTemplate";
   const DEFAULT_BRIEF = "Сайт: {domain}\nТема: \nОбсяг: 3000–4000 знаків\nАнкор: {anchor}\nПосилання на: {page}\nВимоги площадки: \nДедлайн: {deadline}";
   function fillBrief() {
+    const chosen = panel?.templates.find((x) => x.id === briefTpl && x.kind === "brief");
+    if (chosen) return setD({ ...d, brief: fill(chosen.body) });
     let tpl = DEFAULT_BRIEF;
     try {
       tpl = localStorage.getItem(BRIEF_KEY) || DEFAULT_BRIEF;
@@ -267,6 +283,12 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {panel && panel.templates.some((x) => x.kind === "message") && (
+                      <select aria-label={t("tpl.choose")} className="inp mb-1 w-full" value={msgTpl} onChange={(e) => setMsgTpl(e.target.value)}>
+                        <option value="">{t("tpl.default")}</option>
+                        {panel.templates.filter((x) => x.kind === "message").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                      </select>
+                    )}
                     {contact.email && <button type="button" className="btn btn-sm" onClick={() => reach("email")}>📧 {t("deal.write")}</button>}
                     {contact.telegram && <button type="button" className="btn btn-sm" onClick={() => reach("telegram")}>✈️ Telegram</button>}
                     {contact.whatsapp && <button type="button" className="btn btn-sm" onClick={() => reach("whatsapp")}>💬 WhatsApp</button>}
@@ -414,7 +436,13 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
             {row(t("deal.deadline"), inp("article_deadline", "", "date"), "dc-article_deadline")}
             <div className="flex items-center justify-between gap-2">
               <label htmlFor="dc-brief" className="lbl">{t("wr.brief")}</label>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap justify-end gap-1">
+                {panel && panel.templates.some((x) => x.kind === "brief") && (
+                  <select aria-label={t("tpl.choose")} className="inp h-8 min-h-0 w-auto py-0 text-sm" value={briefTpl} onChange={(e) => setBriefTpl(e.target.value)}>
+                    <option value="">{t("tpl.default")}</option>
+                    {panel.templates.filter((x) => x.kind === "brief").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                )}
                 <button type="button" className="btn btn-sm" onClick={fillBrief}>{t("wr.fillBrief")}</button>
                 {d.brief && <button type="button" className="btn btn-sm" onClick={() => navigator.clipboard?.writeText(d.brief)}>{t("common.copy")}</button>}
               </div>

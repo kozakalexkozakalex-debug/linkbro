@@ -10,6 +10,7 @@ const ITEMS: { href: string; key: MsgKey }[] = [
   { href: "/app/global", key: "nav.sites" },
   { href: "/app/intermediaries", key: "nav.contacts" },
   { href: "/app/writers", key: "nav.writers" },
+  { href: "/app/templates", key: "nav.templates" },
   { href: "/app/input", key: "nav.add" },
   { href: "/app/import", key: "nav.import" },
 ];

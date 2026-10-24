@@ -617,4 +617,15 @@ export const es: Messages = {
   "pay.amount": "Importe",
   "pay.note": "Concepto",
   "pay.markPaid": "marcar pagado",
+
+  "nav.templates": "Plantillas",
+  "tpl.lead": "Compartidas por todo el equipo. Se eligen en la ficha: mensajes en Conversación, briefs en Artículo.",
+  "tpl.messages": "Mensajes a intermediarios",
+  "tpl.briefs": "Briefs para redactores",
+  "tpl.vars": "Se rellenan solos: {domain} {anchor} {page} {price} {deadline}",
+  "tpl.new": "Nueva plantilla",
+  "tpl.namePh": "Nombre, p. ej. «Primer correo EN»",
+  "tpl.body": "Texto",
+  "tpl.choose": "Plantilla",
+  "tpl.default": "Plantilla por defecto",
 };
