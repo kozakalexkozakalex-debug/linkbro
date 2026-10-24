@@ -15,7 +15,7 @@ import type { MsgKey } from "@/lib/i18n/config";
 import type { Opt } from "@/lib/sheet";
 
 const FIELDS = [
-  "core_status", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
+  "stage", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
   "gp_price", "gp_currency", "gp_source", "gp_commission", "client_price",
   "article_writer", "writer_id", "article_cost", "brief", "article_doc", "article_deadline", "article_status",
   "page_url", "anchors", "pre_anchor", "article_url",
@@ -253,7 +253,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
           </div>
           <button type="button" className="btn btn-sm" onClick={onClose} aria-label={t("common.close")}>✕</button>
         </div>
-        <select aria-label={t("common.status")} className="inp" value={d.core_status} onChange={set("core_status")}>
+        <select aria-label={t("common.status")} className="inp" value={d.stage} onChange={set("stage")}>
           {statusOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <div className={`grid grid-cols-[140px_1fr] gap-2 rounded-md p-2 ${overdue ? "bg-warn-soft" : "bg-bg"}`}>

@@ -6,9 +6,9 @@ import { loadMembers } from "@/lib/members";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { fmtDateTime } from "@/lib/global";
 import { DONOR_COLUMNS, PROJECT_COLUMNS, normalizeFilter, type CustomStatuses, type Project, type ProjectDonor } from "@/lib/project";
-import FromGlobal from "./FromGlobal";
 import Work, { type MedBusy } from "./Work";
-import { STAGES, STAGE_KEY, stageOf } from "@/lib/stages";
+import { OVERVIEW, OVERVIEW_KEY, overviewOf } from "@/lib/stages";
+import BoardHost from "./BoardHost";
 import Profile from "./Profile";
 import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
@@ -16,12 +16,14 @@ import type { MsgKey } from "@/lib/i18n/config";
 type Params = Promise<{ id: string }>;
 type Search = Promise<{ tab?: string; mine?: string; q?: string; error?: string; saved?: string; view?: string }>;
 
-const TABS = [
-  { key: "fg", label: "From Global" },
-  { key: "work", label: "" },
-  { key: "history", label: "" },
-  { key: "profile", label: "" },
-] as const;
+const TABS: { key: string; label: MsgKey }[] = [
+  { key: "overview", label: "ptab.overview" },
+  { key: "pool", label: "ptab.pool" },
+  { key: "work", label: "ptab.outreach" },
+  { key: "monitor", label: "ptab.monitor" },
+  { key: "history", label: "proj.tabHistory" },
+  { key: "profile", label: "proj.tabProfile" },
+];
 
 const FIELD_LABEL: Record<string, MsgKey> = {
   fg_status: "field.fg",
@@ -55,8 +57,8 @@ type LogRow = { id: number; domain: string | null; user_id: string | null; field
 export default async function ProjectPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const { id } = await params;
   const sp = await searchParams;
-  const askTab = ["core", "comm", "gp"].includes(sp.tab ?? "") ? "work" : sp.tab;
-  const tab = TABS.some((x) => x.key === askTab) ? (askTab as string) : "fg";
+  const askTab = ["core", "comm", "gp"].includes(sp.tab ?? "") ? "work" : sp.tab === "fg" ? "pool" : sp.tab;
+  const tab = TABS.some((x) => x.key === askTab) ? (askTab as string) : "overview";
   const mine = sp.mine === "1";
   const q = (sp.q ?? "").trim().toLowerCase();
   const { supabase, team, user } = await getTeamContext();
@@ -131,8 +133,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
 
   const count = (pred: (d: ProjectDonor) => boolean) => donors.filter(pred).length;
   const counts: Record<string, number | null> = {
-    fg: donors.length,
+    overview: donors.length,
+    pool: count((d) => ["new", "check", "ok"].includes(d.fg_status)),
     work: count((d) => d.fg_status === "core"),
+    monitor: count((d) => d.stage === "published" || !!d.article_url),
     history: null,
     profile: null,
   };
@@ -148,7 +152,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
   let stopTools: string[] = [];
   let stopGlobal: string[] = [];
   let stopGlobalCount = 0;
-  if (tab === "profile" || tab === "fg") {
+  if (tab === "profile" || tab === "pool") {
     const stop = await fetchAll<{ domain: string; source: string }>((from, to) =>
       supabase.from("project_stoplist").select("domain, source").eq("project_id", id).order("domain").range(from, to),
     );
@@ -218,26 +222,25 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
       <div className="flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((tb) => (
           <Link key={tb.key} href={qs(tb.key)} className={`tab whitespace-nowrap ${tab === tb.key ? "tab-on" : ""}`}>
-            {tb.label || (tb.key === "work" ? t("work.tab") : tb.key === "history" ? t("proj.tabHistory") : t("proj.tabProfile"))}
+            {t(tb.label)}
             {counts[tb.key] != null && <span className="ml-1 font-mono text-xs">{counts[tb.key]}</span>}
           </Link>
         ))}
       </div>
 
-      {/* Воронка проекта видна на любой вкладке; клик — канбан */}
-      {(() => {
-        const core = donors.filter((d) => d.fg_status === "core");
+      {/* Где сейчас сайты проекта — видно на любой вкладке, клик ведёт в общий канбан */}
+      {tab !== "overview" && (() => {
         const cnt = new Map<string, number>();
-        for (const d of core) {
-          const s = stageOf(d, custom.core_neg);
+        for (const d of donors) {
+          const s = overviewOf(d);
           cnt.set(s, (cnt.get(s) ?? 0) + 1);
         }
         return (
-          <nav className="pipe" aria-label={t("work.kanban")}>
-            {STAGES.map((s, i) => (
-              <Link key={s} href={`/app/projects/${id}?tab=work&view=kanban`} className={`pipe-step ${cnt.get(s) ? "" : "pipe-empty"}`}>
-                <span className="font-mono text-base font-semibold">{cnt.get(s) ?? 0}</span>
-                <span className="truncate text-[11px]">{t(STAGE_KEY[s])}</span>
+          <nav className="pipe" aria-label={t("ptab.overview")}>
+            {OVERVIEW.map((s) => (
+              <Link key={s} href={qs("overview")} className={`pipe-step ${cnt.get(s) ? "" : "pipe-empty"}`}>
+                <span className="text-base font-bold tabular-nums">{cnt.get(s) ?? 0}</span>
+                <span className="truncate text-[11px] text-mute">{t(OVERVIEW_KEY[s])}</span>
               </Link>
             ))}
           </nav>
@@ -252,7 +255,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pa
       {sp.error && <p className="note note-bad" role="alert">{t(sp.error as MsgKey)}</p>}
       {sp.saved && <p className="note note-ok" role="status">{t("common.saved")}</p>}
 
-      {tab === "fg" && <FromGlobal projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
+      {tab === "overview" && <BoardHost kind="overview" projectId={id} rows={donors} />}
+      {tab === "pool" && <BoardHost kind="pool" projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
+      {tab === "monitor" && <BoardHost kind="monitor" projectId={id} rows={donors} />}
       {tab === "work" && (
         <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
       )}

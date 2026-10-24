@@ -11,9 +11,11 @@ import type { ProjectDonor } from "@/lib/project";
 import { useI18n } from "@/components/I18nProvider";
 
 const FG_OPTS = [
-  { value: "new", label: "NEW" },
-  { value: "core", label: "Core" },
-  { value: "out", label: "Out Geo/Topics" },
+  { value: "new", label: "Пул" },
+  { value: "check", label: "Check" },
+  { value: "ok", label: "OK" },
+  { value: "core", label: "→ Outreach" },
+  { value: "out", label: "Out" },
 ];
 
 export default function FromGlobal({
@@ -39,7 +41,7 @@ export default function FromGlobal({
         kind: "select",
         width: 120,
         options: FG_OPTS,
-        tone: (v) => (v === "core" ? "ok" : v === "out" ? "bad" : ""),
+        tone: (v) => (v === "core" || v === "ok" ? "ok" : v === "out" ? "bad" : v === "check" ? "warn" : ""),
       },
     ],
     [intl],
@@ -59,7 +61,8 @@ export default function FromGlobal({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkButton label="→ Core" onApply={() => setAll(ids, "core")} />
+            <BulkButton label="→ Outreach" onApply={() => setAll(ids, "core")} />
+            <BulkButton label="→ OK" onApply={() => setAll(ids, "ok")} />
             <BulkButton label="→ Out" onApply={() => setAll(ids, "out")} />
             <BulkButton label="↺ NEW" onApply={() => setAll(ids, "new")} />
           </>

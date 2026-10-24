@@ -38,6 +38,7 @@ export type AnRow = {
   assignee: string | null;
   added_at: string;
   fg_status: string;
+  stage: string;
   core_status: string;
   published_at: string | null;
   in_comm: boolean;
@@ -60,7 +61,7 @@ export type AnRow = {
 };
 
 export const AN_COLUMNS =
-  "id, project_id, domain, assignee, added_at, fg_status, core_status, published_at, in_comm, in_gp, comm_status, gp_status, gp_price, gp_currency, gp_commission, pay_status, paid_at, indicator, indicator_at, link_status, guarantee_until, med_base, article_url, client_price, next_action_at";
+  "id, project_id, domain, assignee, added_at, fg_status, stage, core_status, published_at, in_comm, in_gp, comm_status, gp_status, gp_price, gp_currency, gp_commission, pay_status, paid_at, indicator, indicator_at, link_status, guarantee_until, med_base, article_url, client_price, next_action_at";
 
 export type MonthStats = {
   published: number;

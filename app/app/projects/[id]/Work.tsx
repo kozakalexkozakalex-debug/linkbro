@@ -6,13 +6,14 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { findIntermediaries, markContacted, updateDonorsBatch } from "../actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
-import { AddStatus, BulkSelect } from "@/components/BulkTools";
+import { BulkSelect } from "@/components/BulkTools";
 import CopyButton from "@/components/CopyButton";
 import DupeBadge from "@/components/DupeBadge";
 import LinkCheck from "@/components/LinkCheck";
 import { metricCols } from "@/components/MetricCols";
 import { fmtDate } from "@/lib/global";
-import { CORE_NEG, CORE_POS, GP_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
+import { STAGES, STAGE_KEY } from "@/lib/stages";
+import { GP_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, priceFromText } from "@/lib/money";
 import { useI18n } from "@/components/I18nProvider";
 import Kanban from "./Kanban";
@@ -86,11 +87,9 @@ export default function Work({
     }
   }
 
-  const pos = useMemo(() => [...CORE_POS, ...custom.core_pos], [custom]);
-  const neg = useMemo(() => [...CORE_NEG, ...custom.core_neg], [custom]);
   const statusOpts = useMemo(
-    () => [{ value: "new_core", label: "new_core" }, ...pos.map((s) => ({ value: s, label: `✓ ${s}` })), ...neg.map((s) => ({ value: s, label: `✕ ${s}` }))],
-    [pos, neg],
+    () => [...STAGES.map((s) => ({ value: s as string, label: t(STAGE_KEY[s]) })), { value: "lost", label: `✕ ${t(STAGE_KEY.lost)}` }],
+    [t],
   );
   const memberOpts = useMemo(() => [{ value: "", label: "—" }, ...members.map((m) => ({ value: m.id, label: m.name }))], [members]);
   const indOpts = useMemo(() => [{ value: "", label: "—" }, ...INDICATORS.map((i) => ({ value: i.value, label: t(i.key) }))], [t]);
@@ -132,12 +131,12 @@ export default function Work({
         },
       },
       {
-        key: "core_status",
+        key: "stage",
         header: t("common.status"),
         kind: "select",
-        width: 150,
+        width: 160,
         options: statusOpts,
-        tone: (v) => (pos.includes(v) ? "ok" : neg.includes(v) ? "bad" : ""),
+        tone: (v) => (v === "published" ? "ok" : v === "lost" ? "bad" : v === "find" ? "" : "warn"),
       },
     ];
     if (shown.includes("metrics")) {
@@ -302,7 +301,7 @@ export default function Work({
     }
     cols.push({ key: "assignee", header: t("common.assignee"), kind: "select", width: 130, options: memberOpts });
     return cols;
-  }, [shown, t, intl, dupes, medBusy, statusOpts, pos, neg, indOpts, payOpts, gpOpts, curOpts, srcOpts, idxOpts, artOpts, memberOpts, projectId]);
+  }, [shown, t, intl, dupes, medBusy, statusOpts, indOpts, payOpts, gpOpts, curOpts, srcOpts, idxOpts, artOpts, memberOpts, projectId]);
 
   // Черновики писем: донорам с посредником, кому ещё не писали. Один посредник — одно письмо.
   const groups = useMemo(() => {
@@ -350,7 +349,6 @@ export default function Work({
         <button type="button" className="btn" onClick={() => setDraftsOpen(true)} disabled={busy}>
           {t("comm.drafts")}{groups.length ? ` (${groups.length})` : ""}
         </button>
-        <AddStatus kinds={[{ value: "core_pos", label: t("core.pos") }, { value: "core_neg", label: t("core.neg") }]} />
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-sm">
@@ -397,7 +395,7 @@ export default function Work({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "core_status", v)} />
+            <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "stage", v)} />
             <BulkSelect label={t("field.indicator")} options={indOpts} onApply={(v) => setAll(ids, "indicator", v)} />
             <BulkSelect label={t("field.pay")} options={payOpts} onApply={(v) => setAll(ids, "pay_status", v)} />
             <BulkSelect label={t("common.assignee")} options={memberOpts} onApply={(v) => setAll(ids, "assignee", v)} />

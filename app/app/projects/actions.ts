@@ -209,7 +209,7 @@ export async function updateDonorField(id: string, field: DonorTextField, raw: s
 
 export async function setFgStatus(id: string, projectId: string, status: FgStatus): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
-  if (!["new", "core", "out"].includes(status)) return fail(await tr("err.unknownStatus"));
+  if (!["new", "check", "ok", "core", "out"].includes(status)) return fail(await tr("err.unknownStatus"));
   const { error } = await supabase.from("project_donors").update({ fg_status: status }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
   refresh(projectId);
@@ -560,7 +560,7 @@ export async function setReportPrices(formData: FormData) {
 // ---------- Пакетное сохранение из таблиц проекта ----------
 export type CellChange = { id: string; field: string; value: string };
 
-const SPECIAL = ["core_status", "comm_status", "gp_status", "indicator", "fg_status", "gp_source"] as const;
+const SPECIAL = ["core_status", "comm_status", "gp_status", "indicator", "fg_status", "gp_source", "stage"] as const;
 
 export async function updateDonorsBatch(projectId: string, changes: CellChange[]): Promise<Ok> {
   if (changes.length > 5000) return fail(await tr("err.tooMany", { n: 5000 }));
@@ -665,6 +665,7 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     else if (c.field === "gp_status") r = await setGpStatus(c.id, projectId, c.value);
     else if (c.field === "indicator") r = await setIndicator(c.id, projectId, c.value);
     else if (c.field === "fg_status") r = await setFgStatus(c.id, projectId, c.value as FgStatus);
+    else if (c.field === "stage") r = await setStage(c.id, projectId, c.value);
     else r = await setDonorValue(c.id, projectId, "gp_source", c.value);
     if (!r.ok) return r;
   }
@@ -758,4 +759,18 @@ export async function getDonorExtra(donorId: string, med: string): Promise<Donor
     }));
   }
   return { log: (log ?? []) as DonorExtra["log"], med: medRows };
+}
+
+// Этап Outreach. Старые поля (core_status, indicator, in_comm, in_gp) подтягивает триггер в базе.
+export async function setStage(id: string, projectId: string, stage: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const all = ["find", "contacted", "replied", "negotiating", "agreed", "writing", "review", "sent", "paid", "published", "lost"];
+  if (!all.includes(stage)) return fail(await tr("err.unknownStatus"));
+  const { error } = await supabase.from("project_donors").update({ stage, fg_status: "core" }).eq("id", id).eq("team_id", team.id);
+  if (error) return fail(error.message);
+  // Дата публикации и гарантия ставятся так же, как при статусе Published
+  if (stage === "published") return setCoreStatus(id, projectId, "Published");
+  if (stage === "paid") await supabase.from("project_donors").update({ pay_status: "paid", paid_at: new Date().toISOString() }).eq("id", id).eq("team_id", team.id).eq("pay_status", "");
+  refresh(projectId);
+  return { ok: true };
 }
