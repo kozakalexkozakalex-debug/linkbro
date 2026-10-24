@@ -53,9 +53,26 @@ export async function verify(c: Creds): Promise<void> {
   await smtp(c).verify();
 }
 
-export async function send(c: Creds, to: string, subject: string, text: string): Promise<string> {
-  const info = await smtp(c).sendMail({ from: c.email, to, subject, text });
+export async function send(c: Creds, to: string, subject: string, text: string, inReplyTo = ""): Promise<string> {
+  const reply = inReplyTo && !inReplyTo.startsWith("uid-") ? { inReplyTo, references: inReplyTo } : {};
+  const info = await smtp(c).sendMail({ from: c.email, to, subject, text, ...reply });
   return String(info.messageId ?? "");
+}
+
+// Несколько писем через одно соединение (массовая отправка). Ошибка одного письма не останавливает остальные.
+export async function sendMany(c: Creds, items: { to: string; subject: string; text: string }[]): Promise<{ messageId: string; error: string }[]> {
+  const tr = smtp(c);
+  const out: { messageId: string; error: string }[] = [];
+  for (const it of items) {
+    try {
+      const info = await tr.sendMail({ from: c.email, to: it.to, subject: it.subject, text: it.text });
+      out.push({ messageId: String(info.messageId ?? ""), error: "" });
+    } catch (e) {
+      out.push({ messageId: "", error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  tr.close();
+  return out;
 }
 
 export type Incoming = { uid: number; from: string; subject: string; text: string; messageId: string; date: string };

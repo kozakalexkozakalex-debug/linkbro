@@ -21,6 +21,7 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; exact?: bo
   ],
   outreach: [
     { href: "/app/outreach", key: "mod.board" },
+    { href: "/app/followup", key: "out.followup" },
     { href: "/app/inbox", key: "nav.inbox" },
     { href: "/app/intermediaries", key: "nav.contacts" },
     { href: "/app/writers", key: "nav.writers" },
