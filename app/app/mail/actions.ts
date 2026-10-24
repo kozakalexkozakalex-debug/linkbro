@@ -49,6 +49,12 @@ export async function connectMail(input: { email: string; password: string; pres
   } catch (e) {
     return { ok: false, error: t("mail.errLogin", { x: e instanceof Error ? e.message : String(e) }) };
   }
+  let secret = "";
+  try {
+    secret = encrypt(password);
+  } catch (e) {
+    return { ok: false, error: t("mail.errLogin", { x: e instanceof Error ? e.message : String(e) }) };
+  }
   const { error } = await supabase.from("mail_accounts").upsert(
     {
       user_id: user.id,
@@ -58,7 +64,7 @@ export async function connectMail(input: { email: string; password: string; pres
       imap_port: creds.imap_port,
       smtp_host: creds.smtp_host,
       smtp_port: creds.smtp_port,
-      secret: encrypt(password),
+      secret,
       last_uid: 0,
       last_error: "",
     },
