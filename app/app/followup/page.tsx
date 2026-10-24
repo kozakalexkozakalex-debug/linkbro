@@ -30,6 +30,8 @@ type D = {
 const COLS = "id, project_id, domain, med_base, fg_status, stage, core_status, indicator, indicator_at, next_action_at, next_action, gp_price, gp_currency, anchors, page_url, article_deadline";
 const DAYS = [2, 3, 5, 7, 14];
 
+export const maxDuration = 60; // массовая проверка ссылок / рассылка — до минуты
+
 export default async function FollowUpPage({ searchParams }: { searchParams: Promise<{ d?: string; l?: string }> }) {
   const sp = await searchParams;
   const days = DAYS.includes(Number(sp.d)) ? Number(sp.d) : 3;

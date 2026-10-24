@@ -2,7 +2,7 @@
 // с секретом CRON_SECRET. За один вызов проверяет до 20 ссылок, остальные — следующими вызовами.
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { checkLink } from "@/lib/linkcheck";
+import { CHECK_COLS, checkAndSave, type CheckRow } from "@/lib/linkcheck-save";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,7 +10,6 @@ export const maxDuration = 60;
 const BATCH = 20;
 const PARALLEL = 5;
 
-type Item = { id: string; article_url: string; page_url: string; anchors: string };
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -25,25 +24,21 @@ export async function GET(request: Request) {
 
   const { data, error } = await db
     .from("project_donors")
-    .select("id, article_url, page_url, anchors")
+    .select(CHECK_COLS)
     .neq("article_url", "")
     .or(due)
     .order("link_checked_at", { ascending: true, nullsFirst: true })
     .limit(BATCH);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const items = (data ?? []) as Item[];
+  const items = (data ?? []) as CheckRow[];
   let i = 0;
   const results: Record<string, number> = {};
   async function worker() {
     while (i < items.length) {
       const it = items[i++];
-      const r = await checkLink(it.article_url, it.page_url, it.anchors);
-      results[r.status] = (results[r.status] ?? 0) + 1;
-      await db
-        .from("project_donors")
-        .update({ link_status: r.status, link_note: r.note, link_checked_at: new Date().toISOString() })
-        .eq("id", it.id);
+      const status = await checkAndSave(db, it);
+      results[status] = (results[status] ?? 0) + 1;
     }
   }
   await Promise.all(Array.from({ length: PARALLEL }, worker));

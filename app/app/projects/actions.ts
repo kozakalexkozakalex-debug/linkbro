@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, geoMatches, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
-import { checkLink } from "@/lib/linkcheck";
+import { CHECK_COLS, checkAndSave, type CheckRow } from "@/lib/linkcheck-save";
 import { CURRENCIES, SOURCES } from "@/lib/money";
 import {
   COMM_STATUSES,
@@ -511,23 +511,30 @@ export async function setDonorValue(id: string, projectId: string, field: DonorV
 
 export async function checkDonorLink(id: string, projectId: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
-  const { data } = await supabase
-    .from("project_donors")
-    .select("article_url, page_url, anchors")
-    .eq("id", id)
-    .eq("team_id", team.id)
-    .maybeSingle();
+  const { data } = await supabase.from("project_donors").select(CHECK_COLS).eq("id", id).eq("team_id", team.id).maybeSingle();
   if (!data) return fail(await tr("err.donorNotFound"));
-  const d = data as { article_url: string; page_url: string; anchors: string };
-  const r = await checkLink(d.article_url, d.page_url, d.anchors);
-  const { error } = await supabase
-    .from("project_donors")
-    .update({ link_status: r.status, link_note: r.note, link_checked_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("team_id", team.id);
-  if (error) return fail(error.message);
+  await checkAndSave(supabase, data as CheckRow, await tr("mon.restoreTask"));
   refresh(projectId);
   return { ok: true };
+}
+
+// «Перевірити всі»: браузер присылает порции по 10 id, проверяем по 5 одновременно
+export async function checkLinksBatch(ids: string[]): Promise<{ checked: number; results: Record<string, number> }> {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase.from("project_donors").select(CHECK_COLS).eq("team_id", team.id).neq("article_url", "").in("id", ids.slice(0, 10));
+  const items = (data ?? []) as CheckRow[];
+  const task = await tr("mon.restoreTask");
+  const results: Record<string, number> = {};
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const it = items[i++];
+      const st = await checkAndSave(supabase, it, task);
+      results[st] = (results[st] ?? 0) + 1;
+    }
+  }
+  await Promise.all(Array.from({ length: 5 }, worker));
+  return { checked: items.length, results };
 }
 
 // ---------- Отчёт для клиента ----------

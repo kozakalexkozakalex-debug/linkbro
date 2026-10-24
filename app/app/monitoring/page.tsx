@@ -7,6 +7,8 @@ import ModuleHead from "@/components/ModuleHead";
 import ProjectView, { type SearchValues } from "../projects/[id]/ProjectView";
 import BoardHost from "../projects/[id]/BoardHost";
 
+export const maxDuration = 60; // массовая проверка ссылок / рассылка — до минуты
+
 // Моніторинг: опубликованные ссылки выбранного проекта или всех проектов сразу
 export default async function MonitoringPage({ searchParams }: { searchParams: Promise<SearchValues> }) {
   const sp = await searchParams;

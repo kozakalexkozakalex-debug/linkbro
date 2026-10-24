@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { updateDonorsBatch } from "../actions";
 import Board from "@/components/Board";
 import LinkCheck from "@/components/LinkCheck";
+import MonitorTools from "./MonitorTools";
 import { MONITOR, MONITOR_KEY, monitorOf } from "@/lib/stages";
 import { daysLeft } from "@/lib/money";
 import type { ProjectDonor } from "@/lib/project";
 import { useI18n } from "@/components/I18nProvider";
 
 export default function MonitorBoard({ projectId, rows, onOpen }: { projectId: string; rows: ProjectDonor[]; onOpen: (d: ProjectDonor) => void }) {
-  const { t } = useI18n();
+  const { t, intl } = useI18n();
   const router = useRouter();
   const [pending, start] = useTransition();
   const cols = useMemo(
@@ -30,6 +31,8 @@ export default function MonitorBoard({ projectId, rows, onOpen }: { projectId: s
       router.refresh();
     });
   return (
+    <>
+    <MonitorTools items={items} />
     <Board
       cols={cols}
       items={items}
@@ -52,9 +55,15 @@ export default function MonitorBoard({ projectId, rows, onOpen }: { projectId: s
             {(col === "lost" || col === "warn") && (
               <button type="button" className="btn btn-sm" disabled={pending} onClick={() => backToOutreach(d)}>{t("mon.toOutreach")}</button>
             )}
+            {d.link_problem_at && (col === "lost" || col === "warn") && (
+              <span className="text-xs text-bad" suppressHydrationWarning>
+                {t("mon.since", { d: new Date(d.link_problem_at).toLocaleDateString(intl, { day: "2-digit", month: "2-digit" }) })}
+              </span>
+            )}
           </div>
         );
       }}
     />
+    </>
   );
 }

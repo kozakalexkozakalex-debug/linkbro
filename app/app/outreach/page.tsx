@@ -4,6 +4,8 @@ import ModuleHead from "@/components/ModuleHead";
 import PickProject from "@/components/PickProject";
 import ProjectView, { type SearchValues } from "../projects/[id]/ProjectView";
 
+export const maxDuration = 60; // массовая проверка ссылок / рассылка — до минуты
+
 // Outreach: доска сделок выбранного проекта (переговоры → статья → публикация)
 export default async function OutreachPage({ searchParams }: { searchParams: Promise<SearchValues> }) {
   const sp = await searchParams;

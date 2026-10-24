@@ -82,6 +82,7 @@ export type ProjectDonor = {
   paid_at: string | null;
   guarantee_until: string | null;
   link_status: LinkStatus;
+  link_problem_at: string | null;
   link_note: string;
   link_checked_at: string | null;
   indexed: boolean | null;
@@ -104,7 +105,7 @@ export const PROJECT_COLUMNS =
   "id, name, niche, client_site, geo, language, monthly_budget, budget_currency, plan_per_month, requirements, notes, metric_filter";
 
 export const DONOR_COLUMNS =
-  "id, project_id, domain, assignee, added_at, fg_status, stage, reject_reason, core_status, published_at, category_page, in_comm, med_base, med_add, price_base, price_add, indicator, indicator_at, comm_status, dialog, in_gp, gp_med, gp_price, client_price, next_action_at, next_action, exchange_url, article_writer, article_doc, article_deadline, article_status, writer_id, article_cost, brief, payments, article_link, page_url, anchors, pre_anchor, article_url, gp_status, gp_source, gp_currency, gp_commission, pay_status, paid_at, guarantee_until, link_status, link_note, link_checked_at, indexed, global_donors(price, dr, keywords, traffic, geo, topics, tf, cf)";
+  "id, project_id, domain, assignee, added_at, fg_status, stage, reject_reason, core_status, published_at, category_page, in_comm, med_base, med_add, price_base, price_add, indicator, indicator_at, comm_status, dialog, in_gp, gp_med, gp_price, client_price, next_action_at, next_action, exchange_url, article_writer, article_doc, article_deadline, article_status, writer_id, article_cost, brief, payments, article_link, page_url, anchors, pre_anchor, article_url, gp_status, gp_source, gp_currency, gp_commission, pay_status, paid_at, guarantee_until, link_status, link_note, link_checked_at, link_problem_at, indexed, global_donors(price, dr, keywords, traffic, geo, topics, tf, cf)";
 
 // Текстовые поля, которые можно править ячейкой
 export const DONOR_TEXT_FIELDS = [
