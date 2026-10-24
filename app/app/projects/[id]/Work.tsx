@@ -21,9 +21,9 @@ import type { MsgKey } from "@/lib/i18n/config";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
 
-const GROUPS = ["metrics", "med", "prices", "pub"] as const;
+const GROUPS = ["metrics", "med", "prices", "article", "pub"] as const;
 type Group = (typeof GROUPS)[number];
-const GROUP_KEY: Record<Group, MsgKey> = { metrics: "grp.metrics", med: "grp.med", prices: "grp.prices", pub: "grp.pub" };
+const GROUP_KEY: Record<Group, MsgKey> = { metrics: "grp.metrics", med: "grp.med", prices: "grp.prices", article: "deal.tabArticle", pub: "grp.pub" };
 const GROUPS_STORE = "linkbro.workGroups";
 const TEMPLATE_KEY = "linkbro.mailTemplate";
 const DEFAULT_TEMPLATE = "Hi!\n\nI'm interested in publishing a guest post on {domains}.\nCould you share your current terms and price?\n\nThanks!";
@@ -98,6 +98,7 @@ export default function Work({
   const gpOpts = useMemo(() => [{ value: "", label: "—" }, ...GP_STATUSES.map((s) => ({ value: s, label: s }))], []);
   const curOpts = useMemo(() => CURRENCIES.map((c) => ({ value: c, label: c })), []);
   const srcOpts = useMemo(() => [{ value: "", label: "—" }, ...SOURCES.map((s) => ({ value: s.name, label: s.name }))], []);
+  const artOpts = useMemo(() => ["", "todo", "writing", "review", "ready", "sent"].map((s) => ({ value: s, label: s ? t(`art.${s}` as MsgKey) : "—" })), [t]);
   const idxOpts = useMemo(() => [{ value: "", label: "—" }, { value: "yes", label: t("common.yes") }, { value: "no", label: t("common.no") }], [t]);
 
   const columns: SheetCol<ProjectDonor>[] = useMemo(() => {
@@ -113,6 +114,22 @@ export default function Work({
             <DupeBadge items={dupes[d.domain]} />
           </span>
         ),
+      },
+      {
+        key: "next_action_at",
+        header: t("deal.nextAt"),
+        kind: "date",
+        width: 110,
+        render: (d, v) => {
+          const val = v("next_action_at");
+          if (!val) return <span className="sh-ph">—</span>;
+          const late = val <= new Date().toISOString().slice(0, 10);
+          return (
+            <span className={`whitespace-nowrap font-mono ${late ? "text-bad font-semibold" : ""}`} title={d.next_action} suppressHydrationWarning>
+              {val.split("-").reverse().join(".")}
+            </span>
+          );
+        },
       },
       {
         key: "core_status",
@@ -222,6 +239,14 @@ export default function Work({
         },
       );
     }
+    if (shown.includes("article")) {
+      cols.push(
+        { key: "article_writer", header: t("deal.writer"), kind: "text", width: 120, placeholder: t("deal.writerPh") },
+        { key: "article_doc", header: t("deal.doc"), kind: "text", width: 140, placeholder: "docs.google.com/…" },
+        { key: "article_deadline", header: t("deal.deadline"), kind: "date", width: 110 },
+        { key: "article_status", header: t("common.status"), kind: "select", width: 120, options: artOpts, tone: (v) => (v === "ready" || v === "sent" ? "ok" : v === "review" ? "warn" : "") },
+      );
+    }
     if (shown.includes("pub")) {
       cols.push(
         { key: "gp_status", header: "Status (GP)", kind: "select", width: 150, options: gpOpts, tone: (v) => (v === "Paid" ? "ok" : v === "Need to correct" ? "bad" : "") },
@@ -277,7 +302,7 @@ export default function Work({
     }
     cols.push({ key: "assignee", header: t("common.assignee"), kind: "select", width: 130, options: memberOpts });
     return cols;
-  }, [shown, t, intl, dupes, medBusy, statusOpts, pos, neg, indOpts, payOpts, gpOpts, curOpts, srcOpts, idxOpts, memberOpts, projectId]);
+  }, [shown, t, intl, dupes, medBusy, statusOpts, pos, neg, indOpts, payOpts, gpOpts, curOpts, srcOpts, idxOpts, artOpts, memberOpts, projectId]);
 
   // Черновики писем: донорам с посредником, кому ещё не писали. Один посредник — одно письмо.
   const groups = useMemo(() => {
@@ -366,6 +391,7 @@ export default function Work({
 
       {view === "table" && <Sheet
         key={shown.join(",")}
+        onOpen={setCard}
         rows={rows}
         columns={columns}
         onSave={(changes) => updateDonorsBatch(projectId, changes)}

@@ -15,10 +15,12 @@ export type AttRow = {
   link_status: string;
   guarantee_until: string | null;
   article_url: string;
+  next_action_at?: string | null;
 };
 
-export type AttKey = "broken" | "stale" | "replied" | "toWrite" | "noMed" | "toPay" | "noArticle" | "guarantee";
+export type AttKey = "next" | "broken" | "stale" | "replied" | "toWrite" | "noMed" | "toPay" | "noArticle" | "guarantee";
 export const ATT_TITLE: Record<AttKey, MsgKey> = {
+  next: "today.next",
   broken: "today.broken",
   stale: "today.stale",
   replied: "today.replied",
@@ -29,6 +31,7 @@ export const ATT_TITLE: Record<AttKey, MsgKey> = {
   guarantee: "today.guarantee",
 };
 export const ATT_HINT: Record<AttKey, MsgKey> = {
+  next: "today.nextHint",
   broken: "today.brokenHint",
   stale: "today.staleHint",
   replied: "today.repliedHint",
@@ -39,6 +42,7 @@ export const ATT_HINT: Record<AttKey, MsgKey> = {
   guarantee: "today.guaranteeHint",
 };
 export const ATT_TONE: Record<AttKey, string> = {
+  next: "pill-warn",
   broken: "pill-bad",
   stale: "pill-warn",
   replied: "pill-ok",
@@ -53,7 +57,9 @@ export function attention<T extends AttRow>(rows: T[]): { key: AttKey; list: T[]
   const core = rows.filter((r) => r.fg_status === "core");
   const live = core.filter((r) => !CORE_NEG.includes(r.core_status) && r.core_status !== "Published");
   const early = (r: T) => ["new_core", "OK_Cat", "In communication", ""].includes(r.core_status);
+  const today = new Date().toISOString().slice(0, 10);
   return [
+    { key: "next" as const, list: core.filter((r) => !!r.next_action_at && r.next_action_at <= today && !CORE_NEG.includes(r.core_status)) },
     { key: "broken" as const, list: core.filter((r) => ["missing", "nofollow", "noindex"].includes(r.link_status) && (daysLeft(r.guarantee_until) ?? -1) >= 0) },
     { key: "stale" as const, list: live.filter((r) => r.indicator === "waiting" && (hoursSince(r.indicator_at) ?? 0) > 72) },
     { key: "replied" as const, list: live.filter((r) => r.indicator === "replied" && early(r)) },

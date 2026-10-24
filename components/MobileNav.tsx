@@ -38,12 +38,11 @@ export default function MobileNav({ teamName }: { teamName: string }) {
     return () => document.documentElement.removeAttribute("data-nav-open");
   }, [open]);
 
-  const items = [
-    { href: "/app", icon: "dash", label: t("nav.home"), exact: true },
+  const items: { href: string; icon: string; label: string; also?: string[] }[] = [
+    { href: "/app/today", icon: "today", label: t("nav.today") },
     { href: "/app/projects", icon: "folder", label: t("common.projects") },
-    { href: "/app/input", icon: "plus", label: t("nav.input") },
-    { href: "/app/global", icon: "global", label: t("nav.global") },
-    { href: "/app/tasks", icon: "tasks", label: t("nav.tasks") },
+    { href: "/app/global", icon: "global", label: t("nav.base"), also: ["/app/intermediaries", "/app/input", "/app/import"] },
+    { href: "/app/finance", icon: "money", label: t("nav.money") },
   ];
 
   return (
@@ -59,7 +58,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
 
       <nav className="m-bottom" aria-label={t("nav.menu")}>
         {items.map((it) => {
-          const active = "exact" in it ? path === it.href : path === it.href || path.startsWith(it.href + "/");
+          const active = [it.href, ...(it.also ?? [])].some((h) => path === h || path.startsWith(h + "/"));
           return (
             <Link key={it.href} href={it.href} className={`m-item ${active ? "m-on" : ""}`} aria-current={active ? "page" : undefined}>
               <Icon name={it.icon} />

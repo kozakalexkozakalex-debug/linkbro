@@ -106,6 +106,11 @@ export default function Kanban({ projectId, rows, customNeg, onOpen }: { project
                         <span className="block truncate text-xs text-mute">{d.med_base || t("stage.noMed")}</span>
                         <span className="mt-1 flex flex-wrap gap-1 text-xs">
                           {d.gp_price != null && <span className="pill">{fmtAmount(d.gp_price, d.gp_currency || "USD", intl)}</span>}
+                          {d.next_action_at && (
+                            <span className={`pill ${d.next_action_at <= new Date().toISOString().slice(0, 10) ? "pill-bad" : ""}`} suppressHydrationWarning title={d.next_action}>
+                              ⏰ {d.next_action_at.slice(5).split("-").reverse().join(".")}
+                            </span>
+                          )}
                           {hrs != null && (
                             <span className={`pill ${hrs > 72 ? "pill-bad" : hrs > 24 ? "pill-warn" : ""}`} suppressHydrationWarning>{ageLabel(hrs, t)}</span>
                           )}

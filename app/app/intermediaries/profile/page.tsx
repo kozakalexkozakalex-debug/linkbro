@@ -4,6 +4,8 @@ import { fetchAll } from "@/lib/fetchAll";
 import { getI18n } from "@/lib/i18n/server";
 import { fmtAmount, fmtMoney, addTo, realCost, payState, type ByCurrency } from "@/lib/money";
 import { CORE_NEG } from "@/lib/project";
+import ContactEditor from "./ContactEditor";
+import type { Contact } from "../../projects/deal-actions";
 
 // Профиль посредника: все его сайты, цены, как он отвечает и сколько раз довёл до публикации.
 type Search = Promise<{ c?: string }>;
@@ -39,6 +41,8 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
       .range(from, to),
   );
   const { data: pData } = await supabase.from("projects").select("id, name").eq("team_id", team.id);
+  const { data: cData } = await supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", contact).maybeSingle();
+  const contactRow: Contact = (cData as Contact | null) ?? { handle: contact, kind: "intermediary", name: "", email: /@/.test(contact) ? contact : "", telegram: contact.startsWith("@") ? contact : "", whatsapp: "", other: "", notes: "" };
   const pName = new Map(((pData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
   const written = work.filter((r) => r.indicator).length;
@@ -58,6 +62,7 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
         <Link href="/app/intermediaries" className="text-sm underline">← {t("nav.intermediaries")}</Link>
         <h1 className="mt-1 break-all font-display text-xl font-medium">{contact || "—"}</h1>
       </div>
+      {contact && <ContactEditor initial={contactRow} />}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           [String(sites.length), t("medp.sites")],

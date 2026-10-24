@@ -1,3 +1,4 @@
+import BaseTabs from "@/components/BaseTabs";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { GLOBAL_COLUMNS, type GlobalDonor } from "@/lib/global";
@@ -56,6 +57,7 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
 
   return (
     <div className="flex flex-col gap-5">
+      <BaseTabs />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-medium">{t("nav.global")}</h1>

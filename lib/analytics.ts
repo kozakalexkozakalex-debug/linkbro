@@ -56,10 +56,11 @@ export type AnRow = {
   med_base: string;
   article_url: string;
   client_price: number | null;
+  next_action_at: string | null;
 };
 
 export const AN_COLUMNS =
-  "id, project_id, domain, assignee, added_at, fg_status, core_status, published_at, in_comm, in_gp, comm_status, gp_status, gp_price, gp_currency, gp_commission, pay_status, paid_at, indicator, indicator_at, link_status, guarantee_until, med_base, article_url, client_price";
+  "id, project_id, domain, assignee, added_at, fg_status, core_status, published_at, in_comm, in_gp, comm_status, gp_status, gp_price, gp_currency, gp_commission, pay_status, paid_at, indicator, indicator_at, link_status, guarantee_until, med_base, article_url, client_price, next_action_at";
 
 export type MonthStats = {
   published: number;

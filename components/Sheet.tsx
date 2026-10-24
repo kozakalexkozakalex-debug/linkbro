@@ -37,6 +37,7 @@ export default function Sheet<T extends { id: string }>({
   refreshAfterSave = false,
   bulk,
   empty,
+  onOpen,
 }: {
   rows: T[];
   columns: SheetCol<T>[];
@@ -44,6 +45,7 @@ export default function Sheet<T extends { id: string }>({
   refreshAfterSave?: boolean;
   bulk?: (ids: string[], clear: () => void) => ReactNode;
   empty?: ReactNode;
+  onOpen?: (row: T) => void; // своя карточка строки вместо стандартной
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -428,7 +430,7 @@ export default function Sheet<T extends { id: string }>({
                         <span className="sh-ph">{col.placeholder ?? ""}</span>
                       )}
                       {c === 0 && (
-                        <button type="button" className="sh-open" aria-label={t("sheet.openRow")} title={t("sheet.openRow")} onClick={() => openRow(r)}>
+                        <button type="button" className="sh-open" aria-label={t("sheet.openRow")} title={t("sheet.openRow")} onClick={() => (onOpen ? onOpen(row) : openRow(r))}>
                           ✎
                         </button>
                       )}

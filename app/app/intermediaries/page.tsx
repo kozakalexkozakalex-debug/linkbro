@@ -1,3 +1,4 @@
+import BaseTabs from "@/components/BaseTabs";
 import { getTeamContext } from "@/lib/team";
 import { fetchAll } from "@/lib/fetchAll";
 import { addIntermediary } from "../projects/actions";
@@ -17,6 +18,7 @@ export default async function IntermediariesPage({ searchParams }: { searchParam
 
   return (
     <div className="flex flex-col gap-5">
+      <BaseTabs />
       <div>
         <h1 className="font-display text-xl font-medium">{t("nav.intermediaries")}</h1>
         <p className="mt-1 max-w-2xl text-mute">

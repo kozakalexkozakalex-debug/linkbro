@@ -44,17 +44,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <NavLink href="/app/today">{t("nav.today")}</NavLink>
             <NavLink href="/app" exact>{t("nav.dashboard")}</NavLink>
             <NavLink href="/app/tasks">{t("nav.tasks")}</NavLink>
-            <NavLink href="/app/finance">{t("nav.finance")}</NavLink>
+            <NavLink href="/app/finance">{t("nav.money")}</NavLink>
           </div>
         </div>
 
         <div className="side-group">
-          <p className="side-label">{t("nav.donors")}</p>
+          <p className="side-label">{t("nav.base")}</p>
           <div className="side-sub">
-            <NavLink href="/app/input">{t("nav.input")}</NavLink>
-            <NavLink href="/app/global">{t("nav.global")}</NavLink>
-            <NavLink href="/app/intermediaries">{t("nav.intermediaries")}</NavLink>
-            <NavLink href="/app/import">{t("nav.import")}</NavLink>
+            <NavLink href="/app/global">{t("nav.sites")}</NavLink>
+            <NavLink href="/app/intermediaries">{t("nav.contacts")}</NavLink>
+            <NavLink href="/app/input">{t("nav.add")}</NavLink>
           </div>
         </div>
 

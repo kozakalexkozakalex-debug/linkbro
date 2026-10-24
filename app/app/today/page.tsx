@@ -27,6 +27,8 @@ type Row = {
   link_status: string;
   guarantee_until: string | null;
   article_url: string;
+  next_action_at: string | null;
+  next_action: string;
 };
 
 type Search = Promise<{ who?: string }>;
@@ -40,7 +42,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const rows = await fetchAll<Row>((from, to) => {
     let q = supabase
       .from("project_donors")
-      .select("id, project_id, domain, assignee, fg_status, core_status, med_base, indicator, indicator_at, gp_price, gp_currency, gp_commission, pay_status, gp_status, in_gp, link_status, guarantee_until, article_url")
+      .select("id, project_id, domain, assignee, fg_status, core_status, med_base, indicator, indicator_at, gp_price, gp_currency, gp_commission, pay_status, gp_status, in_gp, link_status, guarantee_until, article_url, next_action_at, next_action")
       .eq("team_id", team.id)
       .eq("fg_status", "core");
     if (!all) q = q.eq("assignee", user.id);
@@ -50,6 +52,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const pName = new Map(((pData ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
 
   const extra: Partial<Record<AttKey, (r: Row) => string>> = {
+    next: (r) => `${(r.next_action_at ?? "").split("-").reverse().join(".")}${r.next_action ? " · " + r.next_action : ""}`,
     stale: (r) => t("unit.days", { n: Math.round((hoursSince(r.indicator_at) ?? 0) / 24) }),
     toPay: (r) => fmtAmount(realCost(r), r.gp_currency || "USD", intl),
     guarantee: (r) => t("unit.days", { n: daysLeft(r.guarantee_until) ?? 0 }),

@@ -577,6 +577,12 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
       const n = v === "" ? null : priceNumber(v);
       if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
       put(c.id, { gp_price: n });
+    } else if (c.field === "next_action_at" || c.field === "article_deadline") {
+      if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return fail(await tr("err.date"));
+      put(c.id, { [c.field]: v || null });
+    } else if (c.field === "article_status") {
+      if (!["", "todo", "writing", "review", "ready", "sent"].includes(v)) return fail(await tr("err.unknownStatus"));
+      put(c.id, { article_status: v });
     } else if (c.field === "client_price") {
       const n = v === "" ? null : priceNumber(v);
       if (v !== "" && n == null) return fail(await tr("err.cellPrice", { v }));
