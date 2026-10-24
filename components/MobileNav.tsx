@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
+import { MODULES } from "@/lib/nav";
 
 // Телефон: верхняя полоска с логотипом и нижнее меню с главными разделами.
 // Кнопка «Меню» выдвигает полное боковое меню (.side) слева.
@@ -15,6 +16,8 @@ const ICON: Record<string, React.ReactNode> = {
   folder: <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z" />,
   plus: <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />,
   today: <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 16H5V9h14zM7 11h5v5H7z" />,
+  chat: <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2m2 5v2h12V9zm0 4v2h8v-2z" />,
+  shield: <path d="M12 2 4 5v6c0 5.6 3.4 9.8 8 11 4.6-1.2 8-5.4 8-11V5zm-1.2 13.6L7.4 12.2l1.4-1.4 2 2 4.4-4.4 1.4 1.4z" />,
   menu: <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />,
 };
 
@@ -26,7 +29,7 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-export default function MobileNav({ teamName }: { teamName: string }) {
+export default function MobileNav({ title }: { title: string }) {
   const { t } = useI18n();
   const path = usePathname() ?? "";
   const [open, setOpen] = useState(false);
@@ -38,12 +41,7 @@ export default function MobileNav({ teamName }: { teamName: string }) {
     return () => document.documentElement.removeAttribute("data-nav-open");
   }, [open]);
 
-  const items: { href: string; icon: string; label: string; also?: string[] }[] = [
-    { href: "/app/today", icon: "today", label: t("nav.today") },
-    { href: "/app/projects", icon: "folder", label: t("common.projects") },
-    { href: "/app/global", icon: "global", label: t("nav.base"), also: ["/app/intermediaries", "/app/writers", "/app/templates", "/app/input", "/app/import"] },
-    { href: "/app/finance", icon: "money", label: t("nav.money") },
-  ];
+  const items = MODULES.map((m) => ({ href: m.href, icon: m.icon, label: t(m.key), exact: m.exact, also: m.also }));
 
   return (
     <>
@@ -51,14 +49,15 @@ export default function MobileNav({ teamName }: { teamName: string }) {
         <Link href="/app" className="font-logo text-base font-bold">
           Link<span className="text-[#ff8a3d]">Bro</span>
         </Link>
-        <span className="truncate text-sm opacity-80">{teamName}</span>
+        <button type="button" className="min-w-0 truncate text-sm opacity-80" onClick={() => setOpen(true)}>{title} ▾</button>
       </header>
 
       {open && <button type="button" className="m-backdrop" aria-label={t("common.close")} onClick={() => setOpen(false)} />}
 
       <nav className="m-bottom" aria-label={t("nav.menu")}>
         {items.map((it) => {
-          const active = [it.href, ...(it.also ?? [])].some((h) => path === h || path.startsWith(h + "/"));
+          const hit = (h: string) => path === h || path.startsWith(h + "/");
+          const active = (it.exact ? path === it.href : hit(it.href)) || it.also.some(hit);
           return (
             <Link key={it.href} href={it.href} className={`m-item ${active ? "m-on" : ""}`} aria-current={active ? "page" : undefined}>
               <Icon name={it.icon} />

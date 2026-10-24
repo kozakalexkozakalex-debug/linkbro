@@ -709,4 +709,12 @@ export const en: Messages = {
   "ov.published": "Published",
   "ov.problem": "Link problem",
   "ov.dropped": "Dropped",
+
+  "nav.project": "Project",
+  "mod.pool": "Project pool",
+  "mod.global": "Global base",
+  "mod.board": "Board",
+  "mod.pickProject": "Pick a project — the Outreach board is per project. Inbox and contacts are in the tabs above and shared across projects.",
+  "mod.projectBoard": "Project board",
+  "mod.projectSettings": "Project settings",
 };

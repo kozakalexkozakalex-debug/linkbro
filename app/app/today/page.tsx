@@ -1,3 +1,4 @@
+import ModuleTabs from "@/components/ModuleTabs";
 import Link from "next/link";
 import Chevron from "@/components/Chevron";
 import { getTeamContext } from "@/lib/team";
@@ -74,6 +75,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
+      <ModuleTabs module="dashboard" />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.today")}</h1>

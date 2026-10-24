@@ -1,3 +1,4 @@
+import ModuleTabs from "@/components/ModuleTabs";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
@@ -35,6 +36,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
+      <ModuleTabs module="dashboard" />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.tasks")}</h1>

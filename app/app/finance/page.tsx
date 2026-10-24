@@ -1,3 +1,4 @@
+import ModuleTabs from "@/components/ModuleTabs";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { fetchAll } from "@/lib/fetchAll";
@@ -87,6 +88,7 @@ export default async function FinancePage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <ModuleTabs module="dashboard" />
       <div>
         <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.money")}</h1>
         <p className="mt-1 max-w-2xl text-mute">

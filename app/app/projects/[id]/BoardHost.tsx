@@ -56,7 +56,7 @@ export default function BoardHost({
           <MonitorBoard projectId={projectId} rows={rows} onOpen={setCard} />
         </>
       )}
-      {card && <DonorCard projectId={projectId} donor={card} statusOpts={statusOpts} onClose={() => setCard(null)} />}
+      {card && <DonorCard projectId={projectId || card.project_id} donor={card} statusOpts={statusOpts} onClose={() => setCard(null)} />}
     </>
   );
 }

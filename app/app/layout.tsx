@@ -5,6 +5,10 @@ import { switchTeam } from "@/app/actions/team";
 import NavLink from "@/components/NavLink";
 import LangSwitch from "@/components/LangSwitch";
 import MobileNav from "@/components/MobileNav";
+import ProjectSwitcher from "@/components/ProjectSwitcher";
+import { MODULES } from "@/lib/nav";
+import { SCOPE_COOKIE } from "@/lib/scope";
+import { cookies } from "next/headers";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +18,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data } = await supabase.from("projects").select("id, name").eq("team_id", team.id).order("created_at");
   const projects = (data ?? []) as { id: string; name: string }[];
   const isLead = team.role === "lead";
+  const saved = (await cookies()).get(SCOPE_COOKIE)?.value;
+  const scope = projects.some((p) => p.id === saved) ? (saved as string) : null;
   const { t } = await getI18n();
 
   return (
     <div className="app-shell">
-      <MobileNav teamName={team.name} />
+      <MobileNav title={scope ? projects.find((p) => p.id === scope)?.name ?? team.name : team.name} />
       <nav className="side" aria-label={t("nav.menu")}>
         <Link href="/app" className="font-logo px-3 text-lg font-bold">
           Link<span className="text-[#ff8a3d]">Bro</span>
@@ -38,47 +44,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="side-team side-team-name">{team.name}</p>
         )}
 
-        <div className="side-group">
-          <p className="side-label">{t("nav.work")}</p>
-          <div className="side-sub">
-            <NavLink href="/app/today">{t("nav.today")}</NavLink>
-            <NavLink href="/app/inbox">{t("nav.inbox")}</NavLink>
-            <NavLink href="/app" exact>{t("nav.dashboard")}</NavLink>
-            <NavLink href="/app/tasks">{t("nav.tasks")}</NavLink>
-            <NavLink href="/app/finance">{t("nav.money")}</NavLink>
-          </div>
-        </div>
+        <ProjectSwitcher projects={projects} current={scope} isLead={isLead} />
 
         <div className="side-group">
-          <p className="side-label">{t("nav.base")}</p>
           <div className="side-sub">
-            <NavLink href="/app/global">{t("nav.sites")}</NavLink>
-            <NavLink href="/app/intermediaries">{t("nav.contacts")}</NavLink>
-            <NavLink href="/app/writers">{t("nav.writers")}</NavLink>
-            <NavLink href="/app/templates">{t("nav.templates")}</NavLink>
-            <NavLink href="/app/input">{t("nav.add")}</NavLink>
-          </div>
-        </div>
-
-        <div className="side-group">
-          <p className="side-label">
-            <span>{t("common.projects")}</span>
-            {isLead && (
-              <Link href="/app/projects/new" className="side-plus" title={t("nav.newProject")} aria-label={t("nav.newProject")}>+</Link>
-            )}
-          </p>
-          <div className="side-sub">
-            {projects.map((p) => (
-              <NavLink key={p.id} href={`/app/projects/${p.id}`} className="truncate">
-                {p.name}
-              </NavLink>
+            {MODULES.map((m) => (
+              <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also}>{t(m.key)}</NavLink>
             ))}
-            {projects.length === 0 && <span className="side-empty">{isLead ? t("nav.pressPlus") : t("nav.noProjectsYet")}</span>}
-            {isLead && <NavLink href="/app/projects/new" className="side-add-mobile">{t("nav.addProject")}</NavLink>}
           </div>
         </div>
 
         <div className="side-foot">
+          {scope && <NavLink href={`/app/projects/${scope}?tab=profile`}>⚙ {t("mod.projectSettings")}</NavLink>}
           <NavLink href="/app/team">{t("team.title")}</NavLink>
           <NavLink href="/app/mail">{t("nav.mail")}</NavLink>
           <div className="px-2"><LangSwitch dark /></div>

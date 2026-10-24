@@ -19,6 +19,9 @@ import {
   type AnRow,
 } from "@/lib/analytics";
 import { HBars, Kpi, MonthBars, Progress } from "@/components/Charts";
+import ModuleHead from "@/components/ModuleHead";
+import { getScope } from "@/lib/scope";
+import ProjectView from "./projects/[id]/ProjectView";
 import { STAGES, STAGE_KEY, stageOf } from "@/lib/stages";
 import { ATT_TITLE, ATT_TONE, attention } from "@/lib/attention";
 import { getI18n } from "@/lib/i18n/server";
@@ -78,7 +81,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
     );
   }
 
-  const scope = projects.some((p) => p.id === sp.project) ? (sp.project as string) : "all";
+  const saved = (await getScope()).projectId;
+  const scope = projects.some((p) => p.id === sp.project) ? (sp.project as string) : saved ?? "all";
   const tab = TABS.some((x) => x.key === sp.tab) ? (sp.tab as string) : "overview";
   const now = currentMonth();
   const month = isValidMonth(sp.m) && sp.m <= now ? sp.m : now;
@@ -172,40 +176,26 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Шапка: период и проект */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.dashboard")}</h1>
-          <p className="mt-1 text-mute">
-            {scope === "all" ? t("dash.allOfTeam", { name: team.name }) : pById.get(scope)?.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <form action="/app" className="flex items-center gap-1">
-            {tab !== "overview" && <input type="hidden" name="tab" value={tab} />}
-            {month !== now && <input type="hidden" name="m" value={month} />}
-            <label htmlFor="dash-project" className="sr-only">{t("common.project")}</label>
-            <select id="dash-project" name="project" defaultValue={scope === "all" ? "" : scope} className="inp w-auto">
-              <option value="">{t("dash.allProjects")}</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <button type="submit" className="btn btn-sm">{t("common.show")}</button>
-          </form>
+      <ModuleHead
+        title={t("nav.dashboard")}
+        project={scope === "all" ? t("dash.allOfTeam", { name: team.name }) : pById.get(scope)?.name}
+        module="dashboard"
+        right={
           <div className="flex items-center gap-1">
             <Link href={qs({ m: prev })} className="btn btn-sm" aria-label={t("dash.prevMonth")}>←</Link>
-            <span className="min-w-36 text-center font-medium capitalize">{ml(month)}</span>
+            <span className="min-w-36 text-center font-semibold capitalize">{ml(month)}</span>
             {month < now ? (
               <Link href={qs({ m: shiftMonth(month, 1) })} className="btn btn-sm" aria-label={t("dash.nextMonth")}>→</Link>
             ) : (
               <span className="btn btn-sm opacity-40" aria-hidden="true">→</span>
             )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex gap-1 overflow-x-auto border-b border-line">
+      <div className="seg max-w-full self-start overflow-x-auto" role="group">
         {TABS.map((tb) => (
-          <Link key={tb.key} href={qs({ tab: tb.key })} className={`tab whitespace-nowrap ${tab === tb.key ? "tab-on" : ""}`}>
+          <Link key={tb.key} href={qs({ tab: tb.key })} className={`whitespace-nowrap ${tab === tb.key ? "seg-on" : ""}`}>
             {t(tb.label)}
             {tb.key === "links" && broken.length > 0 && <span className="pill pill-bad ml-1">{broken.length}</span>}
           </Link>
@@ -320,6 +310,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
               )}
             </section>
           </div>
+
+          {scope !== "all" && (
+            <section className="flex flex-col gap-2">
+              <p className="lbl">{t("mod.projectBoard")}</p>
+              <ProjectView id={scope} sp={{ tab: "overview" }} base="/app" embed />
+            </section>
+          )}
 
           {/* 4. Динаміка */}
           <details className="card" open>

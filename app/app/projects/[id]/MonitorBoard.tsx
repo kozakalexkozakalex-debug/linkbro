@@ -23,7 +23,7 @@ export default function MonitorBoard({ projectId, rows, onOpen }: { projectId: s
   const backToOutreach = (d: ProjectDonor) =>
     start(async () => {
       const today = new Date().toISOString().slice(0, 10);
-      await updateDonorsBatch(projectId, [
+      await updateDonorsBatch(projectId || d.project_id, [
         { id: d.id, field: "next_action_at", value: today },
         { id: d.id, field: "next_action", value: t("mon.restoreTask") },
       ]);
@@ -46,7 +46,7 @@ export default function MonitorBoard({ projectId, rows, onOpen }: { projectId: s
               {d.article_url && <span className="block truncate text-xs text-mute">{d.article_url}</span>}
             </button>
             <div className="flex flex-wrap items-center gap-1">
-              <LinkCheck id={d.id} projectId={projectId} status={d.link_status} note={d.link_note} checkedAt={d.link_checked_at} hasUrl={!!d.article_url} />
+              <LinkCheck id={d.id} projectId={projectId || d.project_id} status={d.link_status} note={d.link_note} checkedAt={d.link_checked_at} hasUrl={!!d.article_url} />
               {left != null && <span className={`pill ${left < 0 ? "" : left <= 7 ? "pill-bad" : "pill-ok"}`} suppressHydrationWarning>🛡 {left < 0 ? t("gp.expired") : t("unit.days", { n: left })}</span>}
             </div>
             {(col === "lost" || col === "warn") && (

@@ -709,4 +709,12 @@ export const ru: Messages = {
   "ov.published": "Опубликовано",
   "ov.problem": "Проблема со ссылкой",
   "ov.dropped": "Отсеяно",
+
+  "nav.project": "Проект",
+  "mod.pool": "Пул проекта",
+  "mod.global": "Глобальная база",
+  "mod.board": "Доска",
+  "mod.pickProject": "Выберите проект — доска Outreach ведётся по каждому проекту отдельно. Переписка и контакты — на вкладках выше, они общие для всех проектов.",
+  "mod.projectBoard": "Доска проекта",
+  "mod.projectSettings": "Настройки проекта",
 };

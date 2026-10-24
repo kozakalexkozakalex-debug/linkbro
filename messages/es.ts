@@ -709,4 +709,12 @@ export const es: Messages = {
   "ov.published": "Publicado",
   "ov.problem": "Problema de enlace",
   "ov.dropped": "Descartado",
+
+  "nav.project": "Proyecto",
+  "mod.pool": "Pool del proyecto",
+  "mod.global": "Base global",
+  "mod.board": "Tablero",
+  "mod.pickProject": "Elige un proyecto: el tablero de Outreach es por proyecto. Bandeja y contactos están arriba y son comunes.",
+  "mod.projectBoard": "Tablero del proyecto",
+  "mod.projectSettings": "Ajustes del proyecto",
 };
