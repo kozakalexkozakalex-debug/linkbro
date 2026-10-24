@@ -17,6 +17,10 @@ const STATUS = {
 
 const FILTER_KEY = "linkbro.globalFilter";
 
+// Где домен уже используется: link — наш линк опубликован, work — в Outreach, pool — в Prefero, out — не підійшов
+export type Usage = Record<string, { name: string; kind: "link" | "work" | "pool" | "out" }[]>;
+const USE_ICON = { link: "🔗", work: "✉", pool: "○", out: "✕" } as const;
+
 function ratio(v: (k: string) => string) {
   const tf = Number(v("tf"));
   const cf = Number(v("cf"));
@@ -24,7 +28,7 @@ function ratio(v: (k: string) => string) {
   return (tf / cf).toFixed(2);
 }
 
-export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[] }) {
+export default function GlobalTable({ initialRows, usage = {} }: { initialRows: GlobalDonor[]; usage?: Usage }) {
   const router = useRouter();
   const { t, intl } = useI18n();
   const [open, setOpen] = useState(false);
@@ -53,6 +57,26 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
           <span className={`date-chip ${d.batch % 2 ? "date-odd" : "date-even"}`} title={t("global.batch", { n: d.batch })}>{fmtDateTime(d.added_at, intl)}</span>
         ),
       },
+      {
+        key: "used",
+        header: t("use.col"),
+        kind: "readonly",
+        width: 150,
+        render: (d) => {
+          const u = usage[d.domain] ?? [];
+          if (!u.length) return <span className="text-xs text-mute">—</span>;
+          return (
+            <span className="flex flex-wrap gap-1" title={u.map((x) => `${USE_ICON[x.kind]} ${x.name}`).join("\n")}>
+              {u.slice(0, 3).map((x, i) => (
+                <span key={i} className={`pill whitespace-nowrap text-[11px] ${x.kind === "link" ? "pill-ok" : x.kind === "out" ? "text-mute" : ""}`}>
+                  {USE_ICON[x.kind]} {x.name}
+                </span>
+              ))}
+              {u.length > 3 && <span className="text-xs text-mute">+{u.length - 3}</span>}
+            </span>
+          );
+        },
+      },
       { key: "dr", header: "DR", kind: "number", width: 60, mono: true },
       { key: "keywords", header: "Keywords", kind: "number", width: 80, mono: true },
       { key: "traffic", header: "Traffic", kind: "number", width: 80, mono: true },
@@ -74,7 +98,7 @@ export default function GlobalTable({ initialRows }: { initialRows: GlobalDonor[
         ),
       },
     ],
-    [t, intl],
+    [t, intl, usage],
   );
 
   function check() {

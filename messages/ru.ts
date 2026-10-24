@@ -774,4 +774,11 @@ export const ru: Messages = {
   "pool.topicOk": "Тема подходит",
   "pool.topicNo": "Тема не подходит",
   "pool.toWork": "→ В работу (Outreach)",
+  "use.title": "Где используется",
+  "use.all": "Все",
+  "use.free": "Ещё ни в одном проекте",
+  "use.work": "В работе (Outreach)",
+  "use.link": "🔗 Есть наша ссылка",
+  "use.nolink": "Нет ссылки",
+  "use.col": "Проекты",
 };

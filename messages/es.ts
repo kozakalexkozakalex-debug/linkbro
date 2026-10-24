@@ -774,4 +774,11 @@ export const es: Messages = {
   "pool.topicOk": "El tema encaja",
   "pool.topicNo": "El tema no encaja",
   "pool.toWork": "→ A Outreach",
+  "use.title": "Dónde se usa",
+  "use.all": "Todos",
+  "use.free": "En ningún proyecto",
+  "use.work": "En Outreach",
+  "use.link": "🔗 Con nuestro enlace",
+  "use.nolink": "Sin enlace",
+  "use.col": "Proyectos",
 };

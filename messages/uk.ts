@@ -772,4 +772,11 @@ export const uk = {
   "pool.topicOk": "Тема підходить",
   "pool.topicNo": "Тема не підходить",
   "pool.toWork": "→ В роботу (Outreach)",
+  "use.title": "Де використовується",
+  "use.all": "Усі",
+  "use.free": "Ще в жодному проєкті",
+  "use.work": "В роботі (Outreach)",
+  "use.link": "🔗 Є наш лінк",
+  "use.nolink": "Немає лінку",
+  "use.col": "Проєкти",
 };

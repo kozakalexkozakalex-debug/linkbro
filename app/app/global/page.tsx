@@ -2,10 +2,27 @@ import BaseTabs from "@/components/BaseTabs";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { GLOBAL_COLUMNS, type GlobalDonor } from "@/lib/global";
-import GlobalTable from "./GlobalTable";
+import GlobalTable, { type Usage } from "./GlobalTable";
 import { getI18n } from "@/lib/i18n/server";
 
-type Search = Promise<{ status?: string; q?: string; page?: string }>;
+type Search = Promise<{ status?: string; q?: string; page?: string; use?: string }>;
+// Где домен уже используется (представление global_donors_usage)
+const USE = [
+  { key: "all", label: "use.all" },
+  { key: "free", label: "use.free" },
+  { key: "work", label: "use.work" },
+  { key: "link", label: "use.link" },
+  { key: "nolink", label: "use.nolink" },
+] as const;
+type UseKey = (typeof USE)[number]["key"];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyUse(q: any, use: UseKey) {
+  if (use === "free") return q.eq("projects", 0);
+  if (use === "work") return q.gt("work", 0);
+  if (use === "link") return q.gt("links", 0);
+  if (use === "nolink") return q.eq("links", 0);
+  return q;
+}
 const TABS = [
   { key: "all", label: "" },
   { key: "new", label: "NEW" },
@@ -22,32 +39,59 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
   const { supabase, team } = await getTeamContext();
   const { t } = await getI18n();
 
-  let query = supabase.from("global_donors").select(GLOBAL_COLUMNS, { count: "exact" }).eq("team_id", team.id);
+  const use: UseKey = USE.some((u) => u.key === sp.use) ? (sp.use as UseKey) : "all";
+  const base = () => {
+    let c = supabase.from("global_donors_usage").select("id", { count: "exact", head: true }).eq("team_id", team.id);
+    if (q) c = c.ilike("domain", `%${q}%`);
+    return c;
+  };
+  let query = supabase.from("global_donors_usage").select(GLOBAL_COLUMNS, { count: "exact" }).eq("team_id", team.id);
   if (status !== "all") query = query.eq("status", status);
   if (q) query = query.ilike("domain", `%${q}%`);
-  const { data, error, count } = await query
-    .order("added_at", { ascending: false })
-    .order("domain")
-    .range((page - 1) * PAGE, page * PAGE - 1);
+  query = applyUse(query, use);
+
+  // Всё параллельно: страница, счётчики статусов (с учётом «где используется») и счётчики «где используется»
+  const [{ data, error, count }, statusCounts, useCounts] = await Promise.all([
+    query.order("added_at", { ascending: false }).order("domain").range((page - 1) * PAGE, page * PAGE - 1),
+    Promise.all(TABS.map(async (tb) => {
+      let c = applyUse(base(), use);
+      if (tb.key !== "all") c = c.eq("status", tb.key);
+      const { count: n } = await c;
+      return [tb.key, n ?? 0] as const;
+    })),
+    Promise.all(USE.map(async (u) => {
+      let c = applyUse(base(), u.key);
+      if (status !== "all") c = c.eq("status", status);
+      const { count: n } = await c;
+      return [u.key, n ?? 0] as const;
+    })),
+  ]);
   const rows = (data ?? []) as unknown as GlobalDonor[];
   const total = count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE));
+  const counts: Record<string, number> = Object.fromEntries(statusCounts);
+  const ucounts: Record<string, number> = Object.fromEntries(useCounts);
 
-  const counts: Record<string, number> = {};
-  await Promise.all(
-    TABS.map(async (t) => {
-      let c = supabase.from("global_donors").select("id", { count: "exact", head: true }).eq("team_id", team.id);
-      if (t.key !== "all") c = c.eq("status", t.key);
-      if (q) c = c.ilike("domain", `%${q}%`);
-      const { count: n } = await c;
-      counts[t.key] = n ?? 0;
-    }),
-  );
+  // По каким проектам ходят домены этой страницы (не больше 100 доменов)
+  const usage: Usage = {};
+  if (rows.length) {
+    const [{ data: pd }, { data: pj }] = await Promise.all([
+      supabase.from("project_donors").select("domain, project_id, stage, fg_status").eq("team_id", team.id).in("domain", rows.map((r) => r.domain)),
+      supabase.from("projects").select("id, name").eq("team_id", team.id),
+    ]);
+    const pName = new Map(((pj ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
+    for (const r of (pd ?? []) as { domain: string; project_id: string; stage: string; fg_status: string }[]) {
+      const kind = r.stage === "published" ? "link" : r.fg_status === "out" || r.stage === "lost" ? "out" : r.fg_status === "core" ? "work" : "pool";
+      (usage[r.domain] ??= []).push({ name: pName.get(r.project_id) ?? "?", kind });
+    }
+  }
 
-  const href = (over: { status?: string; page?: number }) => {
+  const href = (over: { status?: string; page?: number; use?: string }) => {
     const p = new URLSearchParams();
     const st = over.status ?? status;
     if (st !== "all") p.set("status", st);
+    const us = over.use ?? use;
+    if (us !== "all") p.set("use", us);
     if (q) p.set("q", q);
     const pg = over.page ?? 1;
     if (pg > 1) p.set("page", String(pg));
@@ -73,6 +117,7 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
 
       <form action="/app/global" className="flex flex-wrap gap-2">
         {status !== "all" && <input type="hidden" name="status" value={status} />}
+        {use !== "all" && <input type="hidden" name="use" value={use} />}
         <label htmlFor="gq" className="sr-only">{t("common.searchDomain")}</label>
         <input id="gq" name="q" defaultValue={q} className="inp max-w-xs" placeholder={t("common.searchDomain")} />
         <button type="submit" className="btn">{t("common.find")}</button>
@@ -87,9 +132,17 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-1.5" aria-label={t("use.title")}>
+        {USE.map((u) => (
+          <Link key={u.key} href={href({ use: u.key })} className={`pill ${use === u.key ? "border-accent text-accent" : ""}`}>
+            {t(u.label)} <span className="font-mono">{ucounts[u.key]}</span>
+          </Link>
+        ))}
+      </div>
+
       {error && <p className="note note-bad">{t("global.loadError", { x: error.message })}</p>}
 
-      <GlobalTable initialRows={rows} />
+      <GlobalTable initialRows={rows} usage={usage} />
 
       {pages > 1 && (
         <nav className="flex flex-wrap items-center gap-2" aria-label={t("common.pages")}>

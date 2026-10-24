@@ -774,4 +774,11 @@ export const en: Messages = {
   "pool.topicOk": "Topic fits",
   "pool.topicNo": "Topic doesn't fit",
   "pool.toWork": "→ To Outreach",
+  "use.title": "Where it's used",
+  "use.all": "All",
+  "use.free": "Not in any project",
+  "use.work": "In Outreach",
+  "use.link": "🔗 Has our link",
+  "use.nolink": "No link yet",
+  "use.col": "Projects",
 };
