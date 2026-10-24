@@ -802,4 +802,10 @@ export const ru: Messages = {
   "dash.fLinksOk": "Мониторинг: на месте",
   "dash.letters": "Писем",
   "dash.repliesM": "Ответов",
+  "mod.settingsShort": "Настройки",
+  "mod.settingsSub": "метрики, профиль",
+  "mod.outreachSub": "переписка и статьи",
+  "mod.monitorSub": "живы ли ссылки",
+  "mod.settingsMain": "Профиль и метрики",
+  "mod.pickForSettings": "Выберите проект, чтобы настроить его профиль, метрики входа и стоп-листы.",
 };

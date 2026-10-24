@@ -6,7 +6,7 @@ import NavLink from "@/components/NavLink";
 import LangSwitch from "@/components/LangSwitch";
 import MobileNav from "@/components/MobileNav";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
-import { MODULES } from "@/lib/nav";
+import { PROJECT_NAV, SETTINGS_NAV, TEAM_NAV } from "@/lib/nav";
 import { SCOPE_COOKIE } from "@/lib/scope";
 import { cookies } from "next/headers";
 import { getI18n } from "@/lib/i18n/server";
@@ -44,18 +44,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="side-team side-team-name">{team.name}</p>
         )}
 
-        <ProjectSwitcher projects={projects} current={scope} isLead={isLead} />
-
+        {/* Общее для команды */}
         <div className="side-group">
           <div className="side-sub">
-            {MODULES.map((m) => (
+            {TEAM_NAV.map((m) => (
               <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also}>{t(m.key)}</NavLink>
             ))}
           </div>
         </div>
 
+        {/* Выбранный проект и его разделы */}
+        <div className="side-project">
+          <ProjectSwitcher projects={projects} current={scope} isLead={isLead} />
+          <div className="side-sub">
+            {PROJECT_NAV.map((m) => (
+              <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also}>{t(m.key)}</NavLink>
+            ))}
+            <NavLink href={SETTINGS_NAV.href}>⚙ {t(SETTINGS_NAV.key)}</NavLink>
+          </div>
+        </div>
+
         <div className="side-foot">
-          {scope && <NavLink href={`/app/projects/${scope}?tab=profile`}>⚙ {t("mod.projectSettings")}</NavLink>}
           <NavLink href="/app/team">{t("team.title")}</NavLink>
           <NavLink href="/app/mail">{t("nav.mail")}</NavLink>
           <div className="px-2"><LangSwitch dark /></div>

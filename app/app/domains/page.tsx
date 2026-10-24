@@ -10,7 +10,7 @@ export default async function DomainsPage({ searchParams }: { searchParams: Prom
   const [{ projectId, projects }, { t }] = await Promise.all([getScope(), getI18n()]);
   return (
     <div className="flex flex-col gap-5">
-      <ModuleHead title="Prefero" project={projectId ? projects.find((p) => p.id === projectId)?.name : t("dom.preferoSub")} module="domains" />
+      <ModuleHead title="Prefero" project={projectId ? projects.find((p) => p.id === projectId)?.name : t("dom.preferoSub")} module="project" />
       {projectId ? (
         <ProjectView id={projectId} sp={{ ...sp, tab: "pool" }} base="/app/domains" embed />
       ) : (

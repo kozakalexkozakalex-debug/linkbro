@@ -800,4 +800,10 @@ export const uk = {
   "dash.fLinksOk": "Моніторинг: на місці",
   "dash.letters": "Листів",
   "dash.repliesM": "Відповідей",
+  "mod.settingsShort": "Налаштування",
+  "mod.settingsSub": "метрики, профіль",
+  "mod.outreachSub": "переписка й статті",
+  "mod.monitorSub": "чи живі посилання",
+  "mod.settingsMain": "Профіль і метрики",
+  "mod.pickForSettings": "Оберіть проєкт, щоб налаштувати його профіль, метрики входу й стоп-листи.",
 };

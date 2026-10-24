@@ -802,4 +802,10 @@ export const en: Messages = {
   "dash.fLinksOk": "Monitoring: live",
   "dash.letters": "Emails",
   "dash.repliesM": "Replies",
+  "mod.settingsShort": "Settings",
+  "mod.settingsSub": "metrics, profile",
+  "mod.outreachSub": "talks & articles",
+  "mod.monitorSub": "are links alive",
+  "mod.settingsMain": "Profile & metrics",
+  "mod.pickForSettings": "Pick a project to set up its profile, entry metrics and stop-lists.",
 };

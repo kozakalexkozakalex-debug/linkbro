@@ -280,3 +280,8 @@ body {
   @media (max-width: 639px) { .drawer { width: 100vw !important; max-width: 100vw; } }
   @keyframes drawer-in { from { transform: translateX(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 }
+
+/* Боковое меню: блок выбранного проекта (переключатель + его разделы) */
+@layer components {
+  .side-project { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 10px 6px 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+}

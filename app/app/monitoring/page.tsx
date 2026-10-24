@@ -21,7 +21,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
   }
   return (
     <div className="flex flex-col gap-5">
-      <ModuleHead title={t("ptab.monitor")} project={projectId ? projects.find((p) => p.id === projectId)?.name : t("dash.allProjects")} />
+      <ModuleHead title={t("ptab.monitor")} project={projectId ? projects.find((p) => p.id === projectId)?.name : t("dash.allProjects")} module="project" />
       {projectId ? (
         <ProjectView id={projectId} sp={{ ...sp, tab: "monitor" }} base="/app/monitoring" embed />
       ) : (

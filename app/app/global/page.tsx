@@ -1,4 +1,4 @@
-import BaseTabs from "@/components/BaseTabs";
+import InferoButton from "@/components/InferoButton";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
 import { GLOBAL_COLUMNS, type GlobalDonor } from "@/lib/global";
@@ -101,7 +101,6 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
 
   return (
     <div className="flex flex-col gap-5">
-      <BaseTabs />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">Confero</h1>
@@ -111,6 +110,7 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <InferoButton className="btn btn-pri" />
           <a href="/api/export?type=global" className="btn">{t("common.exportCsv")}</a>
         </div>
       </div>
