@@ -107,3 +107,21 @@ export function fmtDateTime(iso: string, intl = "uk-UA"): string {
 export function fmtDate(iso: string, intl = "uk-UA"): string {
   return new Intl.DateTimeFormat(intl, { timeZone: KYIV, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }
+
+// GEO проекта и донора совпадают? "UA, PL" vs "US 40% / UA 20%" → true.
+// null — сравнить нельзя (у проекта или донора GEO не указан).
+export function geoMatches(projectGeo: string | null | undefined, donorGeo: string | null | undefined): boolean | null {
+  const tokens = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .split(/[^a-zа-яіїєґ]+/i)
+        .map((x) => x.trim())
+        .filter((x) => x.length >= 2),
+    );
+  const p = tokens(projectGeo ?? "");
+  const d = tokens(donorGeo ?? "");
+  if (!p.size || !d.size) return null;
+  for (const x of p) if (d.has(x)) return true;
+  return false;
+}

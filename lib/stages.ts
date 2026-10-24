@@ -35,16 +35,19 @@ export function stageOf(d: D, customNeg: string[] = []): Stage {
   return "find";
 }
 
-// ---------- Домени: пул проекта (поле fg_status) ----------
-export const POOL = ["new", "check", "ok", "core", "out"] as const;
+// ---------- Домени → Prefero: что подходит проекту (поле fg_status) ----------
+// Метрики проверяются при передаче из Confero, GEO — тоже. Тему подтверждает человек:
+// new = подходит по метрикам, тема не подтверждена; ok = подходит по всему; core = в Outreach; out = не подходит.
+export const POOL = ["fit", "core", "out"] as const;
 export type PoolCol = (typeof POOL)[number];
 export const POOL_KEY: Record<PoolCol, MsgKey> = {
-  new: "pool.new",
-  check: "pool.check",
-  ok: "pool.ok",
+  fit: "pool.fit",
   core: "pool.core",
   out: "pool.out",
 };
+export function poolOf(fg: string): PoolCol {
+  return fg === "core" ? "core" : fg === "out" ? "out" : "fit";
+}
 export const REJECT_REASONS = ["metrics", "topic", "geo", "price", "quality", "other"] as const;
 
 // ---------- Моніторинг: состояние опубликованной ссылки ----------
@@ -79,7 +82,7 @@ export const OVERVIEW_KEY: Record<OverviewCol, MsgKey> = {
 };
 export function overviewOf(d: D & { fg_status: string; link_status: string }): OverviewCol {
   if (d.fg_status === "out") return "dropped";
-  if (d.fg_status === "new" || d.fg_status === "check") return "pool";
+  if (d.fg_status === "new" || d.fg_status === "check") return "pool"; // тема не подтверждена
   if (d.fg_status === "ok") return "reserve";
   const st = stageOf(d);
   if (st === "lost") return "dropped";

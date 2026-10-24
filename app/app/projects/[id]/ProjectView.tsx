@@ -134,7 +134,7 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
   const count = (pred: (d: ProjectDonor) => boolean) => donors.filter(pred).length;
   const counts: Record<string, number | null> = {
     overview: donors.length,
-    pool: count((d) => ["new", "check", "ok"].includes(d.fg_status)),
+    pool: count((d) => d.fg_status === "new" || d.fg_status === "ok"),
     work: count((d) => d.fg_status === "core"),
     monitor: count((d) => d.stage === "published" || !!d.article_url),
     history: null,
@@ -255,7 +255,7 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
       {sp.saved && <p className="note note-ok" role="status">{t("common.saved")}</p>}
 
       {tab === "overview" && <BoardHost kind="overview" projectId={id} rows={donors} />}
-      {tab === "pool" && <BoardHost kind="pool" projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} />}
+      {tab === "pool" && <BoardHost kind="pool" projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} projectGeo={project.geo ?? ""} />}
       {tab === "monitor" && <BoardHost kind="monitor" projectId={id} rows={donors} />}
       {tab === "work" && (
         <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />

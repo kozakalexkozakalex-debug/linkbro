@@ -60,14 +60,13 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
       <BaseTabs />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.global")}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Confero</h1>
+          <p className="mt-0.5 text-sm text-mute">{t("dom.conferoSub")}</p>
           <p className="mt-1 max-w-2xl text-mute">
             {t("global.lead")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/app/input" className="btn">{t("global.addDonors")}</Link>
-          <Link href="/app/import" className="btn">{t("nav.import")}</Link>
           <a href="/api/export?type=global" className="btn">{t("common.exportCsv")}</a>
         </div>
       </div>

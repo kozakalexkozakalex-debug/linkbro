@@ -11,11 +11,10 @@ import type { ProjectDonor } from "@/lib/project";
 import { useI18n } from "@/components/I18nProvider";
 
 const FG_OPTS = [
-  { value: "new", label: "Пул" },
-  { value: "check", label: "Check" },
-  { value: "ok", label: "OK" },
+  { value: "new", label: "Тема?" },
+  { value: "ok", label: "✓ Підходить" },
   { value: "core", label: "→ Outreach" },
-  { value: "out", label: "Out" },
+  { value: "out", label: "✕ Не підходить" },
 ];
 
 export default function FromGlobal({
@@ -37,11 +36,11 @@ export default function FromGlobal({
       ...metricCols(),
       {
         key: "fg_status",
-        header: "GEO / Topics",
+        header: "Prefero",
         kind: "select",
         width: 120,
         options: FG_OPTS,
-        tone: (v) => (v === "core" || v === "ok" ? "ok" : v === "out" ? "bad" : v === "check" ? "warn" : ""),
+        tone: (v) => (v === "core" || v === "ok" ? "ok" : v === "out" ? "bad" : "warn"),
       },
     ],
     [intl],
@@ -62,15 +61,14 @@ export default function FromGlobal({
         bulk={(ids) => (
           <>
             <BulkButton label="→ Outreach" onApply={() => setAll(ids, "core")} />
-            <BulkButton label="→ OK" onApply={() => setAll(ids, "ok")} />
-            <BulkButton label="→ Out" onApply={() => setAll(ids, "out")} />
-            <BulkButton label="↺ NEW" onApply={() => setAll(ids, "new")} />
+            <BulkButton label="✓ Підходить" onApply={() => setAll(ids, "ok")} />
+            <BulkButton label="✕ Не підходить" onApply={() => setAll(ids, "out")} />
           </>
         )}
         empty={
           <div className="card text-center text-mute">
             {t("fg.empty")}{" "}
-            <Link href="/app/global?status=fit" className="underline">{t("nav.global")}</Link>.
+            <Link href="/app/global?status=fit" className="underline">Confero</Link>.
           </div>
         }
       />

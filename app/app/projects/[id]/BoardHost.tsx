@@ -17,12 +17,14 @@ export default function BoardHost({
   rows,
   stopTools = 0,
   stopGlobal = 0,
+  projectGeo = "",
 }: {
   kind: "overview" | "pool" | "monitor";
   projectId: string;
   rows: ProjectDonor[];
   stopTools?: number;
   stopGlobal?: number;
+  projectGeo?: string;
 }) {
   const { t } = useI18n();
   const [card, setCard] = useState<ProjectDonor | null>(null);
@@ -44,7 +46,7 @@ export default function BoardHost({
             </div>
           </div>
           {view === "board" ? (
-            <PoolBoard projectId={projectId} rows={rows} onOpen={setCard} />
+            <PoolBoard projectId={projectId} projectGeo={projectGeo} rows={rows} onOpen={setCard} />
           ) : (
             <FromGlobal projectId={projectId} rows={rows} stopTools={stopTools} stopGlobal={stopGlobal} />
           )}

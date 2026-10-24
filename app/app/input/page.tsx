@@ -1,17 +1,14 @@
 import BaseTabs from "@/components/BaseTabs";
-import InputForm from "./InputForm";
-import { getI18n } from "@/lib/i18n/server";
+import InferoPanel from "@/components/InferoPanel";
 
-export default async function InputPage() {
-  const { t } = await getI18n();
+// Infero на всю страницу (та же панель, что выезжает справа по кнопке «+ Infero»)
+export default async function InputPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
+  const { m } = await searchParams;
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex max-w-4xl flex-col gap-6">
       <BaseTabs />
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.input")}</h1>
-        <p className="mt-1 text-mute">{t("input.lead")}</p>
-      </div>
-      <InputForm />
+      <h1 className="font-display text-2xl font-semibold tracking-tight">Infero</h1>
+      <InferoPanel initial={m === "file" ? "file" : "list"} />
     </div>
   );
 }

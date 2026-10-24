@@ -6,7 +6,7 @@ import { getTeamContext } from "@/lib/team";
 import { getI18n } from "@/lib/i18n/server";
 import type { MsgKey } from "@/lib/i18n/config";
 import { fetchAll, chunk } from "@/lib/fetchAll";
-import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
+import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, geoMatches, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
 import { checkLink } from "@/lib/linkcheck";
 import { CURRENCIES, SOURCES } from "@/lib/money";
 import {
@@ -134,13 +134,13 @@ export async function transferToProjects(): Promise<TransferReport> {
     );
     const { data: projects, error: pErr } = await supabase
       .from("projects")
-      .select("id, name, metric_filter")
+      .select("id, name, metric_filter, geo")
       .eq("team_id", team.id)
       .order("created_at");
     if (pErr) return { report: [], error: pErr.message };
 
     const report: TransferReport["report"] = [];
-    for (const p of (projects ?? []) as { id: string; name: string; metric_filter: unknown }[]) {
+    for (const p of (projects ?? []) as { id: string; name: string; metric_filter: unknown; geo: string }[]) {
       // Блокируют: стоп-лист из инструментов + доноры, которые уже есть в проекте.
       // Не прошедшие фильтр НЕ блокируются: пройдут позже, если поменять фильтр или метрики.
       const tools = await fetchAll<{ domain: string }>((from, to) =>
@@ -158,7 +158,12 @@ export async function transferToProjects(): Promise<TransferReport> {
         const { error } = await supabase
           .from("project_donors")
           .upsert(
-            part.map((d) => ({ project_id: p.id, team_id: team.id, domain: d.domain })),
+            // Все метрики прошли. GEO не совпало → сразу «Не підходить» с причиной; тему подтверждает человек.
+            part.map((d) =>
+              geoMatches(p.geo, d.geo) === false
+                ? { project_id: p.id, team_id: team.id, domain: d.domain, fg_status: "out", reject_reason: "geo" }
+                : { project_id: p.id, team_id: team.id, domain: d.domain, fg_status: "new", reject_reason: "" },
+            ),
             { onConflict: "project_id,domain", ignoreDuplicates: true },
           );
         if (error) throw new Error(error.message);
