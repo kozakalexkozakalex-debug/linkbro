@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { credsOf, send, sendMany, type MailAccount } from "@/lib/mail/client";
 import { markReplied } from "@/lib/mail/sync";
 import { emailOf, EMAIL_RE } from "@/lib/outreach";
-import type { Channel } from "../projects/deal-actions";
+import { priceAction, type Channel } from "../projects/deal-actions";
 
 type Ok = { ok: true } | { ok: false; error: string };
 type Donor = { id: string; project_id: string; domain: string; med_base: string; indicator: string | null; comm_status: string; core_status: string };
@@ -180,5 +180,101 @@ export async function attachActivity(activityId: string, donorId: string): Promi
   const { error } = await supabase.from("activities").update({ donor_id: donor.id, project_id: donor.project_id }).eq("id", activityId).eq("team_id", team.id);
   if (error) return { ok: false, error: error.message };
   if ((a as { direction: string }).direction === "in") await markReplied(supabase, team.id, donor);
+  return { ok: true };
+}
+
+// ---------- Один лист посереднику на кілька доменів ----------
+
+export type MailGroup = { handle: string; email: string; donors: { id: string; domain: string; project_id: string }[] };
+
+// Выделенные сделки → группы по посреднику (кому, какие домены). Без посредника — отдельно.
+export async function prepareGroupMail(donorIds: string[]): Promise<{ groups: MailGroup[]; noContact: string[]; mail: string | null; templates: { id: string; name: string; body: string }[] }> {
+  const { supabase, team, acc } = await myAccount();
+  const [{ data: dd }, { data: tp }] = await Promise.all([
+    supabase.from("project_donors").select("id, domain, project_id, med_base").eq("team_id", team.id).in("id", donorIds.slice(0, 200)),
+    supabase.from("templates").select("id, name, body").eq("team_id", team.id).eq("kind", "message").order("name"),
+  ]);
+  const deals = (dd ?? []) as { id: string; domain: string; project_id: string; med_base: string }[];
+  const handles = [...new Set(deals.map((d) => d.med_base.trim()).filter(Boolean))];
+  const { data: cc } = handles.length ? await supabase.from("contacts").select("handle, email").eq("team_id", team.id).in("handle", handles) : { data: [] };
+  const mailOf = new Map(((cc ?? []) as { handle: string; email: string }[]).map((c) => [c.handle, c.email]));
+  const groups = new Map<string, MailGroup>();
+  const noContact: string[] = [];
+  for (const d of deals) {
+    const h = d.med_base.trim();
+    if (!h) {
+      noContact.push(d.domain);
+      continue;
+    }
+    if (!groups.has(h)) groups.set(h, { handle: h, email: emailOf(h, mailOf.get(h)), donors: [] });
+    groups.get(h)!.donors.push({ id: d.id, domain: d.domain, project_id: d.project_id });
+  }
+  return { groups: [...groups.values()], noContact, mail: acc?.email ?? null, templates: (tp ?? []) as { id: string; name: string; body: string }[] };
+}
+
+// Одно письмо на посредника; в базе — одна запись, привязанная ко всем его сделкам (donor_ids)
+export async function sendGroupMail(items: { handle: string; to: string; subject: string; body: string; donorIds: string[] }[]): Promise<{ sent: number; failed: { handle: string; error: string }[]; error?: string }> {
+  const { supabase, team, acc } = await myAccount();
+  const { t } = await getI18n();
+  if (!acc) return { sent: 0, failed: [], error: t("mail.notConnected") };
+  const list = items.slice(0, BULK_MAX).filter((i) => i.body.trim() && i.donorIds.length);
+  const failed: { handle: string; error: string }[] = [];
+  const ready = list.filter((i) => {
+    if (EMAIL_RE.test(i.to.trim())) return true;
+    failed.push({ handle: i.handle, error: t("out.noEmail") });
+    return false;
+  });
+  if (!ready.length) return { sent: 0, failed };
+  const allIds = ready.flatMap((r) => r.donorIds);
+  const { data: dd } = await supabase.from("project_donors").select(DONOR).eq("team_id", team.id).in("id", allIds);
+  const donors = new Map(((dd ?? []) as Donor[]).map((d) => [d.id, d]));
+  const res = await sendMany(credsOf(acc), ready.map((r) => ({ to: r.to.trim(), subject: r.subject.slice(0, 300), text: r.body.slice(0, 20000) })));
+  let sent = 0;
+  for (let i = 0; i < ready.length; i++) {
+    const r = ready[i];
+    if (res[i]?.error) {
+      failed.push({ handle: r.handle, error: res[i].error });
+      continue;
+    }
+    const mine = r.donorIds.map((id) => donors.get(id)).filter((d): d is Donor => !!d);
+    if (!mine.length) continue;
+    sent++;
+    await supabase.from("activities").insert({
+      team_id: team.id,
+      project_id: mine[0].project_id,
+      donor_id: mine.length === 1 ? mine[0].id : null,
+      donor_ids: mine.map((d) => d.id),
+      handle: r.handle,
+      channel: "email",
+      direction: "out",
+      subject: r.subject.slice(0, 500),
+      body: r.body.slice(0, 4000),
+      message_id: res[i]?.messageId ?? "",
+      is_read: true,
+    });
+    await Promise.all(mine.map((d) => markSent(supabase, team.id, d)));
+  }
+  return { sent, failed };
+}
+
+// «Розкласти ціни по угодах»: из одного ответа посредника — его цена в историю каждой сделки
+export async function splitPrices(input: { projectIds: Record<string, string>; items: { donorId: string; price: string; currency: string }[]; activityId?: string }): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
+  const items = input.items.filter((i) => i.price.trim()).slice(0, 100);
+  if (!items.length) return { ok: false, error: t("err.needNumber") };
+  for (const it of items) {
+    const r = await priceAction({ projectId: input.projectIds[it.donorId] ?? "", donorId: it.donorId, action: "quote", amount: it.price, currency: it.currency, note: t("out.fromReply") });
+    if (!r.ok) return r;
+  }
+  // Ответ теперь относится ко всем этим сделкам и отмечает их «Відповіли»
+  if (input.activityId) {
+    const { data: a } = await supabase.from("activities").select("donor_ids, donor_id").eq("id", input.activityId).eq("team_id", team.id).maybeSingle();
+    const cur = (a as { donor_ids: string[]; donor_id: string | null } | null) ?? { donor_ids: [], donor_id: null };
+    const ids = [...new Set([...(cur.donor_ids ?? []), ...(cur.donor_id ? [cur.donor_id] : []), ...items.map((i) => i.donorId)])];
+    await supabase.from("activities").update({ donor_ids: ids }).eq("id", input.activityId).eq("team_id", team.id);
+    const { data: dd } = await supabase.from("project_donors").select(DONOR).eq("team_id", team.id).in("id", items.map((i) => i.donorId));
+    await Promise.all(((dd ?? []) as Donor[]).filter((d) => d.indicator !== "replied").map((d) => markReplied(supabase, team.id, d)));
+  }
   return { ok: true };
 }

@@ -20,6 +20,7 @@ import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, price
 import { useI18n } from "@/components/I18nProvider";
 import Kanban from "./Kanban";
 import DonorCard from "./DonorCard";
+import GroupMail from "./GroupMail";
 import type { MsgKey } from "@/lib/i18n/config";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
@@ -62,6 +63,7 @@ export default function Work({
   const [shown, setShown] = useState<Group[]>(["med", "prices", "pub"]);
   const [view, setView] = useState<"table" | "kanban">("table");
   const [card, setCard] = useState<ProjectDonor | null>(null);
+  const [groupIds, setGroupIds] = useState<string[] | null>(null);
 
   useEffect(() => {
     try {
@@ -413,6 +415,7 @@ export default function Work({
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
+            <button type="button" className="btn btn-sm btn-pri" onClick={() => setGroupIds(ids)}>✉ {t("gm.button")}</button>
             <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "stage", v)} />
             <BulkSelect label={t("field.indicator")} options={indOpts} onApply={(v) => setAll(ids, "indicator", v)} />
             <BulkSelect label={t("field.pay")} options={payOpts} onApply={(v) => setAll(ids, "pay_status", v)} />
@@ -422,6 +425,7 @@ export default function Work({
         empty={<div className="card text-center text-mute">{t("core.empty")}</div>}
       />}
 
+      {groupIds && <GroupMail donorIds={groupIds} onClose={() => setGroupIds(null)} />}
       {draftsOpen && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setDraftsOpen(false)}>
           <div className="card flex max-h-full w-full max-w-2xl flex-col gap-4 overflow-auto" role="dialog" aria-label={t("comm.draftsTitle")}>

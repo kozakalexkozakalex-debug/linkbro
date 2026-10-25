@@ -14,7 +14,7 @@ export type Channel = "email" | "telegram" | "whatsapp" | "exchange" | "call" | 
 const CHANNELS: Channel[] = ["email", "telegram", "whatsapp", "exchange", "call", "note"];
 
 export type Contact = { handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string; other: string; notes: string };
-export type Activity = { id: string; channel: Channel; direction?: string; subject?: string; is_read?: boolean; body: string; handle: string; created_at: string; created_by: string | null; project_id: string | null; donor_id: string | null };
+export type Activity = { donor_ids?: string[]; id: string; channel: Channel; direction?: string; subject?: string; is_read?: boolean; body: string; handle: string; created_at: string; created_by: string | null; project_id: string | null; donor_id: string | null };
 export type OfferKind = "quote" | "counter" | "agreed" | "extra";
 export type Offer = { id: string; domain: string; handle: string; price: number; currency: string; note: string; created_at: string; kind: OfferKind; donor_id: string | null };
 export type WriterLite = { id: string; name: string; contact: string; rate: number | null; rate_unit: string; currency: string };
@@ -47,7 +47,7 @@ export async function getDealPanel(donorId: string, domain: string, handle: stri
   const { supabase, team } = await getTeamContext();
   const h = handle.trim();
   const [acts, contact, offers, same, writers, pays, tpls, mail, proj] = await Promise.all([
-    supabase.from("activities").select("id, channel, direction, subject, is_read, body, handle, created_at, created_by, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }).limit(100),
+    supabase.from("activities").select("id, channel, direction, subject, is_read, body, handle, created_at, created_by, project_id, donor_id, donor_ids").eq("team_id", team.id).or(`donor_id.eq.${donorId},donor_ids.cs.{${donorId}}`).order("created_at", { ascending: false }).limit(100),
     h ? supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", h).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("offers").select("id, domain, handle, price, currency, note, created_at, kind, donor_id").eq("team_id", team.id).eq("domain", domain).order("created_at", { ascending: false }).limit(80),
     h

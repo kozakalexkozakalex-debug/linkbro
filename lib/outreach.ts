@@ -37,3 +37,35 @@ export function pickDeal<T extends { domain: string }>(deals: T[], subject: stri
   if (hit.length === 1) return hit[0];
   return null;
 }
+
+// Список доменов для письма по нескольким сайтам: "- a.com\n- b.com"
+export function domainsList(domains: string[]): string {
+  return domains.map((d) => `- ${d}`).join("\n");
+}
+
+// Шаблон для письма посреднику по нескольким доменам: {domains} → список, {domain} → первый домен
+export function fillGroupTemplate(tpl: string, domains: string[]): string {
+  return tpl.replaceAll("{domains}", domainsList(domains)).replaceAll("{domain}", domains[0] ?? "");
+}
+
+// Найти в ответе посредника цену для каждого домена: строка с доменом → первое число рядом с ним.
+// "slotsreview.com — $320", "casinoguide.ua: 180 usd", "betnews.pl 90€". Не нашли — null (впишут руками).
+export function extractPrices(text: string, domains: string[]): Record<string, { price: number; currency: string } | null> {
+  const out: Record<string, { price: number; currency: string } | null> = {};
+  const lines = text.split(/\r?\n/);
+  for (const d of domains) {
+    out[d] = null;
+    const dl = d.toLowerCase();
+    const line = lines.find((l) => l.toLowerCase().includes(dl));
+    if (!line) continue;
+    const rest = line.slice(line.toLowerCase().indexOf(dl) + dl.length);
+    const m = rest.match(/([$€₴])?\s*(\d[\d\s.,]*\d|\d)\s*(usd|eur|uah|грн|\$|€|₴)?/i);
+    if (!m) continue;
+    const n = Number(m[2].replace(/\s/g, "").replace(/,(\d{1,2})$/, ".$1").replace(/,/g, ""));
+    if (!Number.isFinite(n) || n <= 0) continue;
+    const sym = (m[1] || m[3] || "").toLowerCase();
+    const currency = sym === "€" || sym === "eur" ? "EUR" : sym === "₴" || sym === "uah" || sym === "грн" ? "UAH" : "USD";
+    out[d] = { price: n, currency };
+  }
+  return out;
+}

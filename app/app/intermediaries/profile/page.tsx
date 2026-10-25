@@ -53,7 +53,7 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
     supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", contact).maybeSingle(),
     supabase
       .from("activities")
-      .select("id, channel, direction, subject, body, created_at, donor_id, message_id, is_read")
+      .select("id, channel, direction, subject, body, created_at, donor_id, donor_ids, message_id, is_read")
       .eq("team_id", team.id)
       .eq("handle", contact)
       .order("created_at", { ascending: false })
@@ -78,6 +78,7 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
     return {
       id: r.id,
       domain: r.domain,
+      project_id: r.project_id,
       project: pName.get(r.project_id) ?? "",
       stage: t(STAGE_KEY[st]),
       live: st !== "published" && st !== "lost",

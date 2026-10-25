@@ -8,7 +8,7 @@ import ReadAllButton from "./ReadAllButton";
 
 // Inbox: переписка всей команды, по одной строке на контакт (посредника).
 // Новые входящие — сверху. Нажали — открывается контакт со всей перепиской по всем сделкам.
-type Row = { id: string; channel: string; direction: string; subject: string; body: string; handle: string; created_at: string; is_read: boolean; donor_id: string | null };
+type Row = { id: string; channel: string; direction: string; subject: string; body: string; handle: string; created_at: string; is_read: boolean; donor_id: string | null; donor_ids: string[] | null };
 type Thread = { handle: string; last: Row; unread: number; count: number; donors: Set<string>; loose: number };
 const ICON: Record<string, string> = { email: "📧", telegram: "✈️", whatsapp: "💬", exchange: "🏪", call: "📞", note: "📝" };
 const PAGE = 100;
@@ -20,7 +20,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const [{ data }, { data: mail }] = await Promise.all([
     supabase
       .from("activities")
-      .select("id, channel, direction, subject, body, handle, created_at, is_read, donor_id")
+      .select("id, channel, direction, subject, body, handle, created_at, is_read, donor_id, donor_ids")
       .eq("team_id", team.id)
       .neq("handle", "")
       .neq("channel", "note")
@@ -39,8 +39,9 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     }
     th.count++;
     if (!r.is_read && r.direction === "in") th.unread++;
-    if (r.donor_id) th.donors.add(r.donor_id);
-    else if (r.direction === "in") th.loose++;
+    const ids = [...(r.donor_ids ?? []), ...(r.donor_id ? [r.donor_id] : [])];
+    for (const id of ids) th.donors.add(id);
+    if (!ids.length && r.direction === "in") th.loose++;
   }
   const all = [...map.values()];
   const unreadTotal = all.reduce((a, th) => a + th.unread, 0);

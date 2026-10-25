@@ -6,11 +6,12 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { fillTemplate, type FillData } from "@/lib/outreach";
-import { attachActivity, logContactMessage, markHandleRead, sendContactEmail } from "@/app/app/outreach/actions";
+import { extractPrices, fillTemplate, type FillData } from "@/lib/outreach";
+import { CURRENCIES } from "@/lib/money";
+import { attachActivity, logContactMessage, markHandleRead, sendContactEmail, splitPrices } from "@/app/app/outreach/actions";
 import type { Channel } from "@/app/app/projects/deal-actions";
 
-export type ThreadDeal = { id: string; domain: string; project: string; stage: string; live: boolean; fill: FillData };
+export type ThreadDeal = { id: string; domain: string; project_id: string; project: string; stage: string; live: boolean; fill: FillData };
 export type ThreadItem = {
   id: string;
   channel: Channel;
@@ -19,12 +20,14 @@ export type ThreadItem = {
   body: string;
   created_at: string;
   donor_id: string | null;
+  donor_ids?: string[] | null;
   message_id: string;
   is_read: boolean;
 };
 
 const ICON: Record<string, string> = { email: "📧", telegram: "✈️", whatsapp: "💬", exchange: "🏪", call: "📞", note: "📝" };
 const PER_PAGE = 30;
+const idsOf = (it: { donor_id: string | null; donor_ids?: string[] | null }) => [...new Set([...(it.donor_ids ?? []), ...(it.donor_id ? [it.donor_id] : [])])];
 
 export default function ContactThread(props: {
   handle: string;
@@ -73,7 +76,8 @@ export default function ContactThread(props: {
   function reply(it: ThreadItem) {
     setChannel(it.channel === "email" && props.mail ? "email" : it.channel);
     setDir("out");
-    if (it.donor_id) setDealId(it.donor_id);
+    const ids = idsOf(it);
+    if (ids.length === 1) setDealId(ids[0]);
     if (it.channel === "email") {
       setSubject(it.subject ? (/^re:/i.test(it.subject) ? it.subject : `Re: ${it.subject}`) : "");
       setReplyTo(it.message_id);
@@ -120,7 +124,8 @@ export default function ContactThread(props: {
     });
   }
 
-  const list = only ? items.filter((i) => (only === "none" ? !i.donor_id : i.donor_id === only)) : items;
+  const list = only ? items.filter((i) => (only === "none" ? !idsOf(i).length : idsOf(i).includes(only))) : items;
+  const [split, setSplit] = useState<ThreadItem | null>(null);
   const isEmail = channel === "email";
 
   return (
@@ -207,14 +212,21 @@ export default function ContactThread(props: {
         ) : (
           <ul className="flex flex-col gap-2">
             {list.slice(0, shown).map((it) => {
-              const d = it.donor_id ? byId.get(it.donor_id) : undefined;
+              const ds = idsOf(it).map((id) => byId.get(id)).filter((x): x is ThreadDeal => !!x);
               const inc = it.direction === "in";
               return (
                 <li key={it.id} className={`rounded-lg border border-line p-3 ${inc ? "bg-elev" : ""} ${inc && !it.is_read ? "border-accent" : ""}`}>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span aria-hidden="true">{ICON[it.channel] ?? "•"}</span>
                     <span className={inc ? "font-semibold" : "text-mute"}>{inc ? `↘ ${t("out.in")}` : `↗ ${t("out.outMsg")}`}</span>
-                    {d ? <span className="pill font-mono">{d.domain}</span> : <span className="pill text-mute">{t("out.noDeal")}</span>}
+                    {ds.length ? (
+                      <>
+                        {ds.slice(0, 3).map((d) => <span key={d.id} className="pill font-mono">{d.domain}</span>)}
+                        {ds.length > 3 && <span className="text-mute">+{ds.length - 3}</span>}
+                      </>
+                    ) : (
+                      <span className="pill text-mute">{t("out.noDeal")}</span>
+                    )}
                     <span className="ml-auto font-mono text-mute">{new Date(it.created_at).toLocaleString(intl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
                   {it.subject && <p className="mt-1 text-sm font-medium">{it.subject}</p>}
@@ -223,7 +235,10 @@ export default function ContactThread(props: {
                     {inc && (
                       <button type="button" className="btn py-1 text-xs" onClick={() => reply(it)}>↩ {t("out.reply")}</button>
                     )}
-                    {!it.donor_id && live.length > 0 && !it.id.startsWith("tmp-") && (
+                    {inc && live.length > 0 && !it.id.startsWith("tmp-") && (
+                      <button type="button" className="btn py-1 text-xs" onClick={() => setSplit(it)}>💲 {t("out.split")}</button>
+                    )}
+                    {!idsOf(it).length && live.length > 0 && !it.id.startsWith("tmp-") && (
                       <select aria-label={t("out.attach")} className="inp w-auto py-1 text-xs" value="" onChange={(e) => attach(it.id, e.target.value)}>
                         <option value="">{t("out.attach")}</option>
                         {live.map((x) => (
@@ -243,6 +258,83 @@ export default function ContactThread(props: {
           </button>
         )}
       </section>
+      {split && (
+        <SplitDialog
+          item={split}
+          deals={live}
+          onClose={() => setSplit(null)}
+          onDone={() => {
+            setSplit(null);
+            router.refresh();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// «Розкласти ціни по угодах»: посредник прислал цены на несколько сайтов одним письмом —
+// приложение само находит цену возле каждого домена, вы проверяете и сохраняете в историю каждой сделки.
+function SplitDialog({ item, deals, onClose, onDone }: { item: ThreadItem; deals: ThreadDeal[]; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const found = extractPrices(`${item.subject}\n${item.body}`, deals.map((d) => d.domain));
+  const linked = new Set(idsOf(item));
+  const [rows, setRows] = useState(() =>
+    deals.map((d) => ({
+      id: d.id,
+      domain: d.domain,
+      on: linked.has(d.id) || !!found[d.domain],
+      price: found[d.domain] ? String(found[d.domain]!.price) : "",
+      currency: found[d.domain]?.currency ?? "USD",
+    })),
+  );
+  const upd = (id: string, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const chosen = rows.filter((r) => r.on && r.price.trim());
+  const save = () =>
+    start(async () => {
+      const r = await splitPrices({
+        projectIds: Object.fromEntries(deals.map((d) => [d.id, d.project_id])),
+        items: chosen.map((x) => ({ donorId: x.id, price: x.price, currency: x.currency })),
+        activityId: item.id,
+      });
+      if (!r.ok) return setErr(r.error);
+      onDone();
+    });
+  return (
+    <div className="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="card flex w-full max-w-lg flex-col gap-3" role="dialog" aria-label={t("out.split")}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-semibold">{t("out.split")}</p>
+            <p className="text-sm text-mute">{t("out.splitHint")}</p>
+          </div>
+          <button type="button" className="btn btn-sm" onClick={onClose} aria-label={t("common.close")}>✕</button>
+        </div>
+        <details className="text-sm">
+          <summary className="cursor-pointer text-mute">{t("out.splitText")}</summary>
+          <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-bg p-2 text-xs">{item.body}</p>
+        </details>
+        <ul className="flex flex-col divide-y divide-line">
+          {rows.map((r) => (
+            <li key={r.id} className="grid grid-cols-[auto_minmax(0,1fr)_96px_76px] items-center gap-2 py-1.5">
+              <input type="checkbox" aria-label={r.domain} checked={r.on} onChange={(e) => upd(r.id, { on: e.target.checked })} />
+              <span className="truncate font-mono text-sm">{r.domain}</span>
+              <input aria-label={t("pr.amount")} className="inp py-1" inputMode="decimal" value={r.price} placeholder="—" onChange={(e) => upd(r.id, { price: e.target.value, on: true })} />
+              <select aria-label={t("common.currency")} className="inp py-1" value={r.currency} onChange={(e) => upd(r.id, { currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn btn-pri" disabled={pending || !chosen.length} onClick={save}>
+            {pending ? "…" : t("out.splitSave", { n: chosen.length })}
+          </button>
+          {err && <span className="text-sm text-bad">{err}</span>}
+        </div>
+      </div>
+    </div>
   );
 }

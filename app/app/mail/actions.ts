@@ -141,6 +141,6 @@ export async function sendDealEmail(input: { projectId: string; donorId: string;
 
 export async function markRead(donorId: string): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
-  await supabase.from("activities").update({ is_read: true }).eq("team_id", team.id).eq("donor_id", donorId).eq("is_read", false);
+  await supabase.from("activities").update({ is_read: true }).eq("team_id", team.id).or(`donor_id.eq.${donorId},donor_ids.cs.{${donorId}}`).eq("is_read", false);
   return { ok: true };
 }

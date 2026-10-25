@@ -2,7 +2,6 @@
 // Работает и с обычным клиентом (пользователь у себя), и с админ-клиентом (фоновая задача).
 import { CORE_NEG } from "@/lib/project";
 import { credsOf, fetchNew, type MailAccount } from "@/lib/mail/client";
-import { pickDeal } from "@/lib/outreach";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any;
@@ -47,26 +46,31 @@ export async function syncAccount(db: Db, acc: MailAccount): Promise<{ added: nu
           .neq("core_status", "Published")
           .limit(50);
         const live = ((deals ?? []) as LiveDeal[]).filter((d) => !CORE_NEG.includes(d.core_status));
-        // Одна сделка на письмо: домен в теме/тексте → последняя, куда мы писали → единственная активная
-        let deal = pickDeal(live, m.subject, m.text);
-        if (!deal && live.length > 1) {
+        // К каким сделкам относится письмо: домены, упомянутые в тексте (можно несколько — прайс по сайтам)
+        // → сделки последнего нашего письма этому посреднику (в т.ч. общего на несколько доменов)
+        // → единственная активная сделка. Не угадали — письмо остаётся на контакте, привяжут вручную.
+        const lower = `${m.subject}\n${m.text}`.toLowerCase();
+        let hits = live.filter((d) => d.domain && lower.includes(d.domain.toLowerCase()));
+        if (!hits.length && live.length > 1) {
           const { data: last } = await db
             .from("activities")
-            .select("donor_id")
+            .select("donor_id, donor_ids")
             .eq("team_id", acc.team_id)
             .in("handle", handles)
             .eq("direction", "out")
-            .not("donor_id", "is", null)
             .order("created_at", { ascending: false })
             .limit(1);
-          const lastId = ((last ?? []) as { donor_id: string }[])[0]?.donor_id;
-          deal = live.find((d) => d.id === lastId) ?? null;
+          const l = ((last ?? []) as { donor_id: string | null; donor_ids: string[] | null }[])[0];
+          const ids = new Set([...(l?.donor_ids ?? []), ...(l?.donor_id ? [l.donor_id] : [])]);
+          hits = live.filter((d) => ids.has(d.id));
         }
-        if (!deal && live.length === 1) deal = live[0];
+        if (!hits.length && live.length === 1) hits = live;
+        const deal = hits.length === 1 ? hits[0] : null;
         const { error } = await db.from("activities").insert({
           team_id: acc.team_id,
-          project_id: deal?.project_id ?? null,
+          project_id: hits[0]?.project_id ?? null,
           donor_id: deal?.id ?? null,
+          donor_ids: hits.map((d) => d.id),
           handle: handles[0],
           channel: "email",
           direction: "in",
@@ -79,7 +83,7 @@ export async function syncAccount(db: Db, acc: MailAccount): Promise<{ added: nu
         });
         if (error) continue;
         added++;
-        if (deal) await markReplied(db, acc.team_id, deal);
+        for (const d of hits) await markReplied(db, acc.team_id, d);
       }
     }
     await db.from("mail_accounts").update({ last_uid: maxUid, last_sync_at: new Date().toISOString(), last_error: "" }).eq("user_id", acc.user_id);

@@ -411,6 +411,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
                     <span aria-hidden="true">{CH_ICON[a.channel]}{a.direction === "in" ? "↘" : ""}</span>
                     <span className="shrink-0 font-mono text-xs text-mute">{fmtDateTime(a.created_at, intl)}</span>
                     <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                      {(a.donor_ids?.length ?? 0) > 1 && <span className="pill mb-0.5 text-[11px]">{t("gm.shared", { n: a.donor_ids!.length })}</span>}
                       {a.subject && <b className="block">{a.subject}</b>}
                       {a.body}
                     </span>
