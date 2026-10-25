@@ -83,7 +83,7 @@ export function dealPath(d: DealLike): { steps: { key: DealStepKey; mark: DealMa
     replied: i >= at("replied"),
     price: hasPrice || i >= at("agreed"),
     agreed: i >= at("agreed"),
-    article: i >= at("sent") || d.article_status === "sent",
+    article: i >= at("sent") || d.article_status === "sent" || d.article_status === "accepted",
     paid: i >= at("paid") || d.pay_status === "paid",
     published: i >= at("published") || !!d.article_url?.trim(),
     monitor: link === "ok",

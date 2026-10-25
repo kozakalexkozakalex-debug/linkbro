@@ -8,6 +8,7 @@ import { normalizeDomain } from "@/lib/global";
 import { CURRENCIES } from "@/lib/money";
 import { setStage } from "./actions";
 import { STAGES } from "@/lib/stages";
+import { ART_COLS, ART_STAGE, stepsFor, type ArtStatus } from "@/lib/articles";
 
 type Ok = { ok: true } | { ok: false; error: string };
 export type Channel = "email" | "telegram" | "whatsapp" | "exchange" | "call" | "note";
@@ -328,4 +329,67 @@ export async function priceAction(input: {
   }
   revalidatePath(`/app/projects/${input.projectId}`);
   return { ok: true };
+}
+
+// ---------- Статья: кто пишет, статус, версии и комментарии ----------
+export type ArticleNote = { id: string; kind: "version" | "comment"; doc_url: string; body: string; created_at: string; created_by: string | null };
+
+export async function setArticle(input: { projectId: string; donorId: string; status?: string; mode?: string }): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
+  const { data } = await supabase.from("project_donors").select("id, stage, article_status, article_mode").eq("id", input.donorId).eq("team_id", team.id).maybeSingle();
+  const d = data as { id: string; stage: string; article_status: string; article_mode: string } | null;
+  if (!d) return { ok: false, error: t("err.donorNotFound") };
+  const idx = (st: string) => (STAGES as readonly string[]).indexOf(st);
+  // Статья — только после согласования цены
+  if (d.stage === "lost" || idx(d.stage) < idx("agreed")) return { ok: false, error: t("art.needAgreed") };
+  const patch: Record<string, unknown> = {};
+  const mode = input.mode ?? d.article_mode;
+  if (input.mode !== undefined) {
+    if (!["", "ours", "publisher", "ready"].includes(input.mode)) return { ok: false, error: t("err.unknownValue") };
+    patch.article_mode = input.mode;
+    if (!d.article_status) patch.article_status = "todo";
+  }
+  let status = (input.status ?? (patch.article_status as string | undefined) ?? d.article_status) as ArtStatus | "";
+  if (input.status !== undefined) {
+    if (input.status && !(ART_COLS as readonly string[]).includes(input.status)) return { ok: false, error: t("err.unknownStatus") };
+    // шаг, которого нет при таком способе (например «Пишеться», когда пишет видавець) — ближайший следующий
+    const steps = stepsFor(mode);
+    if (status && !steps.includes(status as ArtStatus)) status = steps.find((x) => ART_COLS.indexOf(x) > ART_COLS.indexOf(status as ArtStatus)) ?? steps[steps.length - 1];
+    patch.article_status = status;
+  }
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", d.id).eq("team_id", team.id);
+  if (error) return { ok: false, error: error.message };
+  if (status && d.stage !== "paid" && idx(d.stage) < idx(ART_STAGE[status as ArtStatus])) {
+    const r = await setStage(d.id, input.projectId, ART_STAGE[status as ArtStatus]);
+    if (!r.ok) return r;
+  }
+  revalidatePath(`/app/projects/${input.projectId}`);
+  revalidatePath("/app/articles");
+  return { ok: true };
+}
+
+export async function getArticleNotes(donorId: string): Promise<ArticleNote[]> {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase.from("article_notes").select("id, kind, doc_url, body, created_at, created_by").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }).limit(100);
+  return (data ?? []) as ArticleNote[];
+}
+
+export async function addArticleNote(input: { donorId: string; kind: "version" | "comment"; docUrl?: string; body?: string }): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { t } = await getI18n();
+  const doc = (input.docUrl ?? "").trim().slice(0, 1000);
+  const body = (input.body ?? "").trim().slice(0, 4000);
+  if (!doc && !body) return { ok: false, error: t("out.errEmpty") };
+  const { error } = await supabase.from("article_notes").insert({ team_id: team.id, donor_id: input.donorId, kind: input.kind, doc_url: doc, body });
+  if (error) return { ok: false, error: error.message };
+  // Новая версия — это и текущая ссылка на документ в сделке
+  if (input.kind === "version" && doc) await supabase.from("project_donors").update({ article_doc: doc }).eq("id", input.donorId).eq("team_id", team.id);
+  return { ok: true };
+}
+
+export async function deleteArticleNote(id: string): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase.from("article_notes").delete().eq("id", id).eq("team_id", team.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateDonorsBatch } from "../actions";
+import { addArticleNote, deleteArticleNote, getArticleNotes, setArticle, type ArticleNote } from "../deal-actions";
+import { ART_KEY, ART_MODES, MODE_KEY, stepsFor, type ArtStatus } from "@/lib/articles";
 import { addOffer, priceAction, type OfferKind, addPayment, deleteActivity, getDealPanel, logActivity, saveContact, setPaymentStatus, type Channel, type Contact, type DealPanel } from "../deal-actions";
 import { CURRENCIES, SOURCES, fmtAmount, priceFromText } from "@/lib/money";
 import { type ProjectDonor } from "@/lib/project";
@@ -31,7 +33,6 @@ const TABS: { key: Tab; label: MsgKey }[] = [
   { key: "pub", label: "grp.pub" },
 ];
 const CH_ICON: Record<Channel, string> = { email: "📧", telegram: "✈️", whatsapp: "💬", exchange: "🏪", call: "📞", note: "📝" };
-const ART_STATUS = ["", "todo", "writing", "review", "ready", "sent"] as const;
 const TEMPLATE_KEY = "linkbro.mailTemplate";
 const DEFAULT_TEMPLATE = "Hi!\n\nI'm interested in publishing a guest post on {domains}.\nCould you share your current terms and price?\n\nThanks!";
 
@@ -39,12 +40,12 @@ function digits(s: string) {
   return s.replace(/[^\d]/g, "");
 }
 
-export default function DonorCard({ projectId, donor, statusOpts, onClose }: { projectId: string; donor: ProjectDonor; statusOpts: Opt[]; onClose: () => void }) {
+export default function DonorCard({ projectId, donor, statusOpts, onClose, initialTab = "chat" }: { projectId: string; donor: ProjectDonor; statusOpts: Opt[]; onClose: () => void; initialTab?: "chat" | "prices" | "article" | "pub" }) {
   const { t, intl } = useI18n();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("chat");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [panel, setPanel] = useState<DealPanel | null>(null);
   const init = Object.fromEntries(FIELDS.map((f) => [f, donor[f] == null ? "" : String(donor[f])])) as Record<F, string>;
   const [d, setD] = useState(init);
@@ -500,6 +501,17 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
 
         {tab === "article" && (
           <div className="flex flex-col gap-2">
+            <ArticleFlow
+              projectId={projectId}
+              donorId={donor.id}
+              stage={d.stage}
+              mode={donor.article_mode}
+              status={d.article_status}
+              onChange={(st) => {
+                setD((x) => ({ ...x, article_status: st }));
+                router.refresh();
+              }}
+            />
             {row(t("deal.writer"), (
               panel && panel.writers.length > 0 ? (
                 <select
@@ -541,11 +553,6 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
               </div>
             </div>
             <textarea id="dc-brief" className="inp min-h-32 text-sm" value={d.brief} onChange={set("brief")} onBlur={() => d.brief && saveBriefTemplate()} />
-            {row(t("common.status"), (
-              <select id="dc-article_status" className="inp" value={d.article_status} onChange={set("article_status")}>
-                {ART_STATUS.map((s) => <option key={s} value={s}>{s ? t(`art.${s}` as MsgKey) : "—"}</option>)}
-              </select>
-            ), "dc-article_status")}
             <div className="flex items-center justify-between gap-2 border-t border-line pt-2">
               <p className="lbl">{t("pay.title")}</p>
               <button type="button" className="btn btn-sm" onClick={payWriter} disabled={pending || !d.article_cost || !(d.writer_id || d.article_writer)}>
@@ -693,6 +700,111 @@ function PriceBlock({
         </button>
         <button type="button" className="btn btn-sm" disabled={pending} onClick={() => run("defer", false)}>⏸ {t("pr.defer")}</button>
         <button type="button" className="btn btn-sm" disabled={pending} onClick={() => run("decline", false)}>✕ {t("pr.decline")}</button>
+      </div>
+      {err && <p className="text-sm text-bad">{err}</p>}
+    </section>
+  );
+}
+
+// ---------- Стаття: хто пише, кроки, версії й коментарі ----------
+function ArticleFlow({ projectId, donorId, stage, mode: mode0, status, onChange }: { projectId: string; donorId: string; stage: string; mode: string; status: string; onChange: (st: string) => void }) {
+  const { t, intl } = useI18n();
+  const [pending, start] = useTransition();
+  const [mode, setMode] = useState(mode0);
+  const [err, setErr] = useState<string | null>(null);
+  const [notes, setNotes] = useState<ArticleNote[] | null>(null);
+  const [doc, setDoc] = useState("");
+  const [comment, setComment] = useState("");
+  const early = stage === "lost" || ["find", "contacted", "replied", "negotiating"].includes(stage);
+  const steps = stepsFor(mode);
+  const at = steps.indexOf(status as ArtStatus);
+
+  useEffect(() => {
+    getArticleNotes(donorId).then(setNotes).catch(() => setNotes([]));
+  }, [donorId]);
+
+  const apply = (patch: { status?: string; mode?: string }) =>
+    start(async () => {
+      setErr(null);
+      const r = await setArticle({ projectId, donorId, ...patch });
+      if (!r.ok) return setErr(r.error);
+      if (patch.mode !== undefined) setMode(patch.mode);
+      onChange(patch.status ?? (status || "todo"));
+    });
+  const add = (kind: "version" | "comment") =>
+    start(async () => {
+      const r = await addArticleNote({ donorId, kind, docUrl: kind === "version" ? doc : "", body: kind === "comment" ? comment : "" });
+      if (!r.ok) return setErr(r.error);
+      setDoc("");
+      setComment("");
+      setNotes(await getArticleNotes(donorId));
+    });
+
+  if (early) return <p className="note">{t("art.needAgreed")}</p>;
+
+  return (
+    <section className="flex flex-col gap-2 rounded-md bg-bg p-3">
+      <p className="lbl">{t("art.who")}</p>
+      <div className="seg self-start">
+        {ART_MODES.map((m) => (
+          <button key={m} type="button" className={mode === m || (!mode && m === "ours" && !!status) ? "seg-on" : ""} disabled={pending} onClick={() => apply({ mode: m })}>
+            {t(MODE_KEY[m as Exclude<typeof m, "">])}
+          </button>
+        ))}
+      </div>
+      {mode === "publisher" && <p className="text-xs text-mute">{t("art.publisherHint")}</p>}
+      <ol className="flex flex-wrap gap-1.5">
+        {steps.map((st, i) => (
+          <li key={st}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => apply({ status: st })}
+              className={`pill ${i < at ? "pill-ok" : i === at ? "border-accent text-accent" : "text-mute"}`}
+              aria-current={i === at ? "step" : undefined}
+            >
+              {i < at ? "✓ " : ""}{t(ART_KEY[st])}
+            </button>
+          </li>
+        ))}
+      </ol>
+      {at >= 0 && at < steps.length - 1 && (
+        <button type="button" className="btn btn-pri btn-sm self-start" disabled={pending} onClick={() => apply({ status: steps[at + 1] })}>
+          → {t(ART_KEY[steps[at + 1]])}
+        </button>
+      )}
+      {status === "accepted" && <p className="text-sm text-ok">{t("art.acceptedHint")}</p>}
+
+      <div className="mt-1 flex flex-col gap-1.5 border-t border-line pt-2">
+        <p className="lbl">{t("art.versions")}</p>
+        <div className="flex gap-1.5">
+          <input aria-label={t("art.versionUrl")} className="inp min-w-0 flex-1 py-1 text-sm" placeholder={t("art.versionUrl")} value={doc} onChange={(e) => setDoc(e.target.value)} />
+          <button type="button" className="btn btn-sm" disabled={pending || !doc.trim()} onClick={() => add("version")}>+ {t("art.version")}</button>
+        </div>
+        <div className="flex gap-1.5">
+          <input aria-label={t("art.comment")} className="inp min-w-0 flex-1 py-1 text-sm" placeholder={t("art.commentPh")} value={comment} onChange={(e) => setComment(e.target.value)} />
+          <button type="button" className="btn btn-sm" disabled={pending || !comment.trim()} onClick={() => add("comment")}>+ {t("art.comment")}</button>
+        </div>
+        {notes && notes.length > 0 && (
+          <ul className="flex flex-col divide-y divide-line text-sm">
+            {notes.map((n, i) => (
+              <li key={n.id} className="flex items-start gap-2 py-1.5">
+                <span aria-hidden="true">{n.kind === "version" ? "📄" : "💬"}</span>
+                <span className="min-w-0 flex-1 break-words">
+                  {n.kind === "version" ? (
+                    <a href={/^https?:\/\//.test(n.doc_url) ? n.doc_url : `https://${n.doc_url}`} target="_blank" rel="noreferrer" className="underline">
+                      {t("art.versionN", { n: notes.filter((x) => x.kind === "version").length - notes.slice(0, i).filter((x) => x.kind === "version").length })}
+                    </a>
+                  ) : (
+                    n.body
+                  )}
+                </span>
+                <span className="shrink-0 font-mono text-xs text-mute">{fmtDateTime(n.created_at, intl)}</span>
+                <button type="button" className="text-xs text-mute" aria-label={t("common.delete")} onClick={() => start(async () => { await deleteArticleNote(n.id); setNotes(await getArticleNotes(donorId)); })}>✕</button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {err && <p className="text-sm text-bad">{err}</p>}
     </section>

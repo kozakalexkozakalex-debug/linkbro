@@ -850,6 +850,11 @@ export async function setStage(id: string, projectId: string, stage: string): Pr
   const { supabase, team } = await getTeamContext();
   const all = ["find", "contacted", "replied", "negotiating", "agreed", "writing", "review", "sent", "paid", "published", "lost"];
   if (!all.includes(stage)) return fail(await tr("err.unknownStatus"));
+  // «Опубліковано» — только с URL статьи, иначе Моніторингу нечего проверять
+  if (stage === "published") {
+    const { data: a } = await supabase.from("project_donors").select("article_url").eq("id", id).eq("team_id", team.id).maybeSingle();
+    if (!((a as { article_url: string } | null)?.article_url ?? "").trim()) return fail(await tr("art.needUrl"));
+  }
   const { error } = await supabase.from("project_donors").update({ stage, fg_status: "core" }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
   // Дата публикации и гарантия ставятся так же, как при статусе Published

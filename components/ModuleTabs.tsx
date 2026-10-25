@@ -23,6 +23,7 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; sub?: MsgK
   outreach: [
     { href: "/app/outreach", key: "mod.board" },
     { href: "/app/followup", key: "out.followup" },
+    { href: "/app/articles", key: "art.tab" },
     { href: "/app/inbox", key: "nav.inbox" },
     { href: "/app/intermediaries", key: "nav.contacts" },
     { href: "/app/writers", key: "nav.writers" },
@@ -30,7 +31,7 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; sub?: MsgK
   ],
 };
 
-const OUTREACH_PAGES = ["/app/outreach", "/app/followup", "/app/inbox", "/app/intermediaries", "/app/writers", "/app/templates"];
+const OUTREACH_PAGES = ["/app/outreach", "/app/followup", "/app/articles", "/app/inbox", "/app/intermediaries", "/app/writers", "/app/templates"];
 
 // Ряд вкладок модуля. У Outreach сверху ещё ряд разделов проекта (Prefero · Outreach · Моніторинг · Налаштування).
 export default function ModuleTabs({ module }: { module: keyof typeof MODULE_TABS }) {
