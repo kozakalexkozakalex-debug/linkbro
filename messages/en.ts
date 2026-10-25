@@ -814,7 +814,7 @@ export const en: Messages = {
   "pref.manual": "rejected manually",
   "pref.funnel": "Checks",
   "pref.openFunnel": "Open the full check funnel",
-  "pref.lead": "Metrics (M) passed when the domain came from Confero. Then in order: GEO (checked automatically) → Topic → Category page. Click “Checks” to mark ✓ / ✕. What doesn't fit stays here with a reason and won't come into the project again.",
+  "pref.lead": "The domain's path in one line: green passed, red failed, grey not checked yet. Metrics (DR … TF/CF) passed when it came from Confero. Then: GEO (automatic) → Topic → Category page. Tap the line to mark ✓ / ✕. All green — the domain moves to Outreach by itself. What doesn't fit stays here with a reason and won't come back.",
   "pref.toCheck": "To check",
   "pref.any": "any",
   "pref.projectGeo": "project: {x}",

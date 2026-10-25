@@ -814,7 +814,7 @@ export const es: Messages = {
   "pref.manual": "descartado a mano",
   "pref.funnel": "Comprobación",
   "pref.openFunnel": "Abrir el embudo completo",
-  "pref.lead": "Las métricas (M) ya pasaron al llegar desde Confero. Luego: GEO (automático) → Tema → Category page. Pulsa «Comprobación» para marcar ✓ / ✕. Lo que no encaja queda aquí con motivo y no vuelve al proyecto.",
+  "pref.lead": "El camino del dominio en una línea: verde superado, rojo no encaja, gris sin revisar. Las métricas (DR … TF/CF) ya pasaron al llegar de Confero. Luego: GEO (automático) → Tema → Category page. Pulsa la línea para marcar ✓ / ✕. Todo verde — el dominio pasa solo a Outreach. Lo que no encaja queda aquí con motivo.",
   "pref.toCheck": "Por revisar",
   "pref.any": "cualquiera",
   "pref.projectGeo": "proyecto: {x}",

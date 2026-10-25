@@ -3,7 +3,7 @@
 // Prefero — таблица доменов проекта с воронкой проверки:
 // метрики (автоматично) → GEO (автоматично, можна виправити) → Тема → Category page.
 // Не підійшле лишається тут з причиною — це й стоп-лист проєкту: з Confero вдруге не прийде.
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setPreferoCheck, updateDonorsBatch } from "../actions";
@@ -39,9 +39,17 @@ export default function FromGlobal({
 }) {
   const { t, intl } = useI18n();
   const router = useRouter();
+  const [, start] = useTransition();
+  const toWork = useCallback(
+    (id: string) =>
+      start(async () => {
+        await updateDonorsBatch(projectId, [{ id, field: "fg_status", value: "core" }]);
+        router.refresh();
+      }),
+    [projectId, router],
+  );
   const [open, setOpen] = useState<ProjectDonor | null>(null);
   const [show, setShow] = useState<Filter>("all");
-  const [, start] = useTransition();
 
   const verdicts = useMemo(() => new Map(rows.map((d) => [d.id, verdict(d, filter, projectGeo)])), [rows, filter, projectGeo]);
   const reasonOf = (v: Verdict) => (v.failed === "manual" ? "manual" : v.failed ?? "");
@@ -65,11 +73,6 @@ export default function FromGlobal({
   );
 
   const reasonLabel = (r: string) => (r === "manual" ? t("pref.manual") : CHECK_KEYS.includes(r as CheckKey) ? t(CHECK_LABEL[r as CheckKey]) : r);
-  const toWork = (id: string) =>
-    start(async () => {
-      await updateDonorsBatch(projectId, [{ id, field: "fg_status", value: "core" }]);
-      router.refresh();
-    });
 
   const columns: SheetCol<ProjectDonor>[] = useMemo(
     () => [
@@ -81,23 +84,8 @@ export default function FromGlobal({
         key: "checks",
         header: t("pref.funnel"),
         kind: "readonly",
-        width: 190,
-        render: (d) => {
-          const v = verdicts.get(d.id)!;
-          return (
-            <button type="button" className="flex items-center gap-1.5 whitespace-nowrap font-mono text-xs" onClick={() => setOpen(d)} title={t("pref.openFunnel")}>
-              <span className={v.metricsBad.length ? "text-accent" : "text-ok"}>{v.metricsBad.length ? "⚠" : "✓"} M</span>
-              {CHECK_KEYS.map((k) => {
-                const m = checkMark(d, k, projectGeo);
-                return (
-                  <span key={k} className={TONE[m]}>
-                    {ICON[m]} {SHORT[k]}
-                  </span>
-                );
-              })}
-            </button>
-          );
-        },
+        width: 360,
+        render: (d) => <Path d={d} filter={filter} projectGeo={projectGeo} onOpen={() => setOpen(d)} />,
       },
       {
         key: "verdict",
@@ -106,7 +94,8 @@ export default function FromGlobal({
         width: 170,
         render: (d) => {
           const v = verdicts.get(d.id)!;
-          if (v.status === "work") return <span className="pill pill-ok whitespace-nowrap">{t("pool.core")}</span>;
+          if (v.status === "work") return <span className="pill pill-ok whitespace-nowrap">✓ {t("pool.core")}</span>;
+          // Всё зелёное, но домен отметили ещё до автоперехода — одна кнопка, чтобы отправить
           if (v.status === "fit")
             return (
               <button type="button" className="btn btn-pri btn-sm whitespace-nowrap" onClick={() => toWork(d.id)}>
@@ -114,12 +103,16 @@ export default function FromGlobal({
               </button>
             );
           if (v.status === "out") return <span className="pill pill-bad whitespace-nowrap">✕ {reasonLabel(reasonOf(v))}</span>;
-          return <span className="pill whitespace-nowrap">? {v.pending.map((k) => SHORT[k]).join(", ")}</span>;
+          return (
+            <button type="button" className="pill whitespace-nowrap" onClick={() => setOpen(d)}>
+              ? {t("pref.toCheck")}: {v.pending.map((k) => SHORT[k]).join(", ")}
+            </button>
+          );
         },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [intl, t, verdicts, projectGeo],
+    [intl, t, verdicts, projectGeo, filter, toWork],
   );
 
   const setAll = (ids: string[], value: string) => updateDonorsBatch(projectId, ids.map((id) => ({ id, field: "fg_status", value })));
@@ -173,6 +166,38 @@ export default function FromGlobal({
         />
       )}
     </>
+  );
+}
+
+// Путь домена одной линией: точки = этапы, зелёная — пройдено, красная — не подошло, серая — ещё не проверено.
+// Последняя точка — Outreach: загорается, когда домен ушёл в работу.
+function Path({ d, filter, projectGeo, onOpen }: { d: ProjectDonor; filter: MetricFilter; projectGeo: string; onOpen: () => void }) {
+  const { t } = useI18n();
+  const metrics = metricLines(d.global_donors, filter);
+  const v = verdict(d, filter, projectGeo);
+  const steps: { label: string; mark: Mark | "warn"; title: string }[] = [
+    ...metrics.map((l) => ({
+      label: l.label === "Keywords" ? "KW" : l.label === "Traffic" ? "Tr" : l.label,
+      // метрики уже прошли при попадании в проект; ⚠ — если фильтр проекта потом ужесточили
+      mark: (l.mark === "no" ? "warn" : "ok") as Mark | "warn",
+      title: `${l.label}: ${l.value ?? "—"}`,
+    })),
+    ...CHECK_KEYS.map((k) => ({ label: SHORT[k], mark: checkMark(d, k, projectGeo) as Mark | "warn", title: t(CHECK_LABEL[k]) })),
+    { label: "Outreach", mark: (v.status === "work" ? "ok" : v.status === "out" ? "no" : "?") as Mark | "warn", title: "Outreach" },
+  ];
+  const color = (m: Mark | "warn") => (m === "ok" ? "var(--ok)" : m === "no" ? "var(--bad)" : m === "warn" ? "var(--accent)" : "var(--line-strong)");
+  return (
+    <button type="button" className="path" onClick={onOpen} title={t("pref.openFunnel")} aria-label={t("pref.openFunnel")}>
+      {steps.map((s, i) => (
+        <span key={s.label} className="path-step" title={s.title}>
+          {i > 0 && <span className="path-line" style={{ background: steps[i - 1].mark === "ok" ? "var(--ok)" : "var(--line-strong)" }} />}
+          <span className="path-dot" style={{ background: s.mark === "?" ? "transparent" : color(s.mark), borderColor: color(s.mark) }}>
+            {s.mark === "no" ? "✕" : s.mark === "ok" ? "✓" : s.mark === "warn" ? "!" : ""}
+          </span>
+          <span className={`path-label ${s.mark === "no" ? "text-bad" : s.mark === "?" ? "text-mute" : ""}`}>{s.label}</span>
+        </span>
+      ))}
+    </button>
   );
 }
 

@@ -2,7 +2,7 @@
 // 1) Метрики (DR, KW, Traffic, TF, CF, TF/CF) — автоматически, из Confero и фильтра проекта.
 // 2) GEO — автоматически (сравнение с GEO проекта), можно поправить вручную.
 // 3) Тема — вручную. 4) Category page — «ок», если вписана, или вручную.
-// Итог: всё ✓ → Підходить; есть ✕ → Не підходить (причина — первый ✕ этап); есть ? → Перевірити.
+// Итог: всё ✓ → сразу в Outreach; есть ✕ → Не підходить (причина — первый ✕ этап); есть ? → Перевірити.
 import { METRICS, geoMatches, type MetricFilter, type MetricKey } from "@/lib/global";
 
 export type Mark = "ok" | "no" | "?";
@@ -64,10 +64,11 @@ export function verdict(d: D, f: MetricFilter, projectGeo: string): Verdict {
   return { status: "fit", failed: null, pending, metricsBad };
 }
 
-// Какое fg_status / reject_reason хранить в базе по итогам чекпоинтов (кроме «в работе»)
+// Какое fg_status / reject_reason хранить в базе по итогам чекпоинтов.
+// Всё зелёное → домен сам уходит в Outreach (fg_status core).
 export function fgFor(v: Verdict): { fg_status: string; reject_reason?: string } {
   if (v.status === "out" && v.failed && v.failed !== "manual") return { fg_status: "out", reject_reason: v.failed };
-  if (v.status === "fit") return { fg_status: "ok", reject_reason: "" };
+  if (v.status === "fit") return { fg_status: "core", reject_reason: "" };
   if (v.status === "check") return { fg_status: "new", reject_reason: "" };
   return { fg_status: v.status === "work" ? "core" : "out" };
 }
