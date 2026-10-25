@@ -10,13 +10,16 @@ import { checkLinkDetail } from "@/lib/linkcheck";
 export const PROBLEM_STATUSES = ["missing", "nofollow", "noindex", "anchor", "target"];
 const TECH = ["error", "blocked"];
 export const CHECK_COLS =
-  "id, team_id, article_url, page_url, anchors, link_status, link_problem_at, next_action_at, link_expected_rel, link_suspect, link_fail_count";
+  "id, team_id, project_id, assignee, guarantee_until, article_url, page_url, anchors, link_status, link_problem_at, next_action_at, link_expected_rel, link_suspect, link_fail_count";
 export const RESTORE_TASK = "повернути посилання (знято / nofollow)";
 const HOUR = 3_600_000;
 
 export type CheckRow = {
   id: string;
   team_id: string;
+  project_id?: string;
+  assignee?: string | null;
+  guarantee_until?: string | null;
   article_url: string;
   page_url: string;
   anchors: string;
@@ -82,5 +85,55 @@ export async function checkAndSave(db: any, row: CheckRow, taskText = RESTORE_TA
     shown = "suspect";
   }
   await db.from("project_donors").update(patch).eq("id", row.id);
+
+  // 3) Проблема: виявлено → підтверджено; ссылка вернулась → вирішено (или хибна тривога, если не подтвердилась)
+  try {
+    await syncIssue(db, row, r.status, patch, now);
+  } catch {
+    /* список проблем не должен ломать саму проверку */
+  }
   return shown;
+}
+
+export function severityOf(type: string, guaranteeUntil?: string | null): "high" | "medium" | "low" {
+  if (type === "missing") return "high";
+  if (guaranteeUntil && guaranteeUntil >= new Date().toISOString().slice(0, 10)) return "high";
+  return type === "anchor" ? "low" : "medium";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncIssue(db: any, row: CheckRow, outcome: string, patch: Record<string, unknown>, now: Date) {
+  if (!row.project_id) return;
+  const { data } = await db.from("link_issues").select("id, status").eq("donor_id", row.id).in("status", ["detected", "confirmed", "in_progress"]).limit(1);
+  const open = ((data ?? []) as { id: string; status: string }[])[0];
+  const iso = now.toISOString();
+  if (outcome === "ok") {
+    if (open)
+      await db
+        .from("link_issues")
+        .update(open.status === "detected" ? { status: "false_positive", resolved_at: iso, resolution: "не підтвердилось при повторній перевірці" } : { status: "resolved", resolved_at: iso, resolution: "посилання відновлено (перевірка)" })
+        .eq("id", open.id);
+    return;
+  }
+  if (!PROBLEM_STATUSES.includes(outcome)) return; // технические сбои — не проблема
+  const confirmed = patch.link_status === outcome || row.link_status === outcome; // подтверждено этой или прошлой проверкой
+  const base = { type: outcome, severity: severityOf(outcome, row.guarantee_until) };
+  if (!open) {
+    await db.from("link_issues").insert({
+      team_id: row.team_id,
+      donor_id: row.id,
+      project_id: row.project_id,
+      ...base,
+      status: confirmed ? "confirmed" : "detected",
+      detected_at: iso,
+      confirmed_at: confirmed ? iso : null,
+      assignee: row.assignee ?? null,
+      due_date: confirmed ? new Date(now.getTime() + 3 * 86_400_000).toISOString().slice(0, 10) : null,
+    });
+  } else if (open.status === "detected" && confirmed) {
+    await db
+      .from("link_issues")
+      .update({ ...base, status: "confirmed", confirmed_at: iso, assignee: row.assignee ?? null, due_date: new Date(now.getTime() + 3 * 86_400_000).toISOString().slice(0, 10) })
+      .eq("id", open.id);
+  }
 }
