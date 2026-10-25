@@ -91,7 +91,8 @@ export function dealPath(d: DealLike): { steps: { key: DealStepKey; mark: DealMa
   const current = DEAL_STEPS.find((k) => !done[k]) ?? null;
   const steps = DEAL_STEPS.map((key) => {
     let mark: DealMark = done[key] ? "ok" : key === current ? (lost ? "no" : "now") : "todo";
-    if (key === "monitor" && ["missing", "nofollow", "noindex", "anchor"].includes(link)) mark = "no";
+    if (key === "monitor" && ["missing", "nofollow", "noindex", "anchor", "target"].includes(link)) mark = "no";
+    else if (key === "monitor" && link === "suspect") mark = "warn";
     else if (key === "monitor" && ["error", "blocked"].includes(link)) mark = "warn";
     return { key, mark };
   });

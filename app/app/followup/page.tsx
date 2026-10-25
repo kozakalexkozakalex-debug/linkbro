@@ -30,7 +30,7 @@ type D = {
   article_status: string;
 };
 const COLS = "id, project_id, domain, med_base, fg_status, stage, core_status, indicator, indicator_at, next_action_at, next_action, gp_price, gp_currency, anchors, page_url, article_deadline, article_status";
-const PROBLEMS = "(missing,nofollow,noindex,anchor)";
+const PROBLEMS = "(missing,nofollow,noindex,anchor,target)";
 type QItem = { key: string; label: string; sub: string; href: string };
 const DAYS = [2, 3, 5, 7, 14];
 

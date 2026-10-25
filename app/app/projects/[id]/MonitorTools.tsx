@@ -20,6 +20,7 @@ export default function MonitorTools({ items }: { items: ProjectDonor[] }) {
   const ok = withUrl.filter((d) => col(d) === "ok").length;
   const problems = withUrl.filter((d) => col(d) === "lost" || col(d) === "warn");
   const unchecked = withUrl.filter((d) => col(d) === "unchecked" || col(d) === "error");
+  const suspect = withUrl.filter((d) => col(d) === "suspect");
   const guarantee = withUrl.filter((d) => {
     const l = daysLeft(d.guarantee_until);
     return l != null && l >= 0 && l <= 14;
@@ -51,9 +52,10 @@ export default function MonitorTools({ items }: { items: ProjectDonor[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {stat(ok, t("mon.ok"), "text-ok")}
         {stat(problems.length, t("mon.problems"), problems.length ? "text-bad" : "")}
+        {stat(suspect.length, t("mon.suspectHint"), suspect.length ? "text-warn" : "")}
         {stat(unchecked.length, t("mon.uncheckedErr"))}
         {stat(guarantee, t("mon.guarantee14"), guarantee ? "text-accent" : "")}
       </section>
@@ -61,9 +63,9 @@ export default function MonitorTools({ items }: { items: ProjectDonor[] }) {
         <button type="button" className="btn btn-pri" disabled={pending || !withUrl.length} onClick={() => run(withUrl)}>
           {t("mon.checkAll", { n: withUrl.length })}
         </button>
-        {(problems.length > 0 || unchecked.length > 0) && (
-          <button type="button" className="btn" disabled={pending} onClick={() => run([...problems, ...unchecked])}>
-            {t("mon.checkBad", { n: problems.length + unchecked.length })}
+        {(problems.length > 0 || unchecked.length > 0 || suspect.length > 0) && (
+          <button type="button" className="btn" disabled={pending} onClick={() => run([...problems, ...suspect, ...unchecked])}>
+            {t("mon.checkBad", { n: problems.length + unchecked.length + suspect.length })}
           </button>
         )}
         {msg && <span className="text-sm text-mute">{msg}</span>}

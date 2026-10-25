@@ -1,4 +1,4 @@
-// Ежедневная проверка опубликованных ссылок. Вызывается по расписанию из GitHub Actions
+// Проверка опубликованных ссылок по времени следующей проверки. Вызывается каждый час из GitHub Actions
 // с секретом CRON_SECRET. За один вызов проверяет до 20 ссылок, остальные — следующими вызовами.
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,15 +19,15 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminClient();
-  const cutoff = new Date(Date.now() - 20 * 3_600_000).toISOString();
-  const due = `link_checked_at.is.null,link_checked_at.lt.${cutoff}`;
+  // Пора проверять: новые (ещё не назначено) и те, у кого подошло время следующей проверки
+  const due = `link_next_check_at.is.null,link_next_check_at.lte."${new Date().toISOString()}"`;
 
   const { data, error } = await db
     .from("project_donors")
     .select(CHECK_COLS)
     .neq("article_url", "")
     .or(due)
-    .order("link_checked_at", { ascending: true, nullsFirst: true })
+    .order("link_next_check_at", { ascending: true, nullsFirst: true })
     .limit(BATCH);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

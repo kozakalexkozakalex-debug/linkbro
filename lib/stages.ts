@@ -51,11 +51,12 @@ export function poolOf(fg: string): PoolCol {
 export const REJECT_REASONS = ["metrics", "topic", "geo", "category", "price", "quality", "other"] as const;
 
 // ---------- Моніторинг: состояние опубликованной ссылки ----------
-export const MONITOR = ["unchecked", "ok", "warn", "error", "lost"] as const;
+export const MONITOR = ["unchecked", "ok", "suspect", "warn", "error", "lost"] as const;
 export type MonitorCol = (typeof MONITOR)[number];
 export const MONITOR_KEY: Record<MonitorCol, MsgKey> = {
   unchecked: "mon.unchecked",
   ok: "mon.ok",
+  suspect: "mon.suspect",
   warn: "mon.warn",
   error: "mon.error",
   lost: "mon.lost",
@@ -63,7 +64,8 @@ export const MONITOR_KEY: Record<MonitorCol, MsgKey> = {
 export function monitorOf(link: string): MonitorCol {
   if (link === "ok") return "ok";
   if (link === "missing") return "lost";
-  if (["nofollow", "noindex", "anchor"].includes(link)) return "warn";
+  if (link === "suspect") return "suspect";
+  if (["nofollow", "noindex", "anchor", "target"].includes(link)) return "warn";
   if (["error", "blocked"].includes(link)) return "error";
   return "unchecked";
 }
@@ -86,7 +88,7 @@ export function overviewOf(d: D & { fg_status: string; link_status: string }): O
   if (d.fg_status === "ok") return "reserve";
   const st = stageOf(d);
   if (st === "lost") return "dropped";
-  if (st === "published") return ["missing", "nofollow", "noindex", "anchor"].includes(d.link_status) ? "problem" : "published";
+  if (st === "published") return ["missing", "nofollow", "noindex", "anchor", "target"].includes(d.link_status) ? "problem" : "published";
   if (["agreed", "writing", "review", "sent", "paid"].includes(st)) return "article";
   return "outreach";
 }

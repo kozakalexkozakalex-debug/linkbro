@@ -132,7 +132,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5));
   const series = months.map((m) => ({ m, s: monthStats(rows, m, commStart) }));
 
-  const broken = rows.filter((r) => ["missing", "nofollow", "noindex", "anchor"].includes(r.link_status));
+  const broken = rows.filter((r) => ["missing", "nofollow", "noindex", "anchor", "target"].includes(r.link_status));
   const guaranteeSoon = rows.filter((r) => {
     const d = daysLeft(r.guarantee_until);
     return d != null && d >= 0 && d <= 7;
@@ -444,7 +444,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                 const c = (p.budget_currency || "USD") as Cur;
                 const spent = st.spend[c] ?? 0;
                 const ac = st.paidCount[c] ? spent / (st.paidCount[c] ?? 1) : null;
-                const probs = pr.filter((r) => ["missing", "nofollow", "noindex", "anchor"].includes(r.link_status)).length;
+                const probs = pr.filter((r) => ["missing", "nofollow", "noindex", "anchor", "target"].includes(r.link_status)).length;
                 return (
                   <tr key={p.id}>
                     <td className="whitespace-nowrap">
@@ -565,7 +565,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
             <p className="lbl mb-3">{t("dash.linkState")}</p>
             {(() => {
               const withUrl = rows.filter((r) => r.in_gp && r.link_status);
-              const order: LinkStatus[] = ["ok", "missing", "nofollow", "noindex", "anchor", "blocked", "error"];
+              const order: LinkStatus[] = ["ok", "suspect", "missing", "nofollow", "noindex", "anchor", "target", "blocked", "error"];
               const data = order
                 .map((k) => ({ label: t(LINK_STATUS[k].key), value: withUrl.filter((r) => r.link_status === k).length }))
                 .filter((d) => d.value > 0);

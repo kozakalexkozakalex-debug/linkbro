@@ -393,3 +393,26 @@ export async function deleteArticleNote(id: string): Promise<Ok> {
   const { error } = await supabase.from("article_notes").delete().eq("id", id).eq("team_id", team.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
+
+// ---------- Моніторинг: історія перевірок і очікуваний тип посилання ----------
+export type LinkCheckRow = { id: string; checked_at: string; http_status: number | null; final_url: string; found: boolean; found_href: string; found_anchor: string; found_rel: string; noindex: boolean; outcome: string; note: string };
+
+export async function getLinkChecks(donorId: string): Promise<LinkCheckRow[]> {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase
+    .from("link_checks")
+    .select("id, checked_at, http_status, final_url, found, found_href, found_anchor, found_rel, noindex, outcome, note")
+    .eq("team_id", team.id)
+    .eq("donor_id", donorId)
+    .order("checked_at", { ascending: false })
+    .limit(60);
+  return (data ?? []) as LinkCheckRow[];
+}
+
+export async function setLinkExpected(donorId: string, value: "dofollow" | "any"): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  if (!["dofollow", "any"].includes(value)) return { ok: false, error: "bad value" };
+  // смена ожиданий → проверить заново ближайшим запуском
+  const { error } = await supabase.from("project_donors").update({ link_expected_rel: value, link_next_check_at: new Date().toISOString(), link_suspect: "" }).eq("id", donorId).eq("team_id", team.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}

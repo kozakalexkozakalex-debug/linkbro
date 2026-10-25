@@ -16,6 +16,7 @@ import { markRead, sendDealEmail, syncMyMail } from "../../mail/actions";
 import type { MsgKey } from "@/lib/i18n/config";
 import type { Opt } from "@/lib/sheet";
 import StepPath from "@/components/StepPath";
+import LinkPanel from "@/components/LinkPanel";
 import { DEAL_STEP_KEY, dealNext, dealPath } from "@/lib/deal";
 
 const FIELDS = [
@@ -581,6 +582,17 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
 
         {tab === "pub" && (
           <div className="flex flex-col gap-2">
+            <LinkPanel
+              donorId={donor.id}
+              projectId={projectId}
+              articleUrl={donor.article_url}
+              pageUrl={donor.page_url}
+              anchors={donor.anchors}
+              expectedRel={donor.link_expected_rel}
+              status={donor.link_status}
+              suspect={donor.link_suspect}
+              onChecked={() => router.refresh()}
+            />
             {row("Page URL", inp("page_url", t("gp.pagePh")), "dc-page_url")}
             {row("Anchor", inp("anchors", t("gp.anchorsPh")), "dc-anchors")}
             {row("Pre-anchor", inp("pre_anchor"), "dc-pre_anchor")}
