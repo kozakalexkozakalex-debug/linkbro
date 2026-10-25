@@ -16,13 +16,13 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; sub?: MsgK
   // Разделы проекта — одинаковый ряд на всех страницах проекта
   project: [
     { href: "/app/domains", key: "dom.prefero", sub: "dom.preferoSub" },
-    { href: "/app/outreach", key: "ptab.outreach", sub: "mod.outreachSub" },
+    { href: "/app/followup", key: "ptab.outreach", sub: "mod.outreachSub" },
     { href: "/app/monitoring", key: "ptab.monitor", sub: "mod.monitorSub" },
     { href: "/app/settings", key: "mod.settingsShort", sub: "mod.settingsSub" },
   ],
   outreach: [
-    { href: "/app/outreach", key: "mod.board" },
     { href: "/app/followup", key: "out.followup" },
+    { href: "/app/outreach", key: "mod.deals" },
     { href: "/app/articles", key: "art.tab" },
     { href: "/app/inbox", key: "nav.inbox" },
     { href: "/app/intermediaries", key: "nav.contacts" },
@@ -50,12 +50,12 @@ function Row({ module, small = false }: { module: keyof typeof MODULE_TABS; smal
   const { t } = useI18n();
   const path = usePathname() ?? "";
   const isOn = (href: string, exact?: boolean) =>
-    exact ? path === href : path === href || path.startsWith(href + "/") || (module === "project" && href === "/app/outreach" && OUTREACH_PAGES.some((p) => path.startsWith(p)));
+    exact ? path === href : path === href || path.startsWith(href + "/") || (module === "project" && href === "/app/followup" && OUTREACH_PAGES.some((p) => path.startsWith(p)));
   if (small) {
     return (
       <nav className="seg max-w-full self-start overflow-x-auto" aria-label={t("ptab.outreach")}>
         {MODULE_TABS[module].map((it) => (
-          <Link key={it.href} href={it.href} className={`whitespace-nowrap ${isOn(it.href, it.href === "/app/outreach") ? "seg-on" : ""}`}>
+          <Link key={it.href} href={it.href} className={`whitespace-nowrap ${isOn(it.href, it.href === "/app/outreach" || it.href === "/app/followup") ? "seg-on" : ""}`}>
             {t(it.key)}
           </Link>
         ))}
