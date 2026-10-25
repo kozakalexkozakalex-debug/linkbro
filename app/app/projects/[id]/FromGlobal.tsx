@@ -94,6 +94,12 @@ export default function FromGlobal({
         width: 170,
         render: (d) => {
           const v = verdicts.get(d.id)!;
+          if (v.status === "work" && v.incomplete)
+            return (
+              <button type="button" className="pill pill-warn whitespace-nowrap" onClick={() => setOpen(d)} title={t("pref.incomplete")}>
+                ! Outreach · {t("pref.missing")}: {[...(v.failed ? [v.failed as CheckKey] : []), ...v.pending].map((k) => SHORT[k]).join(", ")}
+              </button>
+            );
           if (v.status === "work") return <span className="pill pill-ok whitespace-nowrap">✓ {t("pool.core")}</span>;
           // Всё зелёное, но домен отметили ещё до автоперехода — одна кнопка, чтобы отправить
           if (v.status === "fit")
@@ -183,7 +189,8 @@ function Path({ d, filter, projectGeo, onOpen }: { d: ProjectDonor; filter: Metr
       title: `${l.label}: ${l.value ?? "—"}`,
     })),
     ...CHECK_KEYS.map((k) => ({ label: SHORT[k], mark: checkMark(d, k, projectGeo) as Mark | "warn", title: t(CHECK_LABEL[k]) })),
-    { label: "Outreach", mark: (v.status === "work" ? "ok" : v.status === "out" ? "no" : "?") as Mark | "warn", title: "Outreach" },
+    // Outreach горит зелёным, только если все этапы до него зелёные
+    { label: "Outreach", mark: (v.status === "work" ? (v.incomplete ? "warn" : "ok") : v.status === "out" ? "no" : "?") as Mark | "warn", title: v.incomplete ? t("pref.incomplete") : "Outreach" },
   ];
   const color = (m: Mark | "warn") => (m === "ok" ? "var(--ok)" : m === "no" ? "var(--bad)" : m === "warn" ? "var(--accent)" : "var(--line-strong)");
   return (

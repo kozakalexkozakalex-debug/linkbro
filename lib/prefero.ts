@@ -11,7 +11,7 @@ export const CHECK_KEYS: CheckKey[] = ["geo", "topic", "category"];
 export type Checks = Partial<Record<CheckKey, "ok" | "no">>;
 
 type G = { dr: number | null; keywords: number | null; traffic: number | null; tf: number | null; cf: number | null; geo: string; topics: string } | null | undefined;
-type D = { fg_status: string; category_page: string; checks?: Checks | null; global_donors?: G };
+type D = { fg_status: string; category_page: string | null; checks?: Checks | null; global_donors?: G };
 
 function num(s: string): number | null {
   const t = (s ?? "").trim().replace(",", ".");
@@ -46,22 +46,23 @@ export function checkMark(d: D, key: CheckKey, projectGeo: string): Mark {
     const g = geoMatches(projectGeo, d.global_donors?.geo);
     return g == null ? "?" : g ? "ok" : "no";
   }
-  if (key === "category") return d.category_page.trim() ? "ok" : "?";
+  if (key === "category") return (d.category_page ?? "").trim() ? "ok" : "?";
   return "?";
 }
 
-export type Verdict = { status: "work" | "fit" | "check" | "out"; failed: string | null; pending: CheckKey[]; metricsBad: MetricKey[] };
+// incomplete — домен уже в Outreach, но не все этапы Prefero зелёные (попал туда раньше правил)
+export type Verdict = { status: "work" | "fit" | "check" | "out"; failed: string | null; pending: CheckKey[]; metricsBad: MetricKey[]; incomplete: boolean };
 
 export function verdict(d: D, f: MetricFilter, projectGeo: string): Verdict {
   const metricsBad = metricLines(d.global_donors, f).filter((l) => l.mark === "no").map((l) => l.key);
   const marks = CHECK_KEYS.map((k) => [k, checkMark(d, k, projectGeo)] as const);
   const firstNo = marks.find(([, m]) => m === "no")?.[0] ?? null;
   const pending = marks.filter(([, m]) => m === "?").map(([k]) => k);
-  if (d.fg_status === "core") return { status: "work", failed: null, pending, metricsBad };
-  if (firstNo) return { status: "out", failed: firstNo, pending, metricsBad };
-  if (d.fg_status === "out") return { status: "out", failed: "manual", pending, metricsBad };
-  if (pending.length) return { status: "check", failed: null, pending, metricsBad };
-  return { status: "fit", failed: null, pending, metricsBad };
+  if (d.fg_status === "core") return { status: "work", failed: firstNo, pending, metricsBad, incomplete: !!firstNo || pending.length > 0 };
+  if (firstNo) return { status: "out", failed: firstNo, pending, metricsBad, incomplete: false };
+  if (d.fg_status === "out") return { status: "out", failed: "manual", pending, metricsBad, incomplete: false };
+  if (pending.length) return { status: "check", failed: null, pending, metricsBad, incomplete: false };
+  return { status: "fit", failed: null, pending, metricsBad, incomplete: false };
 }
 
 // Какое fg_status / reject_reason хранить в базе по итогам чекпоинтов.

@@ -827,4 +827,7 @@ export const en: Messages = {
   "pref.manualChecks": "Then, in order",
   "pref.autoHint": "Without your mark: GEO is compared with the project GEO, Category page is ✓ if filled in. Tap ✓ or ✕ again to clear.",
   "rej.category": "No category page",
+  "pref.gate": "{domain}: can go to Outreach only after all Prefero steps. Not passed yet: {x}",
+  "pref.incomplete": "Already in Outreach but not all Prefero steps are green — finish them",
+  "pref.missing": "missing",
 };

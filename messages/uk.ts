@@ -825,4 +825,7 @@ export const uk = {
   "pref.manualChecks": "Далі по черзі",
   "pref.autoHint": "Без вашої позначки: GEO порівнюється з GEO проєкту, Category page — ✓, якщо вписана. Натисніть ще раз ✓ або ✕, щоб зняти позначку.",
   "rej.category": "Немає category page",
+  "pref.gate": "{domain}: в Outreach можна лише після всіх етапів Prefero. Ще не пройдено: {x}",
+  "pref.incomplete": "Домен уже в Outreach, але не всі етапи Prefero пройдені — допройдіть їх",
+  "pref.missing": "бракує",
 };

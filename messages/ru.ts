@@ -827,4 +827,7 @@ export const ru: Messages = {
   "pref.manualChecks": "Дальше по очереди",
   "pref.autoHint": "Без вашей отметки: GEO сравнивается с GEO проекта, Category page — ✓, если вписана. Нажмите ✓ или ✕ ещё раз, чтобы снять отметку.",
   "rej.category": "Нет category page",
+  "pref.gate": "{domain}: в Outreach можно только после всех этапов Prefero. Ещё не пройдено: {x}",
+  "pref.incomplete": "Домен уже в Outreach, но не все этапы Prefero пройдены — допройдите их",
+  "pref.missing": "не хватает",
 };

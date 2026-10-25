@@ -216,6 +216,18 @@ export async function updateDonorField(id: string, field: DonorTextField, raw: s
 export async function setFgStatus(id: string, projectId: string, status: FgStatus): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
   if (!["new", "check", "ok", "core", "out"].includes(status)) return fail(await tr("err.unknownStatus"));
+  // В Outreach — только пройдя все этапы Prefero (метрики, GEO, тема, category page)
+  if (status === "core") {
+    const { d, p } = await loadPrefero(id, projectId);
+    if (d && p && d.fg_status !== "core") {
+      const v = verdict({ ...d, fg_status: "new" }, normalizeFilter(p.metric_filter), p.geo ?? "");
+      if (v.status !== "fit") {
+        const steps = [...(v.failed && v.failed !== "manual" ? [v.failed] : []), ...v.pending];
+        const names = await Promise.all(steps.map((k) => tr(`pref.${k}` as "pref.geo")));
+        return fail(await tr("pref.gate", { domain: (d as unknown as { domain?: string }).domain ?? "", x: names.join(", ") || "—" }));
+      }
+    }
+  }
   const { error } = await supabase.from("project_donors").update({ fg_status: status }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
   refresh(projectId);
@@ -701,7 +713,7 @@ async function loadPrefero(id: string, projectId: string) {
   const [{ data: d }, { data: p }] = await Promise.all([
     supabase
       .from("project_donors")
-      .select("id, fg_status, category_page, checks, global_donors(dr, keywords, traffic, geo, topics, tf, cf)")
+      .select("id, domain, fg_status, category_page, checks, global_donors(dr, keywords, traffic, geo, topics, tf, cf)")
       .eq("id", id)
       .eq("team_id", team.id)
       .eq("project_id", projectId)

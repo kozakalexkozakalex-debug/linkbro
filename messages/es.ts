@@ -827,4 +827,7 @@ export const es: Messages = {
   "pref.manualChecks": "Luego, en orden",
   "pref.autoHint": "Sin tu marca: GEO se compara con el del proyecto; Category page es ✓ si está. Pulsa de nuevo para quitar.",
   "rej.category": "Sin category page",
+  "pref.gate": "{domain}: solo pasa a Outreach tras todos los pasos de Prefero. Falta: {x}",
+  "pref.incomplete": "Ya está en Outreach pero faltan pasos de Prefero",
+  "pref.missing": "falta",
 };
