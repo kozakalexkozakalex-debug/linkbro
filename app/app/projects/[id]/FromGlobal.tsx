@@ -1,68 +1,159 @@
 "use client";
 
-import { useMemo } from "react";
+// Prefero — таблица доменов проекта с воронкой проверки:
+// метрики (автоматично) → GEO (автоматично, можна виправити) → Тема → Category page.
+// Не підійшле лишається тут з причиною — це й стоп-лист проєкту: з Confero вдруге не прийде.
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { updateDonorsBatch } from "../actions";
+import { useRouter } from "next/navigation";
+import { setPreferoCheck, updateDonorsBatch } from "../actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
 import { BulkButton } from "@/components/BulkTools";
 import { metricCols } from "@/components/MetricCols";
-import { fmtDate } from "@/lib/global";
+import { fmtDate, type MetricFilter } from "@/lib/global";
+import { CHECK_KEYS, checkMark, metricLines, verdict, type CheckKey, type Mark, type Verdict } from "@/lib/prefero";
 import type { ProjectDonor } from "@/lib/project";
 import { useI18n } from "@/components/I18nProvider";
+import type { MsgKey } from "@/lib/i18n/config";
 
-const FG_OPTS = [
-  { value: "new", label: "Тема?" },
-  { value: "ok", label: "✓ Підходить" },
-  { value: "core", label: "→ Outreach" },
-  { value: "out", label: "✕ Не підходить" },
-];
+const ICON: Record<Mark, string> = { ok: "✓", no: "✕", "?": "?" };
+const TONE: Record<Mark, string> = { ok: "text-ok", no: "text-bad", "?": "text-mute" };
+const CHECK_LABEL: Record<CheckKey, MsgKey> = { geo: "pref.geo", topic: "pref.topic", category: "pref.category" };
+const SHORT: Record<CheckKey, string> = { geo: "GEO", topic: "Тема", category: "Cat" };
+type Filter = "all" | "check" | "fit" | "work" | "out" | `out:${string}`;
 
 export default function FromGlobal({
   projectId,
   rows,
   stopTools,
   stopGlobal,
+  projectGeo = "",
+  filter,
 }: {
   projectId: string;
   rows: ProjectDonor[];
   stopTools: number;
   stopGlobal: number;
+  projectGeo?: string;
+  filter: MetricFilter;
 }) {
   const { t, intl } = useI18n();
+  const router = useRouter();
+  const [open, setOpen] = useState<ProjectDonor | null>(null);
+  const [show, setShow] = useState<Filter>("all");
+  const [, start] = useTransition();
+
+  const verdicts = useMemo(() => new Map(rows.map((d) => [d.id, verdict(d, filter, projectGeo)])), [rows, filter, projectGeo]);
+  const reasonOf = (v: Verdict) => (v.failed === "manual" ? "manual" : v.failed ?? "");
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length, check: 0, fit: 0, work: 0, out: 0 };
+    for (const v of verdicts.values()) {
+      c[v.status]++;
+      if (v.status === "out") c[`out:${reasonOf(v)}`] = (c[`out:${reasonOf(v)}`] ?? 0) + 1;
+    }
+    return c;
+  }, [rows.length, verdicts]);
+  const shown = useMemo(
+    () =>
+      rows.filter((d) => {
+        const v = verdicts.get(d.id)!;
+        if (show === "all") return true;
+        if (show.startsWith("out:")) return v.status === "out" && reasonOf(v) === show.slice(4);
+        return v.status === show;
+      }),
+    [rows, verdicts, show],
+  );
+
+  const reasonLabel = (r: string) => (r === "manual" ? t("pref.manual") : CHECK_KEYS.includes(r as CheckKey) ? t(CHECK_LABEL[r as CheckKey]) : r);
+  const toWork = (id: string) =>
+    start(async () => {
+      await updateDonorsBatch(projectId, [{ id, field: "fg_status", value: "core" }]);
+      router.refresh();
+    });
+
   const columns: SheetCol<ProjectDonor>[] = useMemo(
     () => [
       { key: "domain", header: "Domain", kind: "readonly", width: 170, render: (d) => <span className="font-mono font-semibold whitespace-nowrap">{d.domain}</span> },
       { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at, intl) },
       ...metricCols(),
+      { key: "category_page", header: "Category Page", kind: "text", width: 170, placeholder: "/blog/…" },
       {
-        key: "fg_status",
-        header: "Prefero",
-        kind: "select",
-        width: 120,
-        options: FG_OPTS,
-        tone: (v) => (v === "core" || v === "ok" ? "ok" : v === "out" ? "bad" : "warn"),
+        key: "checks",
+        header: t("pref.funnel"),
+        kind: "readonly",
+        width: 190,
+        render: (d) => {
+          const v = verdicts.get(d.id)!;
+          return (
+            <button type="button" className="flex items-center gap-1.5 whitespace-nowrap font-mono text-xs" onClick={() => setOpen(d)} title={t("pref.openFunnel")}>
+              <span className={v.metricsBad.length ? "text-accent" : "text-ok"}>{v.metricsBad.length ? "⚠" : "✓"} M</span>
+              {CHECK_KEYS.map((k) => {
+                const m = checkMark(d, k, projectGeo);
+                return (
+                  <span key={k} className={TONE[m]}>
+                    {ICON[m]} {SHORT[k]}
+                  </span>
+                );
+              })}
+            </button>
+          );
+        },
+      },
+      {
+        key: "verdict",
+        header: t("common.status"),
+        kind: "readonly",
+        width: 170,
+        render: (d) => {
+          const v = verdicts.get(d.id)!;
+          if (v.status === "work") return <span className="pill pill-ok whitespace-nowrap">{t("pool.core")}</span>;
+          if (v.status === "fit")
+            return (
+              <button type="button" className="btn btn-pri btn-sm whitespace-nowrap" onClick={() => toWork(d.id)}>
+                {t("pool.toWork")}
+              </button>
+            );
+          if (v.status === "out") return <span className="pill pill-bad whitespace-nowrap">✕ {reasonLabel(reasonOf(v))}</span>;
+          return <span className="pill whitespace-nowrap">? {v.pending.map((k) => SHORT[k]).join(", ")}</span>;
+        },
       },
     ],
-    [intl],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [intl, t, verdicts, projectGeo],
   );
 
   const setAll = (ids: string[], value: string) => updateDonorsBatch(projectId, ids.map((id) => ({ id, field: "fg_status", value })));
+  const chip = (k: Filter, label: string) =>
+    counts[k] ? (
+      <button key={k} type="button" className={`pill ${show === k ? "border-accent text-accent" : ""}`} onClick={() => setShow(k)}>
+        {label} <span className="font-mono">{counts[k]}</span>
+      </button>
+    ) : null;
 
   return (
     <>
       <p className="text-sm text-mute">
-        {t("fg.lead")} {t("fg.stops", { tools: stopTools, global: stopGlobal })} ·{" "}
-        <Link href={`/app/projects/${projectId}?tab=profile`} className="underline">{t("fg.configure")}</Link>
+        {t("pref.lead")} {t("fg.stops", { tools: stopTools, global: stopGlobal })} ·{" "}
+        <Link href="/app/settings" className="underline">{t("fg.configure")}</Link>
       </p>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" className={`pill ${show === "all" ? "border-accent text-accent" : ""}`} onClick={() => setShow("all")}>
+          {t("common.all")} <span className="font-mono">{counts.all}</span>
+        </button>
+        {chip("check", t("pref.toCheck"))}
+        {chip("fit", t("pool.fit"))}
+        {chip("work", t("pool.core"))}
+        {chip("out", t("pool.out"))}
+        {[...CHECK_KEYS, "manual"].map((r) => chip(`out:${r}`, `✕ ${reasonLabel(r)}`))}
+      </div>
       <Sheet
-        rows={rows}
+        rows={shown}
         columns={columns}
         onSave={(changes) => updateDonorsBatch(projectId, changes)}
         bulk={(ids) => (
           <>
-            <BulkButton label="→ Outreach" onApply={() => setAll(ids, "core")} />
-            <BulkButton label="✓ Підходить" onApply={() => setAll(ids, "ok")} />
-            <BulkButton label="✕ Не підходить" onApply={() => setAll(ids, "out")} />
+            <BulkButton label={t("pool.toWork")} onApply={() => setAll(ids, "core")} />
+            <BulkButton label={`✕ ${t("pool.out")}`} onApply={() => setAll(ids, "out")} />
           </>
         )}
         empty={
@@ -72,6 +163,101 @@ export default function FromGlobal({
           </div>
         }
       />
+      {open && (
+        <FunnelDialog
+          donor={rows.find((r) => r.id === open.id) ?? open}
+          projectId={projectId}
+          projectGeo={projectGeo}
+          filter={filter}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </>
+  );
+}
+
+// Окошко «вся воронка»: метрики со значениями против фильтра проекта + ручные чекпоинты
+function FunnelDialog({ donor, projectId, projectGeo, filter, onClose }: { donor: ProjectDonor; projectId: string; projectGeo: string; filter: MetricFilter; onClose: () => void }) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const lines = metricLines(donor.global_donors, filter);
+  const v = verdict(donor, filter, projectGeo);
+  const g = donor.global_donors;
+  const range = (min: number | null, max: number | null) => (min != null && max != null ? `${min}–${max}` : min != null ? `≥ ${min}` : max != null ? `≤ ${max}` : t("pref.any"));
+  const set = (k: CheckKey, value: "ok" | "no" | "") =>
+    start(async () => {
+      const r = await setPreferoCheck(donor.id, projectId, k, value);
+      if (!r.ok) return setErr(r.error ?? t("common.error"));
+      router.refresh();
+    });
+  const detail: Record<CheckKey, string> = {
+    geo: `${g?.geo || "—"} · ${t("pref.projectGeo", { x: projectGeo || "—" })}`,
+    topic: g?.topics || "—",
+    category: donor.category_page || t("pref.noCategory"),
+  };
+
+  return (
+    <div className="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="card flex w-full max-w-lg flex-col gap-3" role="dialog" aria-label={t("pref.funnel")}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-lg font-semibold">{donor.domain}</p>
+            <p className="text-sm text-mute">
+              {v.status === "out"
+                ? t("pref.failedAt", { x: v.failed === "manual" ? t("pref.manual") : t(CHECK_LABEL[v.failed as CheckKey]) })
+                : v.status === "check"
+                  ? t("pref.left", { x: v.pending.map((k) => t(CHECK_LABEL[k])).join(", ") })
+                  : v.status === "work"
+                    ? t("pool.core")
+                    : t("pref.allOk")}
+            </p>
+          </div>
+          <button type="button" className="btn btn-sm" onClick={onClose} aria-label={t("common.close")}>✕</button>
+        </div>
+
+        <div>
+          <p className="lbl mb-1">{t("pref.metricsAuto")}</p>
+          <ul className="divide-y divide-line text-sm">
+            {lines.map((l) => (
+              <li key={l.key} className="flex items-center gap-2 py-1.5">
+                <span className="w-16 font-medium">{l.label}</span>
+                <span className="font-mono">{l.value ?? "—"}</span>
+                <span className="text-xs text-mute">{range(l.min, l.max)}</span>
+                <span className={`ml-auto font-mono ${l.mark === "no" ? "text-accent" : TONE[l.mark]}`} title={l.mark === "no" ? t("pref.filterChanged") : undefined}>
+                  {l.mark === "no" ? "⚠" : ICON[l.mark]}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {v.metricsBad.length > 0 && <p className="mt-1 text-xs text-accent">{t("pref.filterChanged")}</p>}
+        </div>
+
+        <div>
+          <p className="lbl mb-1">{t("pref.manualChecks")}</p>
+          <ul className="divide-y divide-line text-sm">
+            {CHECK_KEYS.map((k, i) => {
+              const m = checkMark(donor, k, projectGeo);
+              const manual = donor.checks?.[k];
+              return (
+                <li key={k} className="flex flex-wrap items-center gap-2 py-2">
+                  <span className="w-5 text-mute">{i + 2}.</span>
+                  <span className="w-28 font-medium">{t(CHECK_LABEL[k])}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-mute" title={detail[k]}>{detail[k]}</span>
+                  <span className={`font-mono ${TONE[m]}`}>{ICON[m]}</span>
+                  <span className="inline-flex gap-1">
+                    <button type="button" className={`btn btn-sm ${manual === "ok" ? "btn-pri" : ""}`} disabled={pending} onClick={() => set(k, manual === "ok" ? "" : "ok")} aria-label={`${t(CHECK_LABEL[k])} ✓`}>✓</button>
+                    <button type="button" className={`btn btn-sm ${manual === "no" ? "btn-pri" : ""}`} disabled={pending} onClick={() => set(k, manual === "no" ? "" : "no")} aria-label={`${t(CHECK_LABEL[k])} ✕`}>✕</button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1 text-xs text-mute">{t("pref.autoHint")}</p>
+        </div>
+        {err && <p className="note note-bad">{err}</p>}
+      </div>
+    </div>
   );
 }

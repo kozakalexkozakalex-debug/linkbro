@@ -3,12 +3,12 @@
 // Вкладки-доски проекта (Огляд, Домени, Моніторинг) + карточка сделки по нажатию
 import { useMemo, useState } from "react";
 import OverviewBoard from "./OverviewBoard";
-import PoolBoard from "./PoolBoard";
 import MonitorBoard from "./MonitorBoard";
 import FromGlobal from "./FromGlobal";
 import DonorCard from "./DonorCard";
 import { STAGES, STAGE_KEY } from "@/lib/stages";
 import type { ProjectDonor } from "@/lib/project";
+import { DEFAULT_FILTER, type MetricFilter } from "@/lib/global";
 import { useI18n } from "@/components/I18nProvider";
 
 export default function BoardHost({
@@ -18,6 +18,7 @@ export default function BoardHost({
   stopTools = 0,
   stopGlobal = 0,
   projectGeo = "",
+  filter,
 }: {
   kind: "overview" | "pool" | "monitor";
   projectId: string;
@@ -25,10 +26,10 @@ export default function BoardHost({
   stopTools?: number;
   stopGlobal?: number;
   projectGeo?: string;
+  filter?: MetricFilter;
 }) {
   const { t } = useI18n();
   const [card, setCard] = useState<ProjectDonor | null>(null);
-  const [view, setView] = useState<"board" | "table">("board");
   const statusOpts = useMemo(
     () => [...STAGES.map((s) => ({ value: s as string, label: t(STAGE_KEY[s]) })), { value: "lost", label: `✕ ${t(STAGE_KEY.lost)}` }],
     [t],
@@ -36,22 +37,7 @@ export default function BoardHost({
   return (
     <>
       {kind === "overview" && <OverviewBoard rows={rows} onOpen={setCard} />}
-      {kind === "pool" && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="max-w-3xl text-sm text-mute">{t("pool.lead")}</p>
-            <div className="seg" role="group">
-              <button type="button" className={view === "board" ? "seg-on" : ""} onClick={() => setView("board")}>{t("work.kanban")}</button>
-              <button type="button" className={view === "table" ? "seg-on" : ""} onClick={() => setView("table")}>{t("work.table")}</button>
-            </div>
-          </div>
-          {view === "board" ? (
-            <PoolBoard projectId={projectId} projectGeo={projectGeo} rows={rows} onOpen={setCard} />
-          ) : (
-            <FromGlobal projectId={projectId} rows={rows} stopTools={stopTools} stopGlobal={stopGlobal} />
-          )}
-        </>
-      )}
+      {kind === "pool" && <FromGlobal projectId={projectId} rows={rows} stopTools={stopTools} stopGlobal={stopGlobal} projectGeo={projectGeo} filter={filter ?? DEFAULT_FILTER} />}
       {kind === "monitor" && (
         <>
           <p className="max-w-3xl text-sm text-mute">{t("mon.lead")}</p>

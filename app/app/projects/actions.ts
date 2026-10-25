@@ -8,6 +8,7 @@ import type { MsgKey } from "@/lib/i18n/config";
 import { fetchAll, chunk } from "@/lib/fetchAll";
 import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, geoMatches, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
 import { CHECK_COLS, checkAndSave, type CheckRow } from "@/lib/linkcheck-save";
+import { CHECK_KEYS, fgFor, verdict, type CheckKey, type Checks } from "@/lib/prefero";
 import { CURRENCIES, SOURCES } from "@/lib/money";
 import {
   COMM_STATUSES,
@@ -682,8 +683,62 @@ export async function updateDonorsBatch(projectId: string, changes: CellChange[]
     if (!r.ok) return r;
   }
 
+  // Вписали / стёрли Category page → пересчитать воронку Prefero (статус может смениться)
+  const catIds = [...new Set(changes.filter((c) => c.field === "category_page").map((c) => c.id))];
+  // Category page — чекпоинт воронки: перерисовываем, чтобы обновились значки «Перевірка»
+  for (const id of catIds.slice(0, 200)) await recalcPrefero(id, projectId);
+  const preferoChanged = catIds.length > 0;
+
   // Простые поля уже показаны в таблице — перерисовывать всю страницу не нужно (это и тормозило)
-  if (special.length || medIds.length) refresh(projectId);
+  if (special.length || medIds.length || preferoChanged) refresh(projectId);
+  return { ok: true };
+}
+
+// ---------- Prefero: чекпоинты GEO / Тема / Category page ----------
+
+async function loadPrefero(id: string, projectId: string) {
+  const { supabase, team } = await getTeamContext();
+  const [{ data: d }, { data: p }] = await Promise.all([
+    supabase
+      .from("project_donors")
+      .select("id, fg_status, category_page, checks, global_donors(dr, keywords, traffic, geo, topics, tf, cf)")
+      .eq("id", id)
+      .eq("team_id", team.id)
+      .eq("project_id", projectId)
+      .maybeSingle(),
+    supabase.from("projects").select("geo, metric_filter").eq("id", projectId).eq("team_id", team.id).maybeSingle(),
+  ]);
+  return { supabase, team, d: d as unknown as (Parameters<typeof verdict>[0] & { id: string; checks: Checks }) | null, p: p as { geo: string; metric_filter: unknown } | null };
+}
+
+// Возвращает true, если статус домена в Prefero поменялся
+// reconsider — человек сам отметил чекпоинт: ручное «Не підходить» без причины пересматривается
+async function recalcPrefero(id: string, projectId: string, checks?: Checks, reconsider = false): Promise<boolean> {
+  const { supabase, team, d, p } = await loadPrefero(id, projectId);
+  if (!d || !p) return false;
+  const next = checks ?? d.checks ?? {};
+  const fg = reconsider && d.fg_status === "out" ? "new" : d.fg_status;
+  const v = verdict({ ...d, fg_status: fg, checks: next }, normalizeFilter(p.metric_filter), p.geo ?? "");
+  const patch: Record<string, unknown> = { checks: next };
+  if (d.fg_status !== "core") Object.assign(patch, fgFor(v));
+  const { error } = await supabase.from("project_donors").update(patch).eq("id", id).eq("team_id", team.id);
+  if (error) throw new Error(error.message);
+  return patch.fg_status !== undefined && patch.fg_status !== d.fg_status;
+}
+
+export async function setPreferoCheck(id: string, projectId: string, key: CheckKey, value: "ok" | "no" | ""): Promise<Ok> {
+  if (!CHECK_KEYS.includes(key) || !["ok", "no", ""].includes(value)) return fail(await tr("err.unknownValue"));
+  const { d } = await loadPrefero(id, projectId);
+  if (!d) return fail(await tr("err.donorNotFound"));
+  const next: Checks = { ...(d.checks ?? {}) };
+  if (value) next[key] = value;
+  else delete next[key];
+  try {
+    await recalcPrefero(id, projectId, next, true);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e));
+  }
+  refresh(projectId);
   return { ok: true };
 }
 

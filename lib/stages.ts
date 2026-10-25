@@ -48,7 +48,7 @@ export const POOL_KEY: Record<PoolCol, MsgKey> = {
 export function poolOf(fg: string): PoolCol {
   return fg === "core" ? "core" : fg === "out" ? "out" : "fit";
 }
-export const REJECT_REASONS = ["metrics", "topic", "geo", "price", "quality", "other"] as const;
+export const REJECT_REASONS = ["metrics", "topic", "geo", "category", "price", "quality", "other"] as const;
 
 // ---------- Моніторинг: состояние опубликованной ссылки ----------
 export const MONITOR = ["unchecked", "ok", "warn", "error", "lost"] as const;
