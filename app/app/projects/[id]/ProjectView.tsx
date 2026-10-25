@@ -131,6 +131,13 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
     }
   }
 
+  // Кампании проекта — для «→ в кампанію» в таблице Outreach
+  let campaigns: { id: string; name: string }[] = [];
+  if (tab === "work") {
+    const { data } = await supabase.from("campaigns").select("id, name").eq("team_id", team.id).eq("project_id", id).neq("status", "done").order("created_at", { ascending: false });
+    campaigns = (data ?? []) as { id: string; name: string }[];
+  }
+
   const count = (pred: (d: ProjectDonor) => boolean) => donors.filter(pred).length;
   const counts: Record<string, number | null> = {
     overview: donors.length,
@@ -258,7 +265,7 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
       {tab === "pool" && <BoardHost kind="pool" projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} projectGeo={project.geo ?? ""} filter={normalizeFilter(project.metric_filter)} />}
       {tab === "monitor" && <BoardHost kind="monitor" projectId={id} rows={donors} />}
       {tab === "work" && (
-        <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} />
+        <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} campaigns={campaigns} />
       )}
 
       {tab === "history" && (

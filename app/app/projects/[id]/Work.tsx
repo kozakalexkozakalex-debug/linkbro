@@ -21,6 +21,7 @@ import { useI18n } from "@/components/I18nProvider";
 import Kanban from "./Kanban";
 import DonorCard from "./DonorCard";
 import GroupMail from "./GroupMail";
+import { setDealsCampaign } from "@/app/app/campaigns/actions";
 import type { MsgKey } from "@/lib/i18n/config";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
@@ -45,6 +46,7 @@ export default function Work({
   members,
   dupes,
   medBusy,
+  campaigns = [],
 }: {
   projectId: string;
   initialView?: "table" | "kanban";
@@ -53,6 +55,7 @@ export default function Work({
   members: Member[];
   dupes: Record<string, string[]>;
   medBusy: MedBusy;
+  campaigns?: { id: string; name: string }[];
 }) {
   const { t, intl } = useI18n();
   const router = useRouter();
@@ -416,6 +419,13 @@ export default function Work({
         bulk={(ids) => (
           <>
             <button type="button" className="btn btn-sm btn-pri" onClick={() => setGroupIds(ids)}>✉ {t("gm.button")}</button>
+            {campaigns.length > 0 && (
+              <BulkSelect
+                label={t("cmp.toCampaign")}
+                options={[...campaigns.map((c) => ({ value: c.id, label: c.name })), { value: "__empty", label: `✕ ${t("cmp.remove")}` }]}
+                onApply={(v) => setDealsCampaign(ids, v || null)}
+              />
+            )}
             <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "stage", v)} />
             <BulkSelect label={t("field.indicator")} options={indOpts} onApply={(v) => setAll(ids, "indicator", v)} />
             <BulkSelect label={t("field.pay")} options={payOpts} onApply={(v) => setAll(ids, "pay_status", v)} />

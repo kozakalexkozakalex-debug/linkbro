@@ -13,12 +13,12 @@ const DEFAULT = "Hi!\n\nI'm interested in guest posts on these sites:\n{domains}
 
 type Draft = MailGroup & { to: string; subject: string; body: string; on: boolean };
 
-export default function GroupMail({ donorIds, onClose }: { donorIds: string[]; onClose: () => void }) {
+export default function GroupMail({ donorIds, onClose, initialTemplate }: { donorIds: string[]; onClose: () => void; initialTemplate?: string }) {
   const { t } = useI18n();
   const router = useRouter();
   const [data, setData] = useState<Awaited<ReturnType<typeof prepareGroupMail>> | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [tpl, setTpl] = useState(DEFAULT);
+  const [tpl, setTpl] = useState(initialTemplate?.trim() ? initialTemplate : DEFAULT);
   const [subject, setSubject] = useState("Guest posts: {domain} and more");
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [pending, start] = useTransition();
