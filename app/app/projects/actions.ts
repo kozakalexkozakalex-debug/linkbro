@@ -72,6 +72,11 @@ export async function updateProject(formData: FormData) {
       return n != null && Number.isFinite(n) && n >= 0 ? n : null;
     })(),
     budget_currency: (CURRENCIES as readonly string[]).includes(String(formData.get("budget_currency"))) ? String(formData.get("budget_currency")) : "USD",
+    link_budget: (() => {
+      const t = String(formData.get("link_budget") ?? "").replace(/\s/g, "").replace(",", ".");
+      const n = t === "" ? null : Number(t);
+      return n != null && Number.isFinite(n) && n >= 0 ? n : null;
+    })(),
     plan_per_month: Math.max(0, parseInt(String(formData.get("plan") ?? "0"), 10) || 0),
     requirements: String(formData.get("requirements") ?? ""),
     notes: String(formData.get("notes") ?? ""),

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateDonorsBatch } from "../actions";
-import { addOffer, addPayment, deleteActivity, getDealPanel, logActivity, saveContact, setPaymentStatus, type Channel, type Contact, type DealPanel } from "../deal-actions";
+import { addOffer, priceAction, type OfferKind, addPayment, deleteActivity, getDealPanel, logActivity, saveContact, setPaymentStatus, type Channel, type Contact, type DealPanel } from "../deal-actions";
 import { CURRENCIES, SOURCES, fmtAmount, priceFromText } from "@/lib/money";
 import { type ProjectDonor } from "@/lib/project";
 import { fmtDateTime } from "@/lib/global";
@@ -62,7 +62,7 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         setPanel(p);
         setContact(p.contact);
       })
-      .catch(() => setPanel({ mail: null, templates: [], writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [] }));
+      .catch(() => setPanel({ mail: null, templates: [], writers: [], payments: [], activities: [], contact: null, offers: [], sameMed: [], budget: { limit: null, currency: "USD" } }));
   }, [donor.id, donor.domain, d.med_base]);
   useEffect(() => {
     load();
@@ -439,6 +439,23 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
 
         {tab === "prices" && (
           <div className="flex flex-col gap-2">
+            {panel && (
+              <PriceBlock
+                projectId={projectId}
+                donorId={donor.id}
+                offers={panel.offers.filter((o) => o.donor_id === donor.id)}
+                budget={panel.budget}
+                currency={cur}
+                current={priceFromText(d.gp_price)}
+                extra={donor.extra_cost}
+                onDone={(price) => {
+                  if (price != null) setD((x) => ({ ...x, gp_price: String(price) }));
+                  load();
+                  router.refresh();
+                }}
+              />
+            )}
+            <p className="lbl mt-2">{t("pr.details")}</p>
             <div className="grid grid-cols-[1fr_90px] gap-2">
               {row(t("work.medPrice"), inp("gp_price", "", "text", "decimal"), "dc-gp_price")}
               <select aria-label={t("common.currency")} className="inp" value={cur} onChange={set("gp_currency")}>
@@ -460,12 +477,12 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <p className="lbl">{t("deal.offers")}</p>
+              <p className="lbl">{t("pr.otherOffers")}</p>
               <button type="button" className="btn btn-sm" onClick={newOffer} disabled={pending || !d.gp_price}>{t("deal.saveOffer")}</button>
             </div>
-            {panel && panel.offers.length > 0 ? (
+            {panel && panel.offers.some((o) => o.donor_id !== donor.id) ? (
               <ul className="divide-y divide-line text-sm">
-                {panel.offers.map((o) => (
+                {panel.offers.filter((o) => o.donor_id !== donor.id).map((o) => (
                   <li key={o.id} className="flex items-center gap-2 py-1.5">
                     <span className="min-w-0 flex-1 truncate">{o.handle || "—"}</span>
                     <span className="font-mono">{fmtAmount(Number(o.price), o.currency, intl)}</span>
@@ -572,5 +589,111 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- Ціна і бюджет: ліміт проєкту, відхилення, історія пропозицій, рішення ----------
+const KIND_KEY: Record<OfferKind, MsgKey> = { quote: "pr.kQuote", counter: "pr.kCounter", agreed: "pr.kAgreed", extra: "pr.kExtra" };
+
+function PriceBlock({
+  projectId,
+  donorId,
+  offers,
+  budget,
+  currency,
+  current,
+  extra,
+  onDone,
+}: {
+  projectId: string;
+  donorId: string;
+  offers: { id: string; price: number; currency: string; kind: OfferKind; note: string; created_at: string }[];
+  budget: { limit: number | null; currency: string };
+  currency: string;
+  current: number | null;
+  extra: number;
+  onDone: (price: number | null) => void;
+}) {
+  const { t, intl } = useI18n();
+  const [pending, start] = useTransition();
+  const [amount, setAmount] = useState("");
+  const [cur, setCur] = useState(currency);
+  const [err, setErr] = useState<string | null>(null);
+  const agreed = offers.find((o) => o.kind === "agreed");
+  const lastAsk = offers.find((o) => o.kind === "quote");
+  const lastOur = offers.find((o) => o.kind === "counter");
+  const lastAny = offers.find((o) => o.kind === "quote" || o.kind === "counter"); // что примем по «Прийняти»
+  const shown = agreed?.price ?? lastAsk?.price ?? current;
+  const limit = budget.limit != null && budget.currency === (agreed?.currency ?? lastAsk?.currency ?? currency) ? Number(budget.limit) : null;
+  const over = limit && shown != null ? Math.round(((Number(shown) - limit) / limit) * 100) : null;
+  const fa = (n: number, c = currency) => fmtAmount(Number(n), c, intl);
+
+  const run = (action: OfferKind | "accept" | "defer" | "decline", withAmount = true) =>
+    start(async () => {
+      setErr(null);
+      const r = await priceAction({ projectId, donorId, action, amount: withAmount ? amount : undefined, currency: cur });
+      if (!r.ok) return setErr(r.error);
+      const n = Number(amount.replace(/\s/g, "").replace(",", "."));
+      setAmount("");
+      onDone((action === "quote" || action === "agreed" || action === "accept") && amount.trim() && Number.isFinite(n) ? n : null);
+    });
+
+  return (
+    <section className="flex flex-col gap-2 rounded-md bg-bg p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="lbl">{t("pr.title")}</p>
+        <span className="text-xs text-mute">
+          {limit != null ? t("pr.limit", { x: fa(limit, budget.currency) }) : t("pr.noLimit")}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="font-mono text-2xl font-bold tabular-nums">{shown == null ? "—" : fa(shown)}</span>
+        <span className="text-sm text-mute">{agreed ? t("pr.isAgreed") : lastAsk ? t("pr.isAsk") : ""}</span>
+        {over != null && (
+          <span className={`pill ${over > 0 ? "pill-warn" : "pill-ok"}`}>{over > 0 ? `+${over}% ${t("pr.overLimit")}` : `${over}% · ${t("pr.inLimit")}`}</span>
+        )}
+        {extra > 0 && <span className="text-xs text-mute">+ {t("pr.kExtra").toLowerCase()} {fa(extra)}</span>}
+      </div>
+      {limit != null && shown != null && (
+        <div className="relative h-2 overflow-hidden rounded bg-inset" aria-hidden="true">
+          <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${Math.min(100, (Number(shown) / Math.max(limit, Number(shown))) * 100)}%`, background: over != null && over > 0 ? "var(--warn)" : "var(--ok)" }} />
+          <span className="absolute inset-y-0 w-0.5 bg-ink" style={{ left: `${Math.min(100, (limit / Math.max(limit, Number(shown))) * 100)}%` }} />
+        </div>
+      )}
+
+      {offers.length > 0 && (
+        <ul className="flex flex-col text-sm">
+          {offers.map((o) => (
+            <li key={o.id} className="grid grid-cols-[52px_1fr_auto] gap-2 border-b border-dashed border-line py-1 last:border-0">
+              <span className="font-mono text-xs text-mute">{o.created_at.slice(5, 10).split("-").reverse().join(".")}</span>
+              <span className={o.kind === "agreed" ? "text-ok" : o.kind === "counter" ? "text-accent" : ""}>{t(KIND_KEY[o.kind])}{o.note ? ` · ${o.note}` : ""}</span>
+              <b className="font-mono">{fa(o.price, o.currency)}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-[1fr_84px] gap-2">
+        <input aria-label={t("pr.amount")} className="inp" inputMode="decimal" placeholder={t("pr.amount")} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <select aria-label={t("common.currency")} className="inp" value={cur} onChange={(e) => setCur(e.target.value)}>
+          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {(["quote", "counter", "agreed", "extra"] as OfferKind[]).map((k) => (
+          <button key={k} type="button" className="btn btn-sm" disabled={pending || !amount.trim()} onClick={() => run(k)}>
+            + {t(KIND_KEY[k])}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 border-t border-line pt-2">
+        <button type="button" className="btn btn-pri btn-sm" disabled={pending || (!amount.trim() && !lastAsk && !lastOur && current == null)} onClick={() => run("accept")}>
+          ✓ {t("pr.accept")}{!amount.trim() && lastAny ? ` ${fa(lastAny.price, lastAny.currency)}` : ""}
+        </button>
+        <button type="button" className="btn btn-sm" disabled={pending} onClick={() => run("defer", false)}>⏸ {t("pr.defer")}</button>
+        <button type="button" className="btn btn-sm" disabled={pending} onClick={() => run("decline", false)}>✕ {t("pr.decline")}</button>
+      </div>
+      {err && <p className="text-sm text-bad">{err}</p>}
+    </section>
   );
 }

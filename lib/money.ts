@@ -31,9 +31,10 @@ export type MoneyFields = {
 };
 
 // Реальная цена: цена + комиссия биржи
-export function realCost(d: Pick<MoneyFields, "gp_price" | "gp_commission">): number {
-  if (d.gp_price == null) return 0;
-  return d.gp_price * (1 + (Number(d.gp_commission) || 0) / 100);
+// Итог по сделке: цена посредника + комиссия + доп. расходы (если есть)
+export function realCost(d: Pick<MoneyFields, "gp_price" | "gp_commission"> & { extra_cost?: number | null }): number {
+  if (d.gp_price == null) return Number(d.extra_cost) || 0;
+  return d.gp_price * (1 + (Number(d.gp_commission) || 0) / 100) + (Number(d.extra_cost) || 0);
 }
 
 // Состояние оплаты: явное поле, а если пусто — по статусу GP

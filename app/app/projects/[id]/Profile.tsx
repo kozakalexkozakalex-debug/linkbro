@@ -16,6 +16,7 @@ type P = {
   geo: string;
   language: string;
   monthly_budget: number | null;
+  link_budget?: number | null;
   budget_currency: string;
   plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
 
@@ -79,7 +80,7 @@ export default function Profile({
             <input id="p-lang" name="language" className="inp" defaultValue={project.language} disabled={!isLead} maxLength={60} placeholder={t("prof.languagePh")} />
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_110px]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_110px]">
           <div className="field">
             <label htmlFor="p-plan" className="lbl">{t("proj.plan")}</label>
             <input id="p-plan" name="plan" type="number" min={0} className="inp" defaultValue={project.plan_per_month} disabled={!isLead} />
@@ -87,6 +88,10 @@ export default function Profile({
           <div className="field">
             <label htmlFor="p-budget" className="lbl">{t("prof.budget")}</label>
             <input id="p-budget" name="monthly_budget" inputMode="decimal" className="inp" defaultValue={project.monthly_budget ?? ""} disabled={!isLead} placeholder={t("prof.noLimit")} />
+          </div>
+          <div className="field">
+            <label htmlFor="p-link" className="lbl">{t("pr.linkBudget")}</label>
+            <input id="p-link" name="link_budget" inputMode="decimal" className="inp" defaultValue={project.link_budget ?? ""} disabled={!isLead} placeholder={t("prof.noLimit")} />
           </div>
           <div className="field">
             <label htmlFor="p-cur" className="lbl">{t("common.currency")}</label>
