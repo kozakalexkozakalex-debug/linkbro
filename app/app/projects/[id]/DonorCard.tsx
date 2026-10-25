@@ -13,6 +13,8 @@ import { useI18n } from "@/components/I18nProvider";
 import { markRead, sendDealEmail, syncMyMail } from "../../mail/actions";
 import type { MsgKey } from "@/lib/i18n/config";
 import type { Opt } from "@/lib/sheet";
+import StepPath from "@/components/StepPath";
+import { DEAL_STEP_KEY, dealNext, dealPath } from "@/lib/deal";
 
 const FIELDS = [
   "stage", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
@@ -239,6 +241,26 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
   );
   const today = new Date().toISOString().slice(0, 10);
   const overdue = d.next_action_at && d.next_action_at <= today;
+  const live = {
+    stage: d.stage,
+    core_status: donor.core_status,
+    indicator: donor.indicator,
+    med_base: d.med_base,
+    gp_price: d.gp_price,
+    pay_status: donor.pay_status,
+    article_status: d.article_status,
+    article_url: d.article_url,
+    link_status: donor.link_status,
+  };
+  const path = dealPath(live);
+  const next = dealNext(live);
+  function goNext() {
+    if (!next) return;
+    setTab(next.tab);
+    // «Написати посереднику» — сразу открыть письмо, если email известен
+    if (next.step === "written" && contact?.email && panel?.mail) setCompose({ to: contact.email, subject: `Guest post: ${donor.domain}`, body: message() });
+    if (next.step === "contact") setTimeout(() => document.getElementById("dc-med_base")?.focus(), 50);
+  }
 
   return (
     <div className="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -253,7 +275,14 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose }: { p
           </div>
           <button type="button" className="btn btn-sm" onClick={onClose} aria-label={t("common.close")}>✕</button>
         </div>
-        <select aria-label={t("common.status")} className="inp" value={d.stage} onChange={set("stage")}>
+        {/* Путь сделки и «що далі» */}
+        <StepPath steps={path.steps.map((x) => ({ label: t(DEAL_STEP_KEY[x.key]), mark: x.mark }))} />
+        {next && (
+          <button type="button" className={`btn ${path.lost ? "" : "btn-pri"} justify-start text-left`} onClick={goNext}>
+            {t("dp.next")}: {t(next.key)}
+          </button>
+        )}
+        <select aria-label={t("common.status")} className="inp" value={d.stage} onChange={set("stage")} title={t("dp.manualStage")}>
           {statusOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <div className={`grid grid-cols-[140px_1fr] gap-2 rounded-md p-2 ${overdue ? "bg-warn-soft" : "bg-bg"}`}>

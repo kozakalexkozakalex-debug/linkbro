@@ -12,6 +12,8 @@ import DupeBadge from "@/components/DupeBadge";
 import LinkCheck from "@/components/LinkCheck";
 import { metricCols } from "@/components/MetricCols";
 import { fmtDate } from "@/lib/global";
+import StepPath from "@/components/StepPath";
+import { DEAL_STEP_KEY, DEAL_STEP_SHORT, dealNext, dealPath } from "@/lib/deal";
 import { STAGES, STAGE_KEY } from "@/lib/stages";
 import { GP_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
 import { CURRENCIES, PAY_STATUSES, SOURCES, daysLeft, fmtAmount, payState, priceFromText } from "@/lib/money";
@@ -113,6 +115,22 @@ export default function Work({
             <DupeBadge items={dupes[d.domain]} />
           </span>
         ),
+      },
+      {
+        key: "path",
+        header: t("dp.path"),
+        kind: "readonly",
+        width: 330,
+        render: (d) => {
+          const p = dealPath(d);
+          const nx = dealNext(d);
+          return (
+            <span className="flex flex-col gap-0.5">
+              <StepPath compact steps={p.steps.map((x) => ({ label: t(DEAL_STEP_SHORT[x.key]), mark: x.mark, title: t(DEAL_STEP_KEY[x.key]) }))} onClick={() => setCard(d)} title={t("dp.open")} />
+              {nx && <span className={`truncate text-[11px] ${p.lost ? "text-bad" : "text-accent"}`}>→ {t(nx.key)}</span>}
+            </span>
+          );
+        },
       },
       {
         key: "next_action_at",
