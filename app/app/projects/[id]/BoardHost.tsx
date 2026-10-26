@@ -19,6 +19,7 @@ export default function BoardHost({
   stopGlobal = 0,
   projectGeo = "",
   filter,
+  weights,
 }: {
   kind: "overview" | "pool" | "monitor";
   projectId: string;
@@ -27,6 +28,7 @@ export default function BoardHost({
   stopGlobal?: number;
   projectGeo?: string;
   filter?: MetricFilter;
+  weights?: unknown;
 }) {
   const { t } = useI18n();
   const [card, setCard] = useState<ProjectDonor | null>(null);
@@ -37,7 +39,7 @@ export default function BoardHost({
   return (
     <>
       {kind === "overview" && <OverviewBoard rows={rows} onOpen={setCard} />}
-      {kind === "pool" && <FromGlobal projectId={projectId} rows={rows} stopTools={stopTools} stopGlobal={stopGlobal} projectGeo={projectGeo} filter={filter ?? DEFAULT_FILTER} />}
+      {kind === "pool" && <FromGlobal projectId={projectId} rows={rows} stopTools={stopTools} stopGlobal={stopGlobal} projectGeo={projectGeo} filter={filter ?? DEFAULT_FILTER} weights={weights} />}
       {kind === "monitor" && (
         <>
           <p className="max-w-3xl text-sm text-mute">{t("mon.lead")}</p>

@@ -13,6 +13,7 @@ export default function ImportForm() {
   const [hasHeader, setHasHeader] = useState(true);
   const [mapping, setMapping] = useState<Partial<Record<ImportKey, number>>>({});
   const [prefix, setPrefix] = useState("");
+  const [source, setSource] = useState("ahrefs");
   const [updateExisting, setUpdateExisting] = useState(true);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function ImportForm() {
   function run() {
     const mapped = Object.keys(mapping).filter((k) => mapping[k as ImportKey] != null);
     start(async () => {
-      const r = await importGlobal(build(), { prefix, updateExisting, mapped });
+      const r = await importGlobal(build(), { prefix, updateExisting, mapped, source });
       setResult(r);
     });
   }
@@ -104,7 +105,13 @@ export default function ImportForm() {
             ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="field">
+              <label htmlFor="imp-src" className="lbl">{t("mt.source")}</label>
+              <select id="imp-src" className="inp" value={source} onChange={(e) => setSource(e.target.value)}>
+                {["ahrefs", "majestic", "semrush", "similarweb", "other"].map((s) => <option key={s} value={s}>{s === "other" ? t("mt.other") : s[0].toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
             <div className="field">
               <label htmlFor="imp-prefix" className="lbl">{t("input.prefix")}</label>
               <input id="imp-prefix" className="inp" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder={t("import.prefixPh")} />

@@ -14,6 +14,7 @@ import { fmtDate, type MetricFilter } from "@/lib/global";
 import { CHECK_KEYS, checkMark, metricLines, verdict, type CheckKey, type Mark, type Verdict } from "@/lib/prefero";
 import type { ProjectDonor } from "@/lib/project";
 import { useI18n } from "@/components/I18nProvider";
+import { normWeights, qualityScore, scoreTone } from "@/lib/score";
 import type { MsgKey } from "@/lib/i18n/config";
 
 const ICON: Record<Mark, string> = { ok: "✓", no: "✕", "?": "?" };
@@ -29,6 +30,7 @@ export default function FromGlobal({
   stopGlobal,
   projectGeo = "",
   filter,
+  weights,
 }: {
   projectId: string;
   rows: ProjectDonor[];
@@ -36,6 +38,7 @@ export default function FromGlobal({
   stopGlobal: number;
   projectGeo?: string;
   filter: MetricFilter;
+  weights?: unknown;
 }) {
   const { t, intl } = useI18n();
   const router = useRouter();
@@ -51,6 +54,7 @@ export default function FromGlobal({
   const [open, setOpen] = useState<ProjectDonor | null>(null);
   const [show, setShow] = useState<Filter>("all");
 
+  const w = useMemo(() => normWeights(weights), [weights]);
   const verdicts = useMemo(() => new Map(rows.map((d) => [d.id, verdict(d, filter, projectGeo)])), [rows, filter, projectGeo]);
   const reasonOf = (v: Verdict) => (v.failed === "manual" ? "manual" : v.failed ?? "");
   const counts = useMemo(() => {
@@ -78,6 +82,16 @@ export default function FromGlobal({
     () => [
       { key: "domain", header: "Domain", kind: "readonly", width: 170, render: (d) => <span className="font-mono font-semibold whitespace-nowrap">{d.domain}</span> },
       { key: "added", header: "Date Added", kind: "readonly", width: 90, mono: true, get: (d) => fmtDate(d.added_at, intl) },
+      {
+        key: "score",
+        header: "Score",
+        kind: "readonly",
+        width: 62,
+        render: (d) => {
+          const q = qualityScore(d.global_donors, w);
+          return q.score == null ? <span className="text-xs text-mute">—</span> : <span className={`font-mono font-semibold ${scoreTone(q.score)}`} title={t("cf.coverage", { n: q.coverage })}>{q.coverage < 60 ? "≈" : ""}{q.score}</span>;
+        },
+      },
       ...metricCols(),
       { key: "category_page", header: "Category Page", kind: "text", width: 170, placeholder: "/blog/…" },
       {
@@ -118,7 +132,7 @@ export default function FromGlobal({
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [intl, t, verdicts, projectGeo, filter, toWork],
+    [intl, t, verdicts, projectGeo, filter, toWork, w],
   );
 
   const setAll = (ids: string[], value: string) => updateDonorsBatch(projectId, ids.map((id) => ({ id, field: "fg_status", value })));

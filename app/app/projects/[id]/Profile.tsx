@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { SCORE_KEYS, SCORE_LABEL, normWeights } from "@/lib/score";
 import { createReportLink, revokeReportLink, saveProjectFilter, saveStoplist, setReportPrices, updateProject } from "../actions";
 import CopyButton from "@/components/CopyButton";
 import { METRICS, type MetricFilter } from "@/lib/global";
@@ -17,6 +18,7 @@ type P = {
   language: string;
   monthly_budget: number | null;
   link_budget?: number | null;
+  score_weights?: unknown;
   budget_currency: string;
   plan_per_month: number; requirements: string; notes: string; filter: MetricFilter };
 
@@ -100,6 +102,18 @@ export default function Profile({
             </select>
           </div>
         </div>
+        <fieldset className="field">
+          <legend className="lbl">{t("cf.weights")}</legend>
+          <p className="mb-1 text-xs text-mute">{t("cf.weightsHint")}</p>
+          <div className="grid grid-cols-5 gap-2">
+            {SCORE_KEYS.map((k) => (
+              <label key={k} className="flex flex-col gap-0.5 text-xs">
+                <span className="text-mute">{SCORE_LABEL[k]}</span>
+                <input name={`w_${k}`} inputMode="numeric" className="inp" defaultValue={normWeights(project.score_weights)[k]} disabled={!isLead} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <div className="field">
           <label htmlFor="p-req" className="lbl">{t("prof.requirements")}</label>
           <textarea id="p-req" name="requirements" className="inp min-h-28" defaultValue={project.requirements} disabled={!isLead}

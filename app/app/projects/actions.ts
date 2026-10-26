@@ -9,6 +9,7 @@ import { fetchAll, chunk } from "@/lib/fetchAll";
 import { DEFAULT_FILTER, GLOBAL_COLUMNS, METRICS, geoMatches, normalizeDomain, passesFilter, type GlobalDonor, type MetricFilter } from "@/lib/global";
 import { CHECK_COLS, checkAndSave, type CheckRow } from "@/lib/linkcheck-save";
 import { CHECK_KEYS, fgFor, verdict, type CheckKey, type Checks } from "@/lib/prefero";
+import { DEFAULT_WEIGHTS } from "@/lib/score";
 import { CURRENCIES, SOURCES } from "@/lib/money";
 import {
   COMM_STATUSES,
@@ -72,6 +73,12 @@ export async function updateProject(formData: FormData) {
       return n != null && Number.isFinite(n) && n >= 0 ? n : null;
     })(),
     budget_currency: (CURRENCIES as readonly string[]).includes(String(formData.get("budget_currency"))) ? String(formData.get("budget_currency")) : "USD",
+    score_weights: Object.fromEntries(
+      (["dr", "traffic", "keywords", "tf", "ratio"] as const).map((k) => {
+        const n = Number(String(formData.get(`w_${k}`) ?? "").replace(",", "."));
+        return [k, Number.isFinite(n) && n >= 0 && String(formData.get(`w_${k}`) ?? "").trim() !== "" ? Math.min(n, 100) : DEFAULT_WEIGHTS[k]];
+      }),
+    ),
     link_budget: (() => {
       const t = String(formData.get("link_budget") ?? "").replace(/\s/g, "").replace(",", ".");
       const n = t === "" ? null : Number(t);

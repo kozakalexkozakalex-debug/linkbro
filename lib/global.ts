@@ -17,6 +17,11 @@ export type GlobalDonor = {
   status: DonorStatus;
   checked_at: string | null;
   added_at: string;
+  // из представления global_donors_usage (Confero)
+  metrics_at?: string | null;
+  metrics_source?: string;
+  score?: number | null;
+  coverage?: number;
 };
 
 export const GLOBAL_COLUMNS =

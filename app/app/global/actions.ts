@@ -160,7 +160,7 @@ export type ImportResult = { added: number; updated: number; duplicates: number;
 
 export async function importGlobal(
   rows: ImportRow[],
-  opts: { prefix: string; updateExisting: boolean; mapped: string[] },
+  opts: { prefix: string; updateExisting: boolean; mapped: string[]; source?: string },
 ): Promise<ImportResult> {
   const { supabase, team } = await getTeamContext();
   const { t } = await getI18n();
@@ -169,6 +169,7 @@ export async function importGlobal(
   const metricKeys = (["dr", "keywords", "traffic", "tf", "cf"] as const).filter((k) => opts.mapped.includes(k));
   const textKeys = (["geo", "topics"] as const).filter((k) => opts.mapped.includes(k));
   const prefix = opts.prefix.trim();
+  const source = (opts.source ?? "").trim().slice(0, 40); // откуда метрики: ahrefs / majestic / …
 
   const parsed = new Map<string, Record<string, string | number | null>>();
   let invalid = 0;
@@ -209,7 +210,7 @@ export async function importGlobal(
   for (const part of chunk(fresh, 500)) {
     const { error } = await supabase
       .from("global_donors")
-      .insert(part.map((domain) => ({ team_id: team.id, domain, batch, price: "", ...parsed.get(domain) })));
+      .insert(part.map((domain) => ({ team_id: team.id, domain, batch, price: "", ...parsed.get(domain), ...(metricKeys.length && source ? { metrics_source: source } : {}) })));
     if (error) return { added: 0, updated: 0, duplicates: 0, invalid, error: t("err.save", { x: error.message }) };
   }
 
@@ -221,6 +222,7 @@ export async function importGlobal(
         const rec = parsed.get(domain) ?? {};
         const row: Record<string, string | number | null> = { team_id: team.id, domain };
         for (const k of [...metricKeys, ...textKeys]) row[k] = rec[k] ?? null;
+        if (metricKeys.length && source) row.metrics_source = source;
         return row;
       });
       const { error } = await supabase.from("global_donors").upsert(payload, { onConflict: "team_id,domain" });
@@ -254,7 +256,7 @@ export async function updateGlobalBatch(changes: BatchChange[]): Promise<{ ok: b
   for (const c of changes) {
     const p = parseGlobal(c.field, c.value, t);
     if (!p.ok) return { ok: false, error: `${c.field}: ${p.error}` };
-    patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: p.value });
+    patches.set(c.id, { ...(patches.get(c.id) ?? {}), [c.field]: p.value, ...((NUMERIC_FIELDS as readonly string[]).includes(c.field) ? { metrics_source: "manual" } : {}) });
   }
   for (const part of chunk([...patches.entries()], 20)) {
     const res = await Promise.all(
@@ -265,4 +267,30 @@ export async function updateGlobalBatch(changes: BatchChange[]): Promise<{ ok: b
   }
   // Таблица уже показывает новые значения — страницу не перерисовываем
   return { ok: true };
+}
+
+// ---------- История метрик домена ----------
+export type MetricSnap = { taken_at: string; source: string; dr: number | null; keywords: number | null; traffic: number | null; tf: number | null; cf: number | null };
+
+export async function getMetricHistory(donorId: string): Promise<MetricSnap[]> {
+  const { supabase, team } = await getTeamContext();
+  const { data } = await supabase.from("metric_snapshots").select("taken_at, source, dr, keywords, traffic, tf, cf").eq("team_id", team.id).eq("donor_id", donorId).order("taken_at", { ascending: false }).limit(50);
+  return (data ?? []) as MetricSnap[];
+}
+
+// ---------- Сохранённые фильтры Confero ----------
+export async function saveFilter(name: string, params: string): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, team } = await getTeamContext();
+  const n = name.trim().slice(0, 80);
+  if (!n) return { ok: false, error: "name" };
+  const { error } = await supabase.from("saved_filters").insert({ team_id: team.id, name: n, params: params.replace(/^\?/, "").slice(0, 2000) });
+  revalidatePath("/app/global");
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+export async function deleteFilter(id: string): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, team } = await getTeamContext();
+  const { error } = await supabase.from("saved_filters").delete().eq("id", id).eq("team_id", team.id);
+  revalidatePath("/app/global");
+  return error ? { ok: false, error: error.message } : { ok: true };
 }

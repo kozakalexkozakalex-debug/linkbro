@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { runCheck, updateGlobalBatch } from "./actions";
+import { getMetricHistory, runCheck, updateGlobalBatch, type MetricSnap } from "./actions";
+import { isStale, scoreTone } from "@/lib/score";
 import { transferToProjects } from "../projects/actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
 import { useI18n } from "@/components/I18nProvider";
@@ -35,6 +36,7 @@ export default function GlobalTable({ initialRows, usage = {} }: { initialRows: 
   const [filter, setFilter] = useState<MetricFilter>(DEFAULT_FILTER);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [checking, startCheck] = useTransition();
+  const [hist, setHist] = useState<{ id: string; domain: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -76,6 +78,34 @@ export default function GlobalTable({ initialRows, usage = {} }: { initialRows: 
             </span>
           );
         },
+      },
+      {
+        key: "score",
+        header: "Score",
+        kind: "readonly",
+        width: 62,
+        render: (d) =>
+          d.score == null ? (
+            <span className="text-xs text-mute">—</span>
+          ) : (
+            <span className={`font-mono font-semibold ${scoreTone(d.score)}`} title={t("cf.coverage", { n: d.coverage ?? 0 })}>
+              {(d.coverage ?? 100) < 60 ? "≈" : ""}{d.score}
+            </span>
+          ),
+      },
+      {
+        key: "metrics_at",
+        header: t("mt.updated"),
+        kind: "readonly",
+        width: 110,
+        render: (d) =>
+          !d.metrics_at ? (
+            <span className="text-xs text-accent">{t("mt.none")}</span>
+          ) : (
+            <button type="button" className={`whitespace-nowrap text-left text-xs underline decoration-dotted ${isStale(d.metrics_at) ? "text-accent" : "text-mute"}`} onClick={() => setHist({ id: d.id, domain: d.domain })} title={t("mt.history")}>
+              {fmtDate(d.metrics_at, intl)}{d.metrics_source ? ` · ${d.metrics_source}` : ""}
+            </button>
+          ),
       },
       { key: "dr", header: "DR", kind: "number", width: 60, mono: true },
       { key: "keywords", header: "Keywords", kind: "number", width: 80, mono: true },
@@ -156,6 +186,7 @@ export default function GlobalTable({ initialRows, usage = {} }: { initialRows: 
         }
       />
 
+      {hist && <MetricHistory donor={hist} onClose={() => setHist(null)} />}
       {open && (
         <div className="modal" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="card flex w-full max-w-md flex-col gap-4" role="dialog" aria-label={t("global.filterTitle")}>
@@ -196,5 +227,52 @@ export default function GlobalTable({ initialRows, usage = {} }: { initialRows: 
         </div>
       )}
     </>
+  );
+}
+
+// История метрик домена: что было раньше и откуда (сохраняется при каждом обновлении)
+function MetricHistory({ donor, onClose }: { donor: { id: string; domain: string }; onClose: () => void }) {
+  const { t, intl } = useI18n();
+  const [rows, setRows] = useState<MetricSnap[] | null>(null);
+  useEffect(() => {
+    getMetricHistory(donor.id).then(setRows).catch(() => setRows([]));
+  }, [donor.id]);
+  const n = (v: number | null) => (v == null ? "—" : String(v));
+  return (
+    <div className="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="card flex w-full max-w-lg flex-col gap-3" role="dialog" aria-label={t("mt.history")}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-lg font-semibold">{donor.domain}</p>
+            <p className="text-sm text-mute">{t("mt.historyHint")}</p>
+          </div>
+          <button type="button" className="btn btn-sm" onClick={onClose} aria-label={t("common.close")}>✕</button>
+        </div>
+        {!rows ? (
+          <p className="text-mute">…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-mute">{t("mt.noHistory")}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="tbl">
+              <thead><tr><th>{t("mt.updated")}</th><th>DR</th><th>Traffic</th><th>KW</th><th>TF</th><th>CF</th><th>{t("mt.source")}</th></tr></thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td className="font-mono text-xs">{fmtDate(r.taken_at, intl)}</td>
+                    <td className="font-mono">{n(r.dr)}</td>
+                    <td className="font-mono">{n(r.traffic)}</td>
+                    <td className="font-mono">{n(r.keywords)}</td>
+                    <td className="font-mono">{n(r.tf)}</td>
+                    <td className="font-mono">{n(r.cf)}</td>
+                    <td className="text-xs text-mute">{r.source || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
