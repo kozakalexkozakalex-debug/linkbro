@@ -864,6 +864,9 @@ export async function setStage(id: string, projectId: string, stage: string): Pr
   }
   const { error } = await supabase.from("project_donors").update({ stage, fg_status: "core" }).eq("id", id).eq("team_id", team.id);
   if (error) return fail(error.message);
+  // Договорились / ответили / отсеяли → автоматическая цепочка писем больше не нужна
+  if (!["find", "contacted"].includes(stage))
+    await supabase.from("project_donors").update({ seq_status: stage === "replied" || stage === "negotiating" ? "replied" : "stopped", seq_next_at: null }).eq("id", id).eq("team_id", team.id).eq("seq_status", "running");
   // Дата публикации и гарантия ставятся так же, как при статусе Published
   if (stage === "published") return setCoreStatus(id, projectId, "Published");
   if (stage === "paid") await supabase.from("project_donors").update({ pay_status: "paid", paid_at: new Date().toISOString() }).eq("id", id).eq("team_id", team.id).eq("pay_status", "");

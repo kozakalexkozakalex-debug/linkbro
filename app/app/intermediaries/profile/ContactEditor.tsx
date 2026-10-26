@@ -28,6 +28,10 @@ export default function ContactEditor({ initial }: { initial: Contact }) {
         <input aria-label={t("deal.other")} className="inp" placeholder={t("deal.other")} value={c.other} onChange={f("other")} />
       </div>
       <textarea aria-label={t("prof.notes")} className="inp min-h-16 text-sm" placeholder={t("prof.notes")} value={c.notes} onChange={f("notes")} />
+      <label className={`flex items-center gap-2 text-sm ${c.do_not_contact ? "text-bad" : ""}`}>
+        <input type="checkbox" checked={!!c.do_not_contact} onChange={(e) => setC({ ...c, do_not_contact: e.target.checked })} />
+        ⛔ {t("seq.dnc")}
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

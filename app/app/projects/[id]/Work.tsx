@@ -21,7 +21,8 @@ import { useI18n } from "@/components/I18nProvider";
 import Kanban from "./Kanban";
 import DonorCard from "./DonorCard";
 import GroupMail from "./GroupMail";
-import { setDealsCampaign } from "@/app/app/campaigns/actions";
+import { enrollDeals, setDealsCampaign } from "@/app/app/campaigns/actions";
+import { SEQ_TONE, seqText } from "@/lib/seq";
 import type { MsgKey } from "@/lib/i18n/config";
 
 export type MedBusy = Record<string, { donorId: string; assignee: string | null; label: string }[]>;
@@ -145,10 +146,12 @@ export default function Work({
         render: (d) => {
           const p = dealPath(d);
           const nx = dealNext(d);
+          const sq = seqText(d, t);
           return (
             <span className="flex flex-col gap-0.5">
               <StepPath compact steps={p.steps.map((x) => ({ label: t(DEAL_STEP_SHORT[x.key]), mark: x.mark, title: t(DEAL_STEP_KEY[x.key]) }))} onClick={() => setCard(d)} title={t("dp.open")} />
               {nx && <span className={`truncate text-[11px] ${p.lost ? "text-bad" : "text-accent"}`}>→ {t(nx.key)}</span>}
+              {sq && <span className={`truncate text-[11px] ${SEQ_TONE[sq.tone]}`}>{sq.text}</span>}
             </span>
           );
         },
@@ -455,6 +458,16 @@ export default function Work({
                 label={t("cmp.toCampaign")}
                 options={[...campaigns.map((c) => ({ value: c.id, label: c.name })), { value: "__empty", label: `✕ ${t("cmp.remove")}` }]}
                 onApply={(v) => setDealsCampaign(ids, v || null)}
+              />
+            )}
+            {campaigns.length > 0 && (
+              <BulkSelect
+                label={`📨 ${t("seq.bulk")}`}
+                options={campaigns.map((c) => ({ value: c.id, label: c.name }))}
+                onApply={async (v) => {
+                  const r = await enrollDeals(ids, v);
+                  return r.ok && r.enrolled === 0 ? { ok: false, error: t("seq.noneEnrolled") } : r;
+                }}
               />
             )}
             <BulkSelect label={t("common.status")} options={statusOpts} onApply={(v) => setAll(ids, "stage", v)} />

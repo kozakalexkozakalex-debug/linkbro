@@ -20,8 +20,8 @@ export default async function IntermediariesPage({ searchParams }: { searchParam
     fetchAll<IntermediaryRow>((from, to) =>
       supabase.from("intermediaries").select("domain, intermediary, price, updated_at").eq("team_id", team.id).order("domain").range(from, to),
     ),
-    fetchAll<{ handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string }>((from, to) =>
-      supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp").eq("team_id", team.id).order("handle").range(from, to),
+    fetchAll<{ handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string; do_not_contact: boolean }>((from, to) =>
+      supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, do_not_contact").eq("team_id", team.id).order("handle").range(from, to),
     ),
     fetchAll<{ med_base: string; stage: string }>((from, to) =>
       supabase.from("project_donors").select("med_base, stage").eq("team_id", team.id).neq("med_base", "").order("id").range(from, to),
@@ -31,10 +31,10 @@ export default async function IntermediariesPage({ searchParams }: { searchParam
   const people = new Map<string, PersonRow>();
   const get = (h: string) => {
     const k = h.trim();
-    if (!people.has(k)) people.set(k, { handle: k, kind: "intermediary", name: "", email: /@/.test(k) && !k.startsWith("@") ? k : "", telegram: k.startsWith("@") ? k : "", whatsapp: "", sites: 0, deals: 0, live: 0, published: 0, last: null, replies: 0 });
+    if (!people.has(k)) people.set(k, { handle: k, kind: "intermediary", name: "", email: /@/.test(k) && !k.startsWith("@") ? k : "", telegram: k.startsWith("@") ? k : "", whatsapp: "", dnc: false, sites: 0, deals: 0, live: 0, published: 0, last: null, replies: 0 });
     return people.get(k)!;
   };
-  for (const c of contacts) Object.assign(get(c.handle), { kind: c.kind, name: c.name, email: c.email || get(c.handle).email, telegram: c.telegram || get(c.handle).telegram, whatsapp: c.whatsapp });
+  for (const c of contacts) Object.assign(get(c.handle), { kind: c.kind, name: c.name, email: c.email || get(c.handle).email, telegram: c.telegram || get(c.handle).telegram, whatsapp: c.whatsapp, dnc: !!c.do_not_contact });
   for (const r of rows) if (r.intermediary.trim()) get(r.intermediary).sites++;
   for (const d of deals) {
     const p = get(d.med_base);

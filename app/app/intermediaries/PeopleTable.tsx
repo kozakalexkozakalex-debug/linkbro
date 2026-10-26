@@ -13,6 +13,7 @@ export type PersonRow = {
   email: string;
   telegram: string;
   whatsapp: string;
+  dnc: boolean;
   sites: number;
   deals: number;
   live: number;
@@ -55,6 +56,7 @@ export default function PeopleTable({ rows }: { rows: PersonRow[] }) {
                     {r.name || r.handle}
                   </Link>
                   {r.name && <span className="block truncate text-xs text-mute">{r.handle}</span>}
+                  {r.dnc && <span className="block text-xs text-bad">⛔ {t("seq.dnc")}</span>}
                 </td>
                 <td className="whitespace-nowrap text-sm">
                   {r.email && <span title={r.email}>📧 </span>}

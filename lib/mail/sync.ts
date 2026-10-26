@@ -13,6 +13,8 @@ export async function markReplied(db: Db, teamId: string, d: { id: string; comm_
   const patch: Record<string, unknown> = { indicator: "replied", indicator_at: new Date().toISOString() };
   if (d.comm_status === "" || d.comm_status === "Contacted") patch.comm_status = "In Discussion";
   await db.from("project_donors").update(patch).eq("id", d.id).eq("team_id", teamId);
+  // Ответ останавливает автоматическую цепочку писем
+  await db.from("project_donors").update({ seq_status: "replied", seq_next_at: null }).eq("id", d.id).eq("team_id", teamId).eq("seq_status", "running");
 }
 
 export async function syncAccount(db: Db, acc: MailAccount): Promise<{ added: number; error?: string }> {
@@ -34,6 +36,13 @@ export async function syncAccount(db: Db, acc: MailAccount): Promise<{ added: nu
         if (/^[^@\s]+@[^@\s]+$/.test(c.handle)) addMap(c.handle, c.handle);
       }
       for (const m of items) {
+        // Письмо не дошло (mailer-daemon) → цепочки этих адресов останавливаем как «недійсний контакт»
+        if (/mailer-daemon|postmaster|mail delivery/i.test(m.from)) {
+          const hit = new Set<string>();
+          for (const e of `${m.subject}\n${m.text}`.toLowerCase().match(/[^\s<>"'()]+@[^\s<>"'()]+\.[a-z]{2,}/g) ?? []) for (const h of byEmail.get(e) ?? []) hit.add(h);
+          if (hit.size) await db.from("project_donors").update({ seq_status: "bounced", seq_next_at: null }).eq("team_id", acc.team_id).in("med_base", [...hit]).eq("seq_status", "running");
+          continue;
+        }
         const handles = [...(byEmail.get(m.from) ?? [])];
         if (!handles.length) continue; // письма не от посредников не трогаем
         const { data: seen } = await db.from("activities").select("id").eq("team_id", acc.team_id).eq("message_id", m.messageId).limit(1);

@@ -50,7 +50,7 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
         .range(from, to),
     ),
     supabase.from("projects").select("id, name").eq("team_id", team.id),
-    supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes").eq("team_id", team.id).eq("handle", contact).maybeSingle(),
+    supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes, do_not_contact").eq("team_id", team.id).eq("handle", contact).maybeSingle(),
     supabase
       .from("activities")
       .select("id, channel, direction, subject, body, created_at, donor_id, donor_ids, message_id, is_read")

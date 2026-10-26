@@ -13,8 +13,15 @@ export type Campaign = {
   status: "active" | "paused" | "done";
   ends_on: string | null;
   created_at: string;
+  subject: string;
+  step2_days: number;
+  step2_body: string;
+  step3_days: number;
+  step3_body: string;
+  daily_limit: number;
+  sender: string | null;
 };
-export const CAMPAIGN_COLS = "id, project_id, name, goal, budget, currency, template, status, ends_on, created_at";
+export const CAMPAIGN_COLS = "id, project_id, name, goal, budget, currency, template, status, ends_on, created_at, subject, step2_days, step2_body, step3_days, step3_body, daily_limit, sender";
 
 type Deal = { stage?: string | null; core_status: string; indicator: string | null; gp_price: number | null; gp_currency: string; gp_commission: number; extra_cost?: number | null; pay_status?: string };
 

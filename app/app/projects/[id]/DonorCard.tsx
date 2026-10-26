@@ -18,9 +18,11 @@ import type { Opt } from "@/lib/sheet";
 import StepPath from "@/components/StepPath";
 import LinkPanel from "@/components/LinkPanel";
 import { DEAL_STEP_KEY, dealNext, dealPath } from "@/lib/deal";
+import { LOST_REASONS, SEQ_TONE, seqText } from "@/lib/seq";
+import { stopSequence } from "@/app/app/campaigns/actions";
 
 const FIELDS = [
-  "stage", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
+  "stage", "reject_reason", "med_base", "next_action_at", "next_action", "dialog", "exchange_url",
   "gp_price", "gp_currency", "gp_source", "gp_commission", "client_price",
   "article_writer", "writer_id", "article_cost", "brief", "article_doc", "article_deadline", "article_status",
   "page_url", "anchors", "pre_anchor", "article_url",
@@ -65,6 +67,8 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
   const [briefTpl, setBriefTpl] = useState("");
   const [log, setLog] = useState({ channel: "telegram" as Channel, body: "", price: "", currency: donor.gp_currency || "USD", replied: false });
   const g = donor.global_donors;
+  const [seqStopped, setSeqStopped] = useState(false);
+  const seq = seqText(seqStopped ? { seq_status: "stopped" } : donor, t);
 
   const load = useCallback(() => {
     getDealPanel(donor.id, donor.domain, d.med_base)
@@ -295,6 +299,23 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
         <select aria-label={t("common.status")} className="inp" value={d.stage} onChange={set("stage")} title={t("dp.manualStage")}>
           {statusOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+        {d.stage === "lost" && (
+          <select aria-label={t("seq.lostReason")} className="inp" value={d.reject_reason} onChange={set("reject_reason")}>
+            <option value="">{t("seq.lostReason")}…</option>
+            {LOST_REASONS.map((x) => <option key={x} value={x}>{t(`rej.${x}` as MsgKey)}</option>)}
+            {d.reject_reason && !(LOST_REASONS as readonly string[]).includes(d.reject_reason) && <option value={d.reject_reason}>{t(`rej.${d.reject_reason}` as MsgKey)}</option>}
+          </select>
+        )}
+        {seq && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className={SEQ_TONE[seq.tone]}>{seq.text}</span>
+            {!seqStopped && donor.seq_status === "running" && (
+              <button type="button" className="btn btn-sm" disabled={pending} onClick={() => start(async () => { const r = await stopSequence([donor.id]); if (!r.ok) setErr(r.error); else setSeqStopped(true); })}>
+                ⏹ {t("seq.stop")}
+              </button>
+            )}
+          </div>
+        )}
         <div className={`grid grid-cols-[140px_1fr] gap-2 rounded-md p-2 ${overdue ? "bg-warn-soft" : "bg-bg"}`}>
           <input aria-label={t("deal.nextAt")} className="inp" type="date" value={d.next_action_at} onChange={set("next_action_at")} />
           <input aria-label={t("deal.next")} className="inp" value={d.next_action} onChange={set("next_action")} placeholder={t("deal.nextPh")} />

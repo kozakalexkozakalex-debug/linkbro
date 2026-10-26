@@ -55,7 +55,49 @@ export default async function CampaignPage({ params, searchParams }: { params: P
         </p>
       ) : null}
 
-      <CampaignDeals campaignId={cmp.id} template={cmp.template} rows={deals} />
+      <CampaignDeals campaignId={cmp.id} template={cmp.template} rows={deals} active={cmp.status === "active"} />
+
+      {/* Ланцюжок листів: лист 1 → нагадування 1 → нагадування 2. Відповідь, відмова, помилка доставки — зупиняють. */}
+      <details className="card" open={!cmp.template.trim()}>
+        <summary className="cursor-pointer font-semibold">📨 {t("seq.title")}</summary>
+        <p className="mt-2 text-xs text-mute">{t("seq.howto")}</p>
+        <form action={updateCampaign} className="mt-3 flex flex-col gap-3">
+          <input type="hidden" name="id" value={cmp.id} />
+          <label className="flex flex-col gap-1">
+            <span className="lbl">{t("seq.subject")}</span>
+            <input name="subject" className="inp" defaultValue={cmp.subject} placeholder="Guest post on {domain}" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="lbl">1 · {t("seq.l1")} ({t("seq.day0")})</span>
+            <textarea name="template" className="inp min-h-28 text-sm" defaultValue={cmp.template} placeholder={t("cmp.templatePh")} />
+          </label>
+          <div className="flex flex-col gap-1">
+            <span className="lbl flex flex-wrap items-center gap-1">
+              2 · {t("seq.rem", { n: 1 })} — {t("seq.after")}
+              <input name="step2_days" inputMode="numeric" className="inp w-16 py-1" defaultValue={cmp.step2_days} aria-label={t("seq.days")} />
+              {t("seq.daysNoReply")}
+            </span>
+            <textarea name="step2_body" className="inp min-h-20 text-sm" defaultValue={cmp.step2_body} placeholder={t("seq.rem1Ph")} aria-label={t("seq.rem", { n: 1 })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="lbl flex flex-wrap items-center gap-1">
+              3 · {t("seq.rem", { n: 2 })} — {t("seq.after")}
+              <input name="step3_days" inputMode="numeric" className="inp w-16 py-1" defaultValue={cmp.step3_days} aria-label={t("seq.days")} />
+              {t("seq.daysNoReply")}
+            </span>
+            <textarea name="step3_body" className="inp min-h-20 text-sm" defaultValue={cmp.step3_body} placeholder={t("seq.rem2Ph")} aria-label={t("seq.rem", { n: 2 })} />
+          </div>
+          <p className="text-xs text-mute">{t("seq.end", { n: cmp.step3_days })}</p>
+          <label className="flex flex-wrap items-center gap-2">
+            <span className="lbl">{t("seq.limit")}</span>
+            <input name="daily_limit" inputMode="numeric" className="inp w-20" defaultValue={cmp.daily_limit} />
+          </label>
+          <p className="text-xs text-mute">{t("seq.vars")}</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="btn btn-pri">{t("common.save")}</button>
+          </div>
+        </form>
+      </details>
 
       <details className="card">
         <summary className="cursor-pointer font-semibold">{t("cmp.settings")}</summary>
@@ -75,7 +117,6 @@ export default async function CampaignPage({ params, searchParams }: { params: P
               <option value="done">{t("cmp.sDone")}</option>
             </select>
           </div>
-          <textarea name="template" className="inp min-h-28 text-sm" defaultValue={cmp.template} placeholder={t("cmp.templatePh")} aria-label={t("cmp.template")} />
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="btn btn-pri">{t("common.save")}</button>
           </div>

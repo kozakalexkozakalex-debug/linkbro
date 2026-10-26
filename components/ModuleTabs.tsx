@@ -23,13 +23,14 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; sub?: MsgK
   // Outreach — 4 розділи. Комунікація й Статті мають свої підвкладки (SUB нижче).
   outreach: [
     { href: "/app/outreach", key: "mod.deals" },
-    { href: "/app/inbox", key: "ot.comms", also: ["/app/followup", "/app/templates"] },
+    { href: "/app/inbox", key: "ot.comms", also: ["/app/followup", "/app/campaigns", "/app/templates"] },
     { href: "/app/intermediaries", key: "nav.contacts" },
     { href: "/app/articles", key: "art.tab", also: ["/app/writers"] },
   ],
   comms: [
     { href: "/app/inbox", key: "ot.inbox" },
     { href: "/app/followup", key: "ot.write" },
+    { href: "/app/campaigns", key: "seq.tab" },
     { href: "/app/templates", key: "nav.templates" },
   ],
   articles: [
@@ -38,7 +39,7 @@ export const MODULE_TABS: Record<string, { href: string; key: MsgKey; sub?: MsgK
   ],
 };
 
-const COMMS_PAGES = ["/app/inbox", "/app/followup", "/app/templates"];
+const COMMS_PAGES = ["/app/inbox", "/app/followup", "/app/campaigns", "/app/templates"];
 const ARTICLE_PAGES = ["/app/articles", "/app/writers"];
 const OUTREACH_PAGES = ["/app/outreach", "/app/followup", "/app/articles", "/app/campaigns", "/app/inbox", "/app/intermediaries", "/app/writers", "/app/templates"];
 
