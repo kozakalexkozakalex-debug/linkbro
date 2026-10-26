@@ -265,7 +265,7 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
       {tab === "pool" && <BoardHost kind="pool" projectId={id} rows={donors} stopTools={stopTools.length} stopGlobal={stopGlobalCount} projectGeo={project.geo ?? ""} filter={normalizeFilter(project.metric_filter)} weights={project.score_weights} />}
       {tab === "monitor" && <BoardHost kind="monitor" projectId={id} rows={donors} />}
       {tab === "work" && (
-        <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} campaigns={campaigns} />
+        <Work projectId={id} initialView={sp.view === "kanban" || sp.view === "table" ? sp.view : undefined} rows={donors.filter((d) => d.fg_status === "core")} custom={custom} members={members} dupes={dupes} medBusy={medBusy} campaigns={campaigns} linkBudget={{ limit: project.link_budget ?? null, currency: project.budget_currency || "USD" }} />
       )}
 
       {tab === "history" && (

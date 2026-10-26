@@ -47,6 +47,7 @@ export default function Work({
   dupes,
   medBusy,
   campaigns = [],
+  linkBudget = null,
 }: {
   projectId: string;
   initialView?: "table" | "kanban";
@@ -56,6 +57,7 @@ export default function Work({
   dupes: Record<string, string[]>;
   medBusy: MedBusy;
   campaigns?: { id: string; name: string }[];
+  linkBudget?: { limit: number | null; currency: string } | null;
 }) {
   const { t, intl } = useI18n();
   const router = useRouter();
@@ -67,6 +69,20 @@ export default function Work({
   const [view, setView] = useState<"table" | "kanban">("table");
   const [card, setCard] = useState<ProjectDonor | null>(null);
   const [groupIds, setGroupIds] = useState<string[] | null>(null);
+  // «Потребує уваги»: ціна вища за ліміт, без посередника, дедлайн статті ≤ 2 дн. — клік фільтрує таблицю
+  const [attn, setAttn] = useState<"" | "over" | "nomed" | "due">("");
+  const attnOf = useMemo(() => {
+    const soon = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+    const lim = linkBudget?.limit != null ? Number(linkBudget.limit) : null;
+    const live = (d: ProjectDonor) => !["published", "lost"].includes(d.stage ?? "");
+    return {
+      over: (d: ProjectDonor) => live(d) && lim != null && d.gp_price != null && (d.gp_currency || "USD") === linkBudget?.currency && d.gp_price > lim && ["contacted", "replied", "negotiating"].includes(d.stage ?? ""),
+      nomed: (d: ProjectDonor) => live(d) && !d.med_base.trim(),
+      due: (d: ProjectDonor) => live(d) && !!d.article_deadline && d.article_deadline <= soon && !["sent", "accepted"].includes(d.article_status),
+    };
+  }, [linkBudget]);
+  const allRows = rows;
+  rows = attn ? allRows.filter(attnOf[attn]) : allRows;
 
   useEffect(() => {
     try {
@@ -396,6 +412,21 @@ export default function Work({
           ))}
         </div>
       </div>
+      {(["over", "nomed", "due"] as const).some((k) => allRows.some(attnOf[k])) && (
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-mute">{t("ot.attention")}</span>
+          {(["over", "nomed", "due"] as const).map((k) => {
+            const n = allRows.filter(attnOf[k]).length;
+            if (!n) return null;
+            return (
+              <button key={k} type="button" className={`pill ${attn === k ? "border-accent text-accent" : k === "over" ? "text-warn" : k === "due" ? "text-bad" : ""}`} onClick={() => setAttn(attn === k ? "" : k)}>
+                {t(k === "over" ? "q.over" : k === "nomed" ? "q.noContact" : "q.due")} · {n}
+              </button>
+            );
+          })}
+          {attn && <button type="button" className="text-xs underline" onClick={() => setAttn("")}>{t("common.reset")}</button>}
+        </div>
+      )}
       {view === "table" && <div className="flex flex-wrap items-center gap-1.5 text-sm">
         <span className="text-mute">{t("work.groups")}</span>
         {GROUPS.map((g) => (

@@ -6,26 +6,29 @@ import { fmtDateTime } from "@/lib/global";
 import SyncButton from "./SyncButton";
 import ReadAllButton from "./ReadAllButton";
 
-// Inbox: переписка всей команды, по одной строке на контакт (посредника).
+// Комунікація → Вхідні: переписка всей команды, по одной строке на контакт (посредника), фильтр по каналу.
 // Новые входящие — сверху. Нажали — открывается контакт со всей перепиской по всем сделкам.
 type Row = { id: string; channel: string; direction: string; subject: string; body: string; handle: string; created_at: string; is_read: boolean; donor_id: string | null; donor_ids: string[] | null };
 type Thread = { handle: string; last: Row; unread: number; count: number; donors: Set<string>; loose: number };
 const ICON: Record<string, string> = { email: "📧", telegram: "✈️", whatsapp: "💬", exchange: "🏪", call: "📞", note: "📝" };
 const PAGE = 100;
 
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; n?: string }> }) {
+const CHANNELS = ["email", "telegram", "whatsapp", "exchange", "call"] as const;
+
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ f?: string; n?: string; ch?: string }> }) {
   const sp = await searchParams;
+  const ch = (CHANNELS as readonly string[]).includes(sp.ch ?? "") ? (sp.ch as string) : "";
   const { supabase, team } = await getTeamContext();
   const { t, intl } = await getI18n();
+  let aq = supabase
+    .from("activities")
+    .select("id, channel, direction, subject, body, handle, created_at, is_read, donor_id, donor_ids")
+    .eq("team_id", team.id)
+    .neq("handle", "")
+    .neq("channel", "note");
+  if (ch) aq = aq.eq("channel", ch);
   const [{ data }, { data: mail }] = await Promise.all([
-    supabase
-      .from("activities")
-      .select("id, channel, direction, subject, body, handle, created_at, is_read, donor_id, donor_ids")
-      .eq("team_id", team.id)
-      .neq("handle", "")
-      .neq("channel", "note")
-      .order("created_at", { ascending: false })
-      .limit(1000),
+    aq.order("created_at", { ascending: false }).limit(1000),
     supabase.from("mail_accounts").select("email").maybeSingle(),
   ]);
 
@@ -56,7 +59,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       <ModuleTabs module="outreach" />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.inbox")}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("ot.inbox")}</h1>
           <p className="mt-1 text-mute">{unreadTotal ? t("inbox.unread", { n: unreadTotal }) : t("inbox.allRead")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -64,9 +67,17 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           {mail ? <SyncButton /> : <Link href="/app/mail" className="btn btn-pri">{t("mail.connect")}</Link>}
         </div>
       </div>
-      <div className="seg self-start">
-        <Link href="/app/inbox?f=new" className={filter === "new" ? "seg-on" : ""}>{t("out.fNew")} {unreadTotal ? `· ${unreadTotal}` : ""}</Link>
-        <Link href="/app/inbox?f=all" className={filter === "all" ? "seg-on" : ""}>{t("out.fAll")} · {all.length}</Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="seg">
+          <Link href={`/app/inbox?f=new${ch ? `&ch=${ch}` : ""}`} className={filter === "new" ? "seg-on" : ""}>{t("out.fNew")} {unreadTotal ? `· ${unreadTotal}` : ""}</Link>
+          <Link href={`/app/inbox?f=all${ch ? `&ch=${ch}` : ""}`} className={filter === "all" ? "seg-on" : ""}>{t("out.fAll")} · {all.length}</Link>
+        </div>
+        <div className="seg">
+          <Link href={`/app/inbox?f=${filter}`} className={!ch ? "seg-on" : ""}>{t("ot.allCh")}</Link>
+          {CHANNELS.map((c) => (
+            <Link key={c} href={`/app/inbox?f=${filter}&ch=${c}`} className={ch === c ? "seg-on" : ""} title={c}>{ICON[c]}</Link>
+          ))}
+        </div>
       </div>
       {threads.length === 0 ? (
         <p className="card text-center text-mute">{filter === "new" ? t("inbox.allRead") : t("deal.noLog")}</p>
@@ -97,7 +108,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         </ul>
       )}
       {threads.length > limit && (
-        <Link href={`/app/inbox?f=${filter}&n=${limit + PAGE}`} className="btn self-center">
+        <Link href={`/app/inbox?f=${filter}${ch ? `&ch=${ch}` : ""}&n=${limit + PAGE}`} className="btn self-center">
           {t("sheet.more", { shown: limit, total: threads.length })}
         </Link>
       )}

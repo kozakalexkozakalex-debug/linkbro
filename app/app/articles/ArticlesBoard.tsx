@@ -16,7 +16,10 @@ export default function ArticlesBoard({ rows, projects }: { rows: ProjectDonor[]
   const { t, intl } = useI18n();
   const router = useRouter();
   const [card, setCard] = useState<ProjectDonor | null>(null);
-  const cols = useMemo(() => ART_COLS.map((c) => ({ key: c as string, label: t(ART_KEY[c]), tone: (c === "accepted" ? "ok" : "") as "ok" | "" })), [t]);
+  const cols = useMemo(
+    () => [...ART_COLS.map((c) => ({ key: c as string, label: t(ART_KEY[c]), tone: "" as "ok" | "" })), { key: "published", label: t("dp.published"), tone: "ok" as "ok" | "" }],
+    [t],
+  );
   const statusOpts = useMemo(
     () => [...STAGES.map((s) => ({ value: s as string, label: t(STAGE_KEY[s]) })), { value: "lost", label: `✕ ${t(STAGE_KEY.lost)}` }],
     [t],
@@ -27,8 +30,13 @@ export default function ArticlesBoard({ rows, projects }: { rows: ProjectDonor[]
       <Board
         cols={cols}
         items={rows}
-        colOf={(d) => d.article_status || "todo"}
+        colOf={(d) => (d.stage === "published" ? "published" : d.article_status || "todo")}
         onMove={async (d, to) => {
+          // «Опубліковано» — тільки з URL статті: відкриваємо картку на розділі «Публікація»
+          if (to === "published") {
+            setCard({ ...d, __pub: true } as ProjectDonor);
+            return { ok: false, error: t("art.needUrl") };
+          }
           const r = await setArticle({ projectId: d.project_id, donorId: d.id, status: to });
           router.refresh();
           return r;
@@ -39,6 +47,9 @@ export default function ArticlesBoard({ rows, projects }: { rows: ProjectDonor[]
             <button type="button" className="block w-full text-left" onClick={() => setCard(d)}>
               <span className="block truncate font-mono text-sm font-semibold">{d.domain}</span>
               {projects[d.project_id] && <span className="block truncate text-xs text-mute">{projects[d.project_id]}</span>}
+              {(d.page_url || d.anchors) && (
+                <span className="block truncate text-xs text-mute" title={`${d.page_url} · ${d.anchors}`}>→ {d.anchors || d.page_url}</span>
+              )}
               <span className="block truncate text-xs">
                 {d.article_mode === "publisher" ? t(MODE_KEY.publisher) : d.article_mode === "ready" ? t(MODE_KEY.ready) : d.article_writer || <span className="text-mute">{t("art.noWriter")}</span>}
               </span>
@@ -51,7 +62,7 @@ export default function ArticlesBoard({ rows, projects }: { rows: ProjectDonor[]
           );
         }}
       />
-      {card && <DonorCard projectId={card.project_id} donor={card} statusOpts={statusOpts} initialTab="article" onClose={() => setCard(null)} />}
+      {card && <DonorCard projectId={card.project_id} donor={card} statusOpts={statusOpts} initialTab={(card as ProjectDonor & { __pub?: boolean }).__pub ? "pub" : "article"} onClose={() => setCard(null)} />}
     </>
   );
 }

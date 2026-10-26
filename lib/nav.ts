@@ -11,7 +11,7 @@ export const TEAM_NAV: NavItem[] = [
 
 export const PROJECT_NAV: NavItem[] = [
   { href: "/app/domains", key: "dom.prefero", icon: "tasks", also: [] },
-  { href: "/app/followup", key: "ptab.outreach", icon: "chat", also: ["/app/outreach", "/app/articles", "/app/campaigns", "/app/inbox", "/app/intermediaries", "/app/writers", "/app/templates"] },
+  { href: "/app/outreach", key: "ptab.outreach", icon: "chat", also: ["/app/followup", "/app/articles", "/app/campaigns", "/app/inbox", "/app/intermediaries", "/app/writers", "/app/templates"] },
   { href: "/app/monitoring", key: "ptab.monitor", icon: "shield", also: [] },
 ];
 

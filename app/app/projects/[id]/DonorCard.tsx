@@ -27,11 +27,11 @@ const FIELDS = [
 ] as const;
 type F = (typeof FIELDS)[number];
 type Tab = "chat" | "prices" | "article" | "pub";
+// Три вкладки: Переписка · Ціна · Стаття (в «Статті» — ціль, текст, автор, публікація й перевірка посилання)
 const TABS: { key: Tab; label: MsgKey }[] = [
   { key: "chat", label: "deal.tabChat" },
   { key: "prices", label: "grp.prices" },
   { key: "article", label: "deal.tabArticle" },
-  { key: "pub", label: "grp.pub" },
 ];
 const CH_ICON: Record<Channel, string> = { email: "📧", telegram: "✈️", whatsapp: "💬", exchange: "🏪", call: "📞", note: "📝" };
 const TEMPLATE_KEY = "linkbro.mailTemplate";
@@ -46,7 +46,15 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(initialTab);
+  // «pub» — старое имя: публикация теперь внизу вкладки «Стаття»
+  const [tab, setTabRaw] = useState<Tab>(initialTab === "pub" ? "article" : initialTab);
+  const setTab = (x: Tab) => {
+    setTabRaw(x === "pub" ? "article" : x);
+    if (x === "pub") setTimeout(() => document.getElementById("dc-pub")?.scrollIntoView({ block: "start" }), 60);
+  };
+  useEffect(() => {
+    if (initialTab === "pub") setTimeout(() => document.getElementById("dc-pub")?.scrollIntoView({ block: "start" }), 120);
+  }, [initialTab]);
   const [panel, setPanel] = useState<DealPanel | null>(null);
   const init = Object.fromEntries(FIELDS.map((f) => [f, donor[f] == null ? "" : String(donor[f])])) as Record<F, string>;
   const [d, setD] = useState(init);
@@ -502,6 +510,10 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
 
         {tab === "article" && (
           <div className="flex flex-col gap-2">
+            <p className="lbl">{t("dc.target")}</p>
+            {row("Page URL", inp("page_url", t("gp.pagePh")), "dc-page_url")}
+            {row("Anchor", inp("anchors", t("gp.anchorsPh")), "dc-anchors")}
+            {row("Pre-anchor", inp("pre_anchor"), "dc-pre_anchor")}
             <ArticleFlow
               projectId={projectId}
               donorId={donor.id}
@@ -577,28 +589,24 @@ export default function DonorCard({ projectId, donor, statusOpts, onClose, initi
                 ))}
               </ul>
             )}
-          </div>
-        )}
-
-        {tab === "pub" && (
-          <div className="flex flex-col gap-2">
-            <LinkPanel
-              donorId={donor.id}
-              projectId={projectId}
-              articleUrl={donor.article_url}
-              pageUrl={donor.page_url}
-              anchors={donor.anchors}
-              expectedRel={donor.link_expected_rel}
-              status={donor.link_status}
-              suspect={donor.link_suspect}
-              onChecked={() => router.refresh()}
-            />
-            {row("Page URL", inp("page_url", t("gp.pagePh")), "dc-page_url")}
-            {row("Anchor", inp("anchors", t("gp.anchorsPh")), "dc-anchors")}
-            {row("Pre-anchor", inp("pre_anchor"), "dc-pre_anchor")}
-            {row(t("deal.exchangeUrl"), inp("exchange_url", "collaborator.pro/…"), "dc-exchange_url")}
-            {row("Article URL", inp("article_url", t("gp.articlePh")), "dc-article_url")}
-            <p className="text-xs text-mute">{t("card.autoPub")}</p>
+            {/* Публікація: куди вийшла стаття + перевірка посилання (далі — Моніторинг) */}
+            <div id="dc-pub" className="mt-2 flex flex-col gap-2 border-t border-line pt-3">
+              <p className="lbl">{t("dc.publication")}</p>
+              {row(t("deal.exchangeUrl"), inp("exchange_url", "collaborator.pro/…"), "dc-exchange_url")}
+              {row("Article URL", inp("article_url", t("gp.articlePh")), "dc-article_url")}
+              <p className="text-xs text-mute">{t("card.autoPub")}</p>
+              <LinkPanel
+                donorId={donor.id}
+                projectId={projectId}
+                articleUrl={donor.article_url}
+                pageUrl={donor.page_url}
+                anchors={donor.anchors}
+                expectedRel={donor.link_expected_rel}
+                status={donor.link_status}
+                suspect={donor.link_suspect}
+                onChecked={() => router.refresh()}
+              />
+            </div>
           </div>
         )}
 

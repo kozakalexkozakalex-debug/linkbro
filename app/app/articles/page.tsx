@@ -9,13 +9,15 @@ import ArticlesBoard from "./ArticlesBoard";
 // Outreach → Статті: дошка виробництва статей по погоджених угодах (вибраний проєкт або всі)
 export default async function ArticlesPage() {
   const [{ supabase, team }, { t }, { projectId, projects }] = await Promise.all([getTeamContext(), getI18n(), getScope()]);
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(); // опубліковані цього місяця
   const rows = await fetchAll<ProjectDonor>((from, to) => {
     let q = supabase
       .from("project_donors")
       .select(DONOR_COLUMNS)
       .eq("team_id", team.id)
       .eq("fg_status", "core")
-      .in("stage", ["agreed", "writing", "review", "sent", "paid"]);
+      .or(`stage.in.(agreed,writing,review,sent,paid),and(stage.eq.published,published_at.gte."${monthStart}")`);
     if (projectId) q = q.eq("project_id", projectId);
     return q.order("article_deadline", { ascending: true, nullsFirst: false }).range(from, to);
   });
