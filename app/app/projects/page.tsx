@@ -6,6 +6,7 @@ import { stageOf } from "@/lib/stages";
 import ModuleHead from "@/components/ModuleHead";
 import Icon from "@/components/Icon";
 import EmptyState from "@/components/EmptyState";
+import ScopeButton from "@/components/ScopeButton";
 import { projectDot } from "@/lib/projectColor";
 
 type P = { id: string; name: string; niche: string; geo: string; plan_per_month: number };
@@ -41,7 +42,6 @@ export default async function ProjectsPage() {
       else s.live++;
     }
   }
-  const go = (id: string, next: string) => `/app/scope?p=${id}&next=${encodeURIComponent(next)}`;
   const isLead = team.role === "lead";
 
   return (
@@ -67,12 +67,12 @@ export default async function ProjectsPage() {
               <li key={p.id} className="proj-card">
                 <div className="flex items-center gap-2">
                   <span className="picker-dot" style={{ background: projectDot(i) }} />
-                  <Link href={go(p.id, "/app/domains")} className="proj-link min-w-0 flex-1 truncate text-[15px] font-semibold">
+                  <ScopeButton p={p.id} next="/app/domains" className="proj-link min-w-0 flex-1 truncate text-left text-[15px] font-semibold">
                     {p.name}
-                  </Link>
-                  <Link href={go(p.id, "/app/settings")} className="icon-btn relative z-10" aria-label={`${t("mod.settingsShort")}: ${p.name}`} title={t("mod.settingsShort")}>
+                  </ScopeButton>
+                  <ScopeButton p={p.id} next="/app/settings" className="icon-btn relative z-10" label={`${t("mod.settingsShort")}: ${p.name}`}>
                     <Icon name="gear" size={14} />
-                  </Link>
+                  </ScopeButton>
                 </div>
                 {(p.niche || p.geo) && <p className="text-xs text-mute">{[p.niche, p.geo].filter(Boolean).join(" · ")}</p>}
 
@@ -91,11 +91,11 @@ export default async function ProjectsPage() {
                 </dl>
 
                 <nav className="relative z-10 flex flex-wrap gap-1 border-t border-line pt-2" aria-label={p.name}>
-                  <Link href={go(p.id, "/app/domains")} className="btn btn-ghost btn-sm">
+                  <ScopeButton p={p.id} next="/app/domains" className="btn btn-ghost btn-sm">
                     Prefero{s.prefero > 0 && <span className="font-mono text-accent">{s.prefero}</span>}
-                  </Link>
-                  <Link href={go(p.id, "/app/outreach")} className="btn btn-ghost btn-sm">Outreach</Link>
-                  <Link href={go(p.id, "/app/monitoring")} className="btn btn-ghost btn-sm">{t("ptab.monitor")}</Link>
+                  </ScopeButton>
+                  <ScopeButton p={p.id} next="/app/outreach" className="btn btn-ghost btn-sm">Outreach</ScopeButton>
+                  <ScopeButton p={p.id} next="/app/monitoring" className="btn btn-ghost btn-sm">{t("ptab.monitor")}</ScopeButton>
                 </nav>
               </li>
             );

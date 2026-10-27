@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ScopeButton from "@/components/ScopeButton";
 import Chevron from "@/components/Chevron";
 import { getTeamContext } from "@/lib/team";
 import { loadMembers } from "@/lib/members";
@@ -262,11 +263,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                 { n: broken.length, label: t("dash.tBroken"), href: go("/app/monitoring"), tone: broken.length ? "text-bad" : "" },
                 { n: guarantee7, label: t("dash.guarantee7"), href: qs({ tab: "links" }), tone: guarantee7 ? "text-accent" : "" },
               ].map((x) => (
-                <Link key={x.href + x.label} href={x.href} className="card flex items-center gap-3 py-3 hover:border-accent">
+                <a key={x.href + x.label} href={x.href} className="card flex items-center gap-3 py-3 hover:border-accent">
                   <span className={`font-mono text-2xl font-bold tabular-nums ${x.tone}`}>{x.n}</span>
                   <span className="min-w-0 flex-1 text-sm leading-tight">{x.label}</span>
                   <Chevron className="text-mute" />
-                </Link>
+                </a>
               ))}
             </div>
           </section>
@@ -280,10 +281,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
               { n: ms.published, label: t("dash.fPublished", { m: ml(month, "short") }), href: go("/app/outreach") },
               { n: linksOk, label: t("dash.fLinksOk"), href: go("/app/monitoring") },
             ].map((x) => (
-              <Link key={x.label} href={x.href} className={`pipe-step ${x.n ? "" : "pipe-empty"}`}>
+              <a key={x.label} href={x.href} className={`pipe-step ${x.n ? "" : "pipe-empty"}`}>
                 <span className="text-base font-bold tabular-nums">{x.n}</span>
                 <span className="truncate text-[11px] text-mute">{x.label}</span>
-              </Link>
+              </a>
             ))}
           </nav>
 
@@ -461,7 +462,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
                     <td className="font-mono">{pr.filter((r) => r.in_comm && !r.in_gp).length}</td>
                     <td className="font-mono">{pr.filter((r) => r.in_gp && r.core_status !== "Published").length}</td>
                     <td>{probs ? <span className="pill pill-bad">{probs}</span> : <span className="text-mute">—</span>}</td>
-                    <td><Link href={`/app/scope?p=${p.id}&next=${encodeURIComponent("/app/outreach")}`} className="btn btn-sm">{t("common.open")}</Link></td>
+                    <td><ScopeButton p={p.id} next="/app/domains" className="btn btn-sm">{t("common.open")}</ScopeButton></td>
                   </tr>
                 );
               })}

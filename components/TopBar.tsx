@@ -23,7 +23,7 @@ export default function TopBar({ project, dot }: { project: string | null; dot: 
   // Вкладка внутри раздела — самое точное совпадение по адресу
   const tab = Object.values(MODULE_TABS)
     .flat()
-    .filter((x) => path === x.href || path.startsWith(x.href + "/") || (x.also ?? []).some((a) => path.startsWith(a)))
+    .filter((x) => (x.exact ? path === x.href : path === x.href || path.startsWith(x.href + "/")) || (x.also ?? []).some((a) => path.startsWith(a)))
     .sort((a, b) => b.href.length - a.href.length)[0];
   const tabLabel = tab && section && tab.href !== section.href ? t(tab.key) : null;
 
