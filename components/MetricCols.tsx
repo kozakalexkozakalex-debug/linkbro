@@ -4,14 +4,19 @@ import type { ProjectDonor } from "@/lib/project";
 
 const n = (v: number | null | undefined) => (v == null ? "—" : String(v));
 
-export function metricCols(): SheetCol<ProjectDonor>[] {
+// editGeoTopic — в Prefero GEO и тему можно вписать прямо в ячейке (ключи geo / topics сохраняет setDonorGeoTopic)
+export function metricCols(editGeoTopic = false): SheetCol<ProjectDonor>[] {
   const g = (d: ProjectDonor) => d.global_donors;
   return [
     { key: "m_dr", header: "DR", kind: "readonly", width: 50, mono: true, get: (d) => n(g(d)?.dr) },
     { key: "m_kw", header: "Keywords", kind: "readonly", width: 70, mono: true, get: (d) => n(g(d)?.keywords) },
     { key: "m_tr", header: "Traffic", kind: "readonly", width: 70, mono: true, get: (d) => n(g(d)?.traffic) },
-    { key: "m_geo", header: "GEO", kind: "readonly", width: 60, get: (d) => g(d)?.geo || "—" },
-    { key: "m_top", header: "Topics", kind: "readonly", width: 110, get: (d) => g(d)?.topics || "—" },
+    editGeoTopic
+      ? { key: "geo", header: "GEO", kind: "text", width: 70, get: (d) => g(d)?.geo ?? "", placeholder: "UA" }
+      : { key: "m_geo", header: "GEO", kind: "readonly", width: 60, get: (d) => g(d)?.geo || "—" },
+    editGeoTopic
+      ? { key: "topics", header: "Topics", kind: "text", width: 130, get: (d) => g(d)?.topics ?? "", placeholder: "casino…" }
+      : { key: "m_top", header: "Topics", kind: "readonly", width: 110, get: (d) => g(d)?.topics || "—" },
     { key: "m_tf", header: "TF", kind: "readonly", width: 45, mono: true, get: (d) => n(g(d)?.tf) },
     { key: "m_cf", header: "CF", kind: "readonly", width: 45, mono: true, get: (d) => n(g(d)?.cf) },
     {

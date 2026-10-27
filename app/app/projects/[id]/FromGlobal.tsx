@@ -92,10 +92,8 @@ export default function FromGlobal({
           return q.score == null ? <span className="text-xs text-mute">—</span> : <span className={`font-mono font-semibold ${scoreTone(q.score)}`} title={t("cf.coverage", { n: q.coverage })}>{q.coverage < 60 ? "≈" : ""}{q.score}</span>;
         },
       },
-      ...metricCols(),
-      // GEO и тема — заполняются прямо здесь (сохраняются в Confero, воронка пересчитывается)
-      { key: "geo", header: "GEO", kind: "text", width: 80, get: (d) => d.global_donors?.geo ?? "", placeholder: "UA" },
-      { key: "topics", header: t("pref.topicCol"), kind: "text", width: 150, get: (d) => d.global_donors?.topics ?? "", placeholder: t("pref.topicPh") },
+      // GEO и тема — заполняются прямо в ячейке (сохраняются в Confero, воронка пересчитывается)
+      ...metricCols(true),
       { key: "category_page", header: "Category Page", kind: "text", width: 170, placeholder: "/blog/…" },
       {
         key: "checks",
