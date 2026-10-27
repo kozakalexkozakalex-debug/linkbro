@@ -54,20 +54,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ))}
         </div>
 
-        {/* Выбранный проект и его разделы */}
-        <div className="side-group">
-          <Link href="/app/projects" className="side-proj" title={t("nav.changeProject")}>
-            <span className="picker-dot" style={{ background: idx >= 0 ? projectDot(idx) : "var(--mute)" }} />
-            <span className="min-w-0 flex-1 truncate">{idx >= 0 ? projects[idx].name : t("dash.allProjects")}</span>
-            <Icon name="chevron" size={12} className="-rotate-90 text-mute" />
-          </Link>
-          {PROJECT_NAV.map((m) => (
-            <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also} className="side-in">
-              <Icon name={m.icon} />
-              {t(m.key)}
-            </NavLink>
-          ))}
-        </div>
+        {/* Разделы выбранного проекта — появляются только после выбора проекта на странице «Проєкти» */}
+        {idx >= 0 && (
+          <div className="side-group">
+            <p className="side-label">
+              <span className="picker-dot" style={{ background: projectDot(idx) }} />
+              <span className="truncate">{projects[idx].name}</span>
+            </p>
+            {PROJECT_NAV.map((m) => (
+              <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also} className="side-in">
+                <Icon name={m.icon} />
+                {t(m.key)}
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         <div className="side-foot">
           {ACCOUNT_NAV.map((m) => (
@@ -96,7 +97,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </nav>
 
       <div className="app-main">
-        <TopBar projects={projects} current={scope} isLead={isLead} />
+        <TopBar project={idx >= 0 ? projects[idx].name : null} dot={projectDot(Math.max(idx, 0))} />
         <main className="app-content">{children}</main>
       </div>
       <MobileNav />

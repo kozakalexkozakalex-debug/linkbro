@@ -31,8 +31,8 @@ export const ACCOUNT_NAV: NavItem[] = [
 
 export const ALL_NAV: NavItem[] = [...TEAM_NAV, ...PROJECT_NAV, ...ACCOUNT_NAV];
 
-// Нижнее меню телефона: 4 рабочих раздела, остальное — в «Меню»
-export const MOBILE_NAV: NavItem[] = [TEAM_NAV[1], PROJECT_NAV[0], PROJECT_NAV[1], PROJECT_NAV[2]];
+// Нижнее меню телефона: общие разделы + «Меню». Разделы проекта — вкладками вверху страницы проекта.
+export const MOBILE_NAV: NavItem[] = TEAM_NAV;
 
 export function isActive(path: string, it: { href: string; exact?: boolean; also?: string[] }): boolean {
   const hit = (h: string) => path === h || path.startsWith(h + "/");

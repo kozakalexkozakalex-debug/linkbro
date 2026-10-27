@@ -14,7 +14,7 @@ type D = { project_id: string; stage: string | null; core_status: string; indica
 const WORK = ["contacted", "replied", "negotiating", "agreed", "writing", "review", "sent", "paid"];
 const PROBLEM = ["error", "lost", "suspect", "warn"];
 
-// Проєкти карточками: с них начинается работа. Клик — проект выбран, открывается Outreach.
+// Проєкти карточками: с них начинается работа. Клик — проект выбран, открывается Prefero.
 // Внутри проекта: Prefero · Outreach · Моніторинг · Налаштування (боковое меню).
 export default async function ProjectsPage() {
   const [{ supabase, team }, { t }] = await Promise.all([getTeamContext(), getI18n()]);
@@ -67,7 +67,7 @@ export default async function ProjectsPage() {
               <li key={p.id} className="proj-card">
                 <div className="flex items-center gap-2">
                   <span className="picker-dot" style={{ background: projectDot(i) }} />
-                  <Link href={go(p.id, "/app/outreach")} className="proj-link min-w-0 flex-1 truncate text-[15px] font-semibold">
+                  <Link href={go(p.id, "/app/domains")} className="proj-link min-w-0 flex-1 truncate text-[15px] font-semibold">
                     {p.name}
                   </Link>
                   <Link href={go(p.id, "/app/settings")} className="icon-btn relative z-10" aria-label={`${t("mod.settingsShort")}: ${p.name}`} title={t("mod.settingsShort")}>
