@@ -1118,4 +1118,5 @@ export const uk = {
   "proj.problems": "Проблеми",
   "nav.pickProject": "Оберіть проєкт",
   "nav.allProjectsPage": "Усі проєкти — сторінка",
+  "nexo.sub": "база посередників",
 };

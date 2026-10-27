@@ -1120,4 +1120,5 @@ export const ru: Messages = {
   "proj.problems": "Проблемы",
   "nav.pickProject": "Выберите проект",
   "nav.allProjectsPage": "Все проекты — страница",
+  "nexo.sub": "база посредников",
 };

@@ -5,9 +5,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
+import Icon from "@/components/Icon";
+import NexoButton from "@/components/NexoButton";
 import type { MsgKey } from "@/lib/i18n/config";
 
-type Tab = { href: string; key: MsgKey; exact?: boolean; also?: string[] };
+type Tab = { href: string; key: MsgKey; exact?: boolean; also?: string[]; icon?: string; sep?: boolean };
 
 export const MODULE_TABS: Record<string, Tab[]> = {
   dashboard: [
@@ -25,8 +27,8 @@ export const MODULE_TABS: Record<string, Tab[]> = {
   outreach: [
     { href: "/app/outreach", key: "mod.deals", exact: true },
     { href: "/app/inbox", key: "ot.comms", also: ["/app/followup", "/app/campaigns", "/app/templates"] },
-    { href: "/app/intermediaries", key: "nav.contacts" },
-    { href: "/app/articles", key: "art.tab", also: ["/app/writers"] },
+    // Статті — частина Outreach, але окрема ділянка: відділені рискою. Посередники — кнопка Nexo праворуч.
+    { href: "/app/articles", key: "art.tab", also: ["/app/writers"], icon: "doc", sep: true },
   ],
   comms: [
     { href: "/app/inbox", key: "ot.inbox" },
@@ -51,13 +53,13 @@ export default function ModuleTabs({ module }: { module: keyof typeof MODULE_TAB
   const sub = module === "outreach" ? Object.keys(SUB).find((k) => SUB[k].some((p) => path.startsWith(p))) : undefined;
   return (
     <div className="flex flex-col gap-3">
-      <Row tabs={MODULE_TABS[module]} />
+      <Row tabs={MODULE_TABS[module]} extra={module === "outreach" ? <NexoButton /> : null} />
       {sub && <Row tabs={MODULE_TABS[sub]} small />}
     </div>
   );
 }
 
-function Row({ tabs, small = false }: { tabs: Tab[]; small?: boolean }) {
+function Row({ tabs, small = false, extra = null }: { tabs: Tab[]; small?: boolean; extra?: React.ReactNode }) {
   const { t } = useI18n();
   const path = usePathname() ?? "";
   const isOn = (it: Tab) => (it.exact ? path === it.href : path === it.href || path.startsWith(it.href + "/")) || (it.also ?? []).some((a) => path.startsWith(a));
@@ -80,11 +82,16 @@ function Row({ tabs, small = false }: { tabs: Tab[]; small?: boolean }) {
       {tabs.map((it) => {
         const on = isOn(it);
         return (
-          <Link key={it.href} href={it.href} className={`tab ${on ? "tab-on" : ""}`} aria-current={on ? "page" : undefined}>
-            {t(it.key)}
-          </Link>
+          <span key={it.href} className="contents">
+            {it.sep && <span className="tab-sep" aria-hidden="true" />}
+            <Link href={it.href} className={`tab ${on ? "tab-on" : ""}`} aria-current={on ? "page" : undefined}>
+              {it.icon && <Icon name={it.icon} size={14} />}
+              {t(it.key)}
+            </Link>
+          </span>
         );
       })}
+      {extra && <span className="ml-auto flex items-center pb-1">{extra}</span>}
     </nav>
   );
 }

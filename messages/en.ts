@@ -1120,4 +1120,5 @@ export const en: Messages = {
   "proj.problems": "Problems",
   "nav.pickProject": "Pick a project",
   "nav.allProjectsPage": "All projects page",
+  "nexo.sub": "contacts database",
 };

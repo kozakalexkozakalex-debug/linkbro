@@ -24,7 +24,7 @@ export type PersonRow = {
 
 const PER_PAGE = 100;
 
-export default function PeopleTable({ rows }: { rows: PersonRow[] }) {
+export default function PeopleTable({ rows, compact = false }: { rows: PersonRow[]; compact?: boolean }) {
   const { t, intl } = useI18n();
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(PER_PAGE);
@@ -35,7 +35,7 @@ export default function PeopleTable({ rows }: { rows: PersonRow[] }) {
   if (!rows.length) return <p className="card text-center text-mute">{t("ot.noPeople")}</p>;
   return (
     <div className="flex flex-col gap-2">
-      <input aria-label={t("common.search")} className="inp max-w-xs" placeholder={t("ot.searchPeople")} value={q} onChange={(e) => setQ(e.target.value)} />
+      <input aria-label={t("common.search")} className={`inp ${compact ? "" : "max-w-xs"}`} placeholder={t("ot.searchPeople")} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="tbl-wrap">
         <table className="tbl">
           <thead>
@@ -44,7 +44,7 @@ export default function PeopleTable({ rows }: { rows: PersonRow[] }) {
               <th>{t("deal.channels")}</th>
               <th>{t("ot.sites")}</th>
               <th>{t("ot.dealsCol")}</th>
-              <th>{t("ot.replies")}</th>
+              {!compact && <th>{t("ot.replies")}</th>}
               <th>{t("ot.last")}</th>
             </tr>
           </thead>
@@ -75,7 +75,7 @@ export default function PeopleTable({ rows }: { rows: PersonRow[] }) {
                     "—"
                   )}
                 </td>
-                <td className="font-mono">{r.replies || "—"}</td>
+                {!compact && <td className="font-mono">{r.replies || "—"}</td>}
                 <td className="whitespace-nowrap font-mono text-xs text-mute" suppressHydrationWarning>
                   {r.last ? new Date(r.last).toLocaleDateString(intl, { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—"}
                 </td>

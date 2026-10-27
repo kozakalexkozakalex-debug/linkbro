@@ -130,6 +130,13 @@ body {
   .tab { display: inline-flex; align-items: center; gap: 6px; height: 36px; color: var(--mute); font-weight: 500; font-size: 13px; white-space: nowrap; box-shadow: inset 0 -2px 0 transparent; }
   .tab:hover { color: var(--ink); }
   .tab-on { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab-sep { align-self: center; width: 1px; height: 18px; background: var(--line-strong); margin: 0 -6px; flex-shrink: 0; }
+  .tab svg { color: var(--mute); }
+  .tab-on svg { color: var(--accent); }
+  .nexo-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--inset); color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .nexo-btn svg { color: var(--accent); }
+  .nexo-btn:hover { border-color: var(--accent); }
+  .nexo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .chev { display: block; }
 
   /* Всплывающее меню (выбор проекта и др.) */

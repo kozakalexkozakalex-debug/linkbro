@@ -3,6 +3,7 @@
 const PATHS: Record<string, string> = {
   dash: "M2 2h5v5H2zM9 2h5v3H9zM9 7h5v7H9zM2 9h5v5H2z",
   folder: "M2 4.5h4l1.5 1.5H14v7H2z",
+  doc: "M4 1.5h5l3 3v10H4zM9 1.5v3h3M6 8h4M6 10.5h4",
   filter: "M2 3h12l-4.5 5.5V13l-3-1.5v-3z",
   arrow: "M3 8h10M9 4l4 4-4 4",
   globe:"M8 2a6 6 0 100 12A6 6 0 008 2zM2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12",
