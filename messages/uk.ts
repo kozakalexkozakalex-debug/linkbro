@@ -1116,4 +1116,6 @@ export const uk = {
   "proj.inWork": "У роботі",
   "proj.live": "Живі посилання",
   "proj.problems": "Проблеми",
+  "nav.pickProject": "Оберіть проєкт",
+  "nav.allProjectsPage": "Усі проєкти — сторінка",
 };

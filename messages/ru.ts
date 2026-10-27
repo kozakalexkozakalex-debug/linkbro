@@ -1118,4 +1118,6 @@ export const ru: Messages = {
   "proj.inWork": "В работе",
   "proj.live": "Живые ссылки",
   "proj.problems": "Проблемы",
+  "nav.pickProject": "Выберите проект",
+  "nav.allProjectsPage": "Все проекты — страница",
 };

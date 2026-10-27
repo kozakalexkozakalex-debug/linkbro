@@ -1118,4 +1118,6 @@ export const es: Messages = {
   "proj.inWork": "En curso",
   "proj.live": "Enlaces activos",
   "proj.problems": "Problemas",
+  "nav.pickProject": "Elija un proyecto",
+  "nav.allProjectsPage": "Página de proyectos",
 };

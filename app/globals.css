@@ -172,6 +172,14 @@ body {
   .side-active, .side-active:hover { background: var(--elev); color: var(--ink); font-weight: 600; }
   .side-active svg { color: var(--accent); }
   .side-in { padding-left: 14px; }
+  .side-projhead { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
+  .side-projbtn { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--inset); color: var(--ink); font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+  .side-projbtn:hover, .side-projbtn[aria-expanded="true"] { border-color: #3a3a3a; background: var(--elev); }
+  .side-projbtn[aria-expanded="true"] { border-color: var(--accent); }
+  .side-projlbl { font-size: 11px; font-weight: 500; color: var(--mute); }
+  .side-plus { display: inline-grid; place-items: center; width: 32px; flex-shrink: 0; border-radius: 6px; border: 1px solid var(--line-strong); color: var(--ink-2); }
+  .side-plus:hover { border-color: var(--accent); color: var(--accent); }
+  .side-projbtn:focus-visible, .side-plus:focus-visible, .menu-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .side-team { display: flex; gap: 6px; align-items: center; }
   .side-select { background: var(--inset); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 6px; height: 28px; padding: 0 6px; min-width: 0; flex: 1; font-size: 12px; }
   .side-select option { color: var(--ink); background: var(--elev); }

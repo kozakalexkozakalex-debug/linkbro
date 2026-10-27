@@ -7,6 +7,7 @@ import NavLink from "@/components/NavLink";
 import LangSwitch from "@/components/LangSwitch";
 import MobileNav from "@/components/MobileNav";
 import TopBar from "@/components/TopBar";
+import SideProjects from "@/components/SideProjects";
 import Icon from "@/components/Icon";
 import { projectDot } from "@/lib/projectColor";
 import { ACCOUNT_NAV, PROJECT_NAV, TEAM_NAV } from "@/lib/nav";
@@ -54,21 +55,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ))}
         </div>
 
-        {/* Разделы выбранного проекта — появляются только после выбора проекта на странице «Проєкти» */}
-        {idx >= 0 && (
-          <div className="side-group">
-            <p className="side-label">
-              <span className="picker-dot" style={{ background: projectDot(idx) }} />
-              <span className="truncate">{projects[idx].name}</span>
-            </p>
-            {PROJECT_NAV.map((m) => (
+        {/* Проєкти: текущий проект (всплывающий список) + «+», ниже — разделы выбранного проекта */}
+        <div className="side-group">
+          <SideProjects projects={projects} current={scope} isLead={isLead} />
+          {idx >= 0 &&
+            PROJECT_NAV.map((m) => (
               <NavLink key={m.href} href={m.href} exact={m.exact} also={m.also} className="side-in">
                 <Icon name={m.icon} />
                 {t(m.key)}
               </NavLink>
             ))}
-          </div>
-        )}
+        </div>
 
         <div className="side-foot">
           {ACCOUNT_NAV.map((m) => (
