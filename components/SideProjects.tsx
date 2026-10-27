@@ -1,7 +1,7 @@
 "use client";
 
-// Блок «Проєкти» в боковом меню: текущий проект (нажать — всплывающий список), «+» — новый проект.
-// В списке: выбрать проект (сразу открывается Prefero), открыть страницу всех проектов, создать новый.
+// Блок «Проєкти» в боковом меню, три зоны:
+//   название — страница проектов · стрелка — выпадающий список проектов (выбор сразу открывает Prefero) · «+» — новый проект.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
@@ -34,17 +34,24 @@ export default function SideProjects({ projects, current, isLead }: { projects: 
   return (
     <div ref={box} className="relative">
       <div className="side-projhead">
-        <button type="button" className="side-projbtn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {/* Название — страница проектов */}
+        <Link href="/app/projects" className="side-projbtn" title={t("nav.allProjectsPage")}>
           <span className="side-projlbl">{t("common.projects")}</span>
           <span className="flex min-w-0 items-center gap-2">
             <span className="picker-dot" style={{ background: idx >= 0 ? projectDot(idx) : "var(--mute)" }} />
             <span className="min-w-0 flex-1 truncate">{idx >= 0 ? projects[idx].name : t("nav.pickProject")}</span>
-            <Icon name="chevron" size={12} className="text-mute" />
           </span>
+        </Link>
+        {/* Стрелка — список проектов */}
+        <button type="button" className="side-caret" aria-haspopup="listbox" aria-expanded={open} aria-label={t("nav.changeProject")} title={t("nav.changeProject")} onClick={() => setOpen(!open)}>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className="side-caret-ico">
+            <path d="M1.5 6L8 12.5V8.2L3.8 4z" fill="currentColor" opacity=".5" />
+            <path d="M14.5 6L8 12.5V8.2L12.2 4z" fill="currentColor" />
+          </svg>
         </button>
         {isLead && (
           <Link href="/app/projects/new" className="side-plus" aria-label={t("nav.newProject")} title={t("nav.newProject")}>
-            <Icon name="plus" size={14} />
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
           </Link>
         )}
       </div>
@@ -67,18 +74,6 @@ export default function SideProjects({ projects, current, isLead }: { projects: 
               </form>
             ))}
             {projects.length === 0 && <p className="px-2 py-1.5 text-xs text-mute">{t("nav.noProjectsYet")}</p>}
-          </div>
-          <div className="mt-1 border-t border-line pt-1">
-            <Link href="/app/projects" className="menu-item" onClick={() => setOpen(false)}>
-              <Icon name="folder" size={14} className="text-mute" />
-              <span>{t("nav.allProjectsPage")}</span>
-            </Link>
-            {isLead && (
-              <Link href="/app/projects/new" className="menu-item" onClick={() => setOpen(false)}>
-                <Icon name="plus" size={14} className="text-mute" />
-                <span>{t("nav.newProject")}</span>
-              </Link>
-            )}
           </div>
         </div>
       )}
