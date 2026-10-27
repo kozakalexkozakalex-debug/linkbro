@@ -11,7 +11,7 @@ export async function loadPeople(supabase: Db, teamId: string): Promise<{ people
   // Все запросы параллельно: сайты посредников, карточки контактов, сделки, последняя переписка
   const [rows, contacts, deals, { data: acts }] = await Promise.all([
     fetchAll<IntermediaryRow>((from, to) =>
-      supabase.from("intermediaries").select("domain, intermediary, price, updated_at").eq("team_id", teamId).order("domain").range(from, to),
+      supabase.from("intermediaries").select("domain, intermediary, price, updated_at, price_updated_at").eq("team_id", teamId).order("domain").range(from, to),
     ),
     fetchAll<{ handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string; do_not_contact: boolean }>((from, to) =>
       supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, do_not_contact").eq("team_id", teamId).order("handle").range(from, to),
