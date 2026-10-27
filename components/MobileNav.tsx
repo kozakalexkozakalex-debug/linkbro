@@ -1,73 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// Телефон: нижнее меню с рабочими разделами. «Меню» выдвигает полное боковое меню (.side) слева.
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Icon from "@/components/Icon";
+import { toggleNav } from "@/components/TopBar";
 import { useI18n } from "@/components/I18nProvider";
-import { MODULES } from "@/lib/nav";
+import { MOBILE_NAV, isActive } from "@/lib/nav";
 
-// Телефон: верхняя полоска с логотипом и нижнее меню с главными разделами.
-// Кнопка «Меню» выдвигает полное боковое меню (.side) слева.
-const ICON: Record<string, React.ReactNode> = {
-  dash: <path d="M4 13h6V4H4zm0 7h6v-5H4zm8 0h8v-9h-8zm0-16v5h8V4z" />,
-  global: <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m6.9 6h-3a15 15 0 0 0-1.3-4 8 8 0 0 1 4.3 4M12 4c.9 1.2 1.6 2.6 2 4h-4c.4-1.4 1.1-2.8 2-4M4.3 14a8 8 0 0 1 0-4h3.3a17 17 0 0 0 0 4zm.8 2h3a15 15 0 0 0 1.3 4 8 8 0 0 1-4.3-4m3-8h-3a8 8 0 0 1 4.3-4 15 15 0 0 0-1.3 4M12 20c-.9-1.2-1.6-2.6-2-4h4c-.4 1.4-1.1 2.8-2 4m2.3-6H9.7a15 15 0 0 1 0-4h4.6a15 15 0 0 1 0 4m.3 5.9c.6-1.2 1-2.6 1.3-3.9h3a8 8 0 0 1-4.3 3.9m1.8-5.9a17 17 0 0 0 0-4h3.3a8 8 0 0 1 0 4z" />,
-  tasks: <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />,
-  money: <path d="M11.8 10.9c-2.3-.6-3-1.2-3-2.1 0-1.1 1-1.9 2.7-1.9 1.8 0 2.4.8 2.5 2.1h2.2c-.1-1.7-1.1-3.3-3.2-3.8V3h-3v2.2c-1.9.4-3.5 1.7-3.5 3.6 0 2.3 1.9 3.5 4.7 4.1 2.5.6 3 1.5 3 2.4 0 .7-.5 1.8-2.7 1.8-2.1 0-2.9-.9-3-2.1H5.3c.1 2.2 1.8 3.5 3.7 3.9V21h3v-2.1c1.9-.4 3.5-1.5 3.5-3.6 0-2.9-2.5-3.9-4.7-4.4" />,
-  folder: <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z" />,
-  plus: <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />,
-  today: <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 16H5V9h14zM7 11h5v5H7z" />,
-  chat: <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2m2 5v2h12V9zm0 4v2h8v-2z" />,
-  shield: <path d="M12 2 4 5v6c0 5.6 3.4 9.8 8 11 4.6-1.2 8-5.4 8-11V5zm-1.2 13.6L7.4 12.2l1.4-1.4 2 2 4.4-4.4 1.4 1.4z" />,
-  menu: <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />,
-  gear: <path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7 7 0 0 0-1.7-1L15 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.2 1.6 2 3.5 2.5-1a7 7 0 0 0 1.7 1L11 21h4l.4-2.6a7 7 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7" />,
-};
-
-function Icon({ name }: { name: string }) {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-      {ICON[name]}
-    </svg>
-  );
-}
-
-export default function MobileNav({ title }: { title: string }) {
+export default function MobileNav() {
   const { t } = useI18n();
   const path = usePathname() ?? "";
-  const [open, setOpen] = useState(false);
 
   // Меню закрывается при переходе на другую страницу
-  useEffect(() => setOpen(false), [path]);
   useEffect(() => {
-    document.documentElement.toggleAttribute("data-nav-open", open);
-    return () => document.documentElement.removeAttribute("data-nav-open");
-  }, [open]);
-
-  const items = MODULES.map((m) => ({ href: m.href, icon: m.icon, label: t(m.key), exact: m.exact, also: m.also }));
+    toggleNav(false);
+    return () => toggleNav(false);
+  }, [path]);
 
   return (
     <>
-      <header className="m-top">
-        <Link href="/app" className="font-logo text-base font-bold">
-          Link<span className="text-[#ff8a3d]">Bro</span>
-        </Link>
-        <button type="button" className="min-w-0 truncate text-sm opacity-80" onClick={() => setOpen(true)}>{title} ▾</button>
-      </header>
-
-      {open && <button type="button" className="m-backdrop" aria-label={t("common.close")} onClick={() => setOpen(false)} />}
-
+      <button type="button" className="m-backdrop" aria-label={t("common.close")} onClick={() => toggleNav(false)} />
       <nav className="m-bottom" aria-label={t("nav.menu")}>
-        {items.map((it) => {
-          const hit = (h: string) => path === h || path.startsWith(h + "/");
-          const active = (it.exact ? path === it.href : hit(it.href)) || it.also.some(hit);
+        {MOBILE_NAV.map((it) => {
+          const active = isActive(path, it);
           return (
             <Link key={it.href} href={it.href} className={`m-item ${active ? "m-on" : ""}`} aria-current={active ? "page" : undefined}>
-              <Icon name={it.icon} />
-              <span>{it.label}</span>
+              <Icon name={it.icon} size={20} />
+              <span>{t(it.key)}</span>
             </Link>
           );
         })}
-        <button type="button" className={`m-item ${open ? "m-on" : ""}`} aria-expanded={open} onClick={() => setOpen(!open)}>
-          <Icon name="menu" />
+        <button type="button" className="m-item" onClick={() => toggleNav()}>
+          <Icon name="menu" size={20} />
           <span>{t("nav.more")}</span>
         </button>
       </nav>

@@ -19,7 +19,7 @@ export default async function WritersPage() {
     <div className="flex flex-col gap-5">
       <BaseTabs />
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.writers")}</h1>
+        <h1 className="page-title">{t("nav.writers")}</h1>
         <p className="mt-1 max-w-2xl text-mute">{t("wr.lead")}</p>
       </div>
       <WritersTable rows={rows} />

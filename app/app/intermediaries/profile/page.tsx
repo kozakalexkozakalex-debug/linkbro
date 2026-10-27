@@ -91,7 +91,7 @@ export default async function MedProfile({ searchParams }: { searchParams: Searc
     <div className="flex max-w-3xl flex-col gap-4">
       <div>
         <Link href="/app/intermediaries" className="text-sm underline">← {t("nav.intermediaries")}</Link>
-        <h1 className="mt-1 break-all font-display text-2xl font-semibold tracking-tight">{contact || "—"}</h1>
+        <h1 className="mt-1 break-all page-title">{contact || "—"}</h1>
       </div>
       {contact && (
         <ContactThread

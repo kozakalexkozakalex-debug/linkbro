@@ -59,7 +59,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       <ModuleTabs module="outreach" />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("ot.inbox")}</h1>
+          <h1 className="page-title">{t("ot.inbox")}</h1>
           <p className="mt-1 text-mute">{unreadTotal ? t("inbox.unread", { n: unreadTotal }) : t("inbox.allRead")}</p>
         </div>
         <div className="flex flex-wrap gap-2">

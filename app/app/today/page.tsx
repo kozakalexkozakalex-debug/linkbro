@@ -78,7 +78,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
       <ModuleTabs module="dashboard" />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.today")}</h1>
+          <h1 className="page-title">{t("nav.today")}</h1>
           <p className="mt-1 text-mute">{total ? t("today.lead", { n: total }) : t("today.clear")}</p>
         </div>
         <div className="seg" role="group">

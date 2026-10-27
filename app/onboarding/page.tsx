@@ -23,7 +23,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Searc
         <LangSwitch />
       </div>
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("onb.title")}</h1>
+        <h1 className="page-title">{t("onb.title")}</h1>
         <p className="mt-1 text-mute">{t("onb.lead")}</p>
       </div>
 

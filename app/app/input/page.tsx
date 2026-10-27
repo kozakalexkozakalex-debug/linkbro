@@ -7,7 +7,7 @@ export default async function InputPage({ searchParams }: { searchParams: Promis
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <BaseTabs />
-      <h1 className="font-display text-2xl font-semibold tracking-tight">Infero</h1>
+      <h1 className="page-title">Infero</h1>
       <InferoPanel initial={m === "file" ? "file" : "list"} />
     </div>
   );

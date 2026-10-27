@@ -1,15 +1,28 @@
-// Шапка модуля: название, выбранный проект, вкладки модуля
+// Заголовок страницы: название, короткое пояснение (по желанию), действия справа, вкладки раздела.
+// Проект показывается в верхней панели, поэтому здесь он не повторяется.
 import ModuleTabs, { MODULE_TABS } from "@/components/ModuleTabs";
 
-export default function ModuleHead({ title, project, module, right }: { title: string; project?: string | null; module?: keyof typeof MODULE_TABS; right?: React.ReactNode }) {
+export default function ModuleHead({
+  title,
+  hint,
+  module,
+  right,
+}: {
+  title: string;
+  hint?: string | null;
+  /** устарело: проект теперь в верхней панели */
+  project?: string | null;
+  module?: keyof typeof MODULE_TABS;
+  right?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
-          {project && <p className="mt-0.5 truncate text-sm text-mute">{project}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="page-title">{title}</h1>
+          {hint && <p className="text-sm text-mute">{hint}</p>}
         </div>
-        {right}
+        {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
       </div>
       {module && <ModuleTabs module={module} />}
     </div>

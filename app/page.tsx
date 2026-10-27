@@ -22,7 +22,7 @@ export default async function Home() {
         </p>
         <LangSwitch />
       </div>
-      <h1 className="font-display text-2xl font-semibold tracking-tight text-balance">{t("common.tagline")}</h1>
+      <h1 className="page-title text-balance">{t("common.tagline")}</h1>
       <p className="text-mute">{t("home.lead")}</p>
       <div className="flex flex-wrap gap-2">
         <Link href="/login?mode=signup" className="btn btn-pri">{t("auth.signup")}</Link>

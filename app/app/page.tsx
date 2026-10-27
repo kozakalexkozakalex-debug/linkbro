@@ -67,7 +67,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
   if (projects.length === 0) {
     return (
       <div className="flex max-w-3xl flex-col gap-6">
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.dashboard")}</h1>
+        <h1 className="page-title">{t("nav.dashboard")}</h1>
         <div className="card flex flex-col gap-3">
           <p>{t("dash.ready", { name: team.name })}</p>
           <div className="flex flex-wrap gap-2">

@@ -90,7 +90,7 @@ export default async function FinancePage() {
     <div className="flex flex-col gap-5">
       <ModuleTabs module="dashboard" />
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.money")}</h1>
+        <h1 className="page-title">{t("nav.money")}</h1>
         <p className="mt-1 max-w-2xl text-mute">
           {t("fin.lead")}
         </p>

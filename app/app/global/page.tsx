@@ -1,3 +1,4 @@
+import ModuleTabs from "@/components/ModuleTabs";
 import InferoButton from "@/components/InferoButton";
 import Link from "next/link";
 import { getTeamContext } from "@/lib/team";
@@ -139,17 +140,15 @@ export default async function GlobalPage({ searchParams }: { searchParams: Searc
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Confero</h1>
-          <p className="mt-0.5 text-sm text-mute">{t("dom.conferoSub")}</p>
-          <p className="mt-1 max-w-2xl text-mute">
-            {t("global.lead")}
-          </p>
+          <h1 className="page-title">Confero</h1>
+          <p className="mt-1 max-w-2xl text-sm text-mute">{t("global.lead")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <InferoButton className="btn btn-pri" />
           <a href="/api/export?type=global" className="btn">{t("common.exportCsv")}</a>
         </div>
       </div>
+      <ModuleTabs module="confero" />
 
       {/* Фильтры: всё в адресе страницы, поэтому их можно сохранить и открыть одной кнопкой */}
       <form action="/app/global" className="card flex flex-col gap-2">

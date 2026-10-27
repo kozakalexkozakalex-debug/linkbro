@@ -191,7 +191,7 @@ export default async function ProjectView({ id, sp, base, embed = false }: { id:
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className={embed ? "hidden" : ""}>
-          <h1 className="flex flex-wrap items-center gap-2 font-display text-2xl font-semibold tracking-tight">
+          <h1 className="flex flex-wrap items-center gap-2 page-title">
             {project.name}
             {project.niche && <span className="pill font-sans">{project.niche}</span>}
             {project.geo && <span className="pill font-sans">{project.geo}</span>}

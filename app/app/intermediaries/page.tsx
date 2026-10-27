@@ -54,7 +54,7 @@ export default async function IntermediariesPage({ searchParams }: { searchParam
     <div className="flex flex-col gap-5">
       <BaseTabs />
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{t("nav.intermediaries")}</h1>
+        <h1 className="page-title">{t("nav.intermediaries")}</h1>
         <div className="seg">
           <Link href="/app/intermediaries" className={sites ? "" : "seg-on"}>{t("ot.people", { n: list.length })}</Link>
           <Link href="/app/intermediaries?v=sites" className={sites ? "seg-on" : ""}>{t("ot.sitesPrices", { n: rows.length })}</Link>
