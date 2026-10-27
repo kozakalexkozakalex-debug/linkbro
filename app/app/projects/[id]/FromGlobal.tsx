@@ -6,7 +6,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { setPreferoCheck, updateDonorsBatch } from "../actions";
+import { setDonorGeoTopic, setPreferoCheck, updateDonorsBatch } from "../actions";
 import Sheet, { type SheetCol } from "@/components/Sheet";
 import { BulkButton } from "@/components/BulkTools";
 import { metricCols } from "@/components/MetricCols";
@@ -93,6 +93,9 @@ export default function FromGlobal({
         },
       },
       ...metricCols(),
+      // GEO и тема — заполняются прямо здесь (сохраняются в Confero, воронка пересчитывается)
+      { key: "geo", header: "GEO", kind: "text", width: 80, get: (d) => d.global_donors?.geo ?? "", placeholder: "UA" },
+      { key: "topics", header: t("pref.topicCol"), kind: "text", width: 150, get: (d) => d.global_donors?.topics ?? "", placeholder: t("pref.topicPh") },
       { key: "category_page", header: "Category Page", kind: "text", width: 170, placeholder: "/blog/…" },
       {
         key: "checks",
@@ -162,7 +165,18 @@ export default function FromGlobal({
       <Sheet
         rows={shown}
         columns={columns}
-        onSave={(changes) => updateDonorsBatch(projectId, changes)}
+        onSave={async (changes) => {
+          const gt = changes.filter((c) => c.field === "geo" || c.field === "topics");
+          const rest = changes.filter((c) => c.field !== "geo" && c.field !== "topics");
+          if (rest.length) {
+            const r = await updateDonorsBatch(projectId, rest);
+            if (!r.ok) return r;
+          }
+          if (!gt.length) return { ok: true as const };
+          const r = await setDonorGeoTopic(projectId, gt);
+          if (r.ok) router.refresh();
+          return r;
+        }}
         bulk={(ids) => (
           <>
             <BulkButton label={t("pool.toWork")} onApply={() => setAll(ids, "core")} />
@@ -238,6 +252,16 @@ function FunnelDialog({ donor, projectId, projectGeo, filter, onClose }: { donor
       if (!r.ok) return setErr(r.error ?? t("common.error"));
       router.refresh();
     });
+  // GEO и тема домена правятся прямо здесь
+  const [vals, setVals] = useState({ geo: g?.geo ?? "", topics: g?.topics ?? "" });
+  const saveVal = (field: "geo" | "topics") => {
+    if (vals[field] === ((field === "geo" ? g?.geo : g?.topics) ?? "")) return;
+    start(async () => {
+      const r = await setDonorGeoTopic(projectId, [{ id: donor.id, field, value: vals[field] }]);
+      if (!r.ok) return setErr(r.error ?? t("common.error"));
+      router.refresh();
+    });
+  };
   const detail: Record<CheckKey, string> = {
     geo: `${g?.geo || "—"} · ${t("pref.projectGeo", { x: projectGeo || "—" })}`,
     topic: g?.topics || "—",
@@ -290,7 +314,22 @@ function FunnelDialog({ donor, projectId, projectGeo, filter, onClose }: { donor
                 <li key={k} className="flex flex-wrap items-center gap-2 py-2">
                   <span className="w-5 text-mute">{i + 2}.</span>
                   <span className="w-28 font-medium">{t(CHECK_LABEL[k])}</span>
-                  <span className="min-w-0 flex-1 truncate text-xs text-mute" title={detail[k]}>{detail[k]}</span>
+                  {k === "category" ? (
+                    <span className="min-w-0 flex-1 truncate text-xs text-mute" title={detail[k]}>{detail[k]}</span>
+                  ) : (
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <input
+                        className="inp min-h-0 py-1 text-[13px]"
+                        aria-label={t(CHECK_LABEL[k])}
+                        placeholder={k === "geo" ? "UA, PL…" : t("pref.topicPh")}
+                        value={k === "geo" ? vals.geo : vals.topics}
+                        onChange={(e) => setVals({ ...vals, [k === "geo" ? "geo" : "topics"]: e.target.value })}
+                        onBlur={() => saveVal(k === "geo" ? "geo" : "topics")}
+                        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      />
+                      {k === "geo" && <span className="shrink-0 text-xs text-mute">{t("pref.projectGeo", { x: projectGeo || "—" })}</span>}
+                    </span>
+                  )}
                   <span className={`font-mono ${TONE[m]}`}>{ICON[m]}</span>
                   <span className="inline-flex gap-1">
                     <button type="button" className={`btn btn-sm ${manual === "ok" ? "btn-pri" : ""}`} disabled={pending} onClick={() => set(k, manual === "ok" ? "" : "ok")} aria-label={`${t(CHECK_LABEL[k])} ✓`}>✓</button>

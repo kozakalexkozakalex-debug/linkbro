@@ -1131,4 +1131,6 @@ export const uk = {
   "nexo.bad": "Не схоже на домен ({n}): {x}",
   "nexo.save": "Зберегти {n}",
   "nexo.added": "Додано {n} сайтів, з ціною — {p}. Дата ціни оновлена.",
+  "pref.topicCol": "Тема",
+  "pref.topicPh": "казино, спорт…",
 };

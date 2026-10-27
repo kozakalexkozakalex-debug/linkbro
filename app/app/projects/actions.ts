@@ -766,6 +766,34 @@ export async function setPreferoCheck(id: string, projectId: string, key: CheckK
   return { ok: true };
 }
 
+// Prefero: GEO и тема домена. Хранятся в Confero (у домена одни на все проекты), после правки — пересчёт воронки.
+export async function setDonorGeoTopic(projectId: string, changes: CellChange[]): Promise<Ok> {
+  const { supabase, team } = await getTeamContext();
+  const list = changes.filter((c) => c.field === "geo" || c.field === "topics").slice(0, 2000);
+  if (!list.length) return { ok: true };
+  const ids = [...new Set(list.map((c) => c.id))];
+  const { data } = await supabase.from("project_donors").select("id, domain").eq("team_id", team.id).eq("project_id", projectId).in("id", ids);
+  const domainOf = new Map(((data ?? []) as { id: string; domain: string }[]).map((d) => [d.id, d.domain]));
+  for (const part of chunk(list, 20)) {
+    const res = await Promise.all(
+      part.map((c) => {
+        const domain = domainOf.get(c.id);
+        if (!domain) return Promise.resolve({ error: null });
+        return supabase.from("global_donors").update({ [c.field]: c.value.trim().slice(0, 200) }).eq("team_id", team.id).eq("domain", domain);
+      }),
+    );
+    const bad = res.find((r) => r.error);
+    if (bad?.error) return fail(bad.error.message);
+  }
+  try {
+    for (const part of chunk(ids.slice(0, 300), 10)) await Promise.all(part.map((id) => recalcPrefero(id, projectId)));
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e));
+  }
+  refresh(projectId);
+  return { ok: true };
+}
+
 export async function updateIntermediariesBatch(changes: CellChange[]): Promise<Ok> {
   const { supabase, team } = await getTeamContext();
   const patches = new Map<string, Record<string, string>>();

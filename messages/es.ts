@@ -1133,4 +1133,6 @@ export const es: Messages = {
   "nexo.bad": "No es un dominio ({n}): {x}",
   "nexo.save": "Guardar {n}",
   "nexo.added": "Añadidos {n} sitios, {p} con precio.",
+  "pref.topicCol": "Tema",
+  "pref.topicPh": "casino, deportes…",
 };

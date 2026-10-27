@@ -1133,4 +1133,6 @@ export const ru: Messages = {
   "nexo.bad": "Не похоже на домен ({n}): {x}",
   "nexo.save": "Сохранить {n}",
   "nexo.added": "Добавлено {n} сайтов, с ценой — {p}. Дата цены обновлена.",
+  "pref.topicCol": "Тема",
+  "pref.topicPh": "казино, спорт…",
 };
