@@ -171,7 +171,7 @@ body {
   .app-main { min-width: 0; display: flex; flex-direction: column; }
   .app-content { min-width: 0; padding: 20px 24px 48px; }
   .side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--side); color: var(--side-ink); padding: 16px 10px; display: flex; flex-direction: column; gap: 18px; border-right: 1px solid var(--line); }
-  .side-logo { padding: 2px 8px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+  .side-logo { display: flex; padding: 0 6px; }
   .side-group { display: flex; flex-direction: column; gap: 2px; }
   .side-link { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: var(--side-ink); white-space: nowrap; background: none; border: 0; cursor: pointer; font-size: 13px; text-align: left; }
   .side-link svg { color: var(--mute); }

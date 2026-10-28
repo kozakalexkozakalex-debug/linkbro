@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
 import LangSwitch from "@/components/LangSwitch";
+import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,7 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4 py-12">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-logo text-2xl font-bold tracking-tight">
-          Link<span className="text-accent">Bro</span>
-        </p>
+        <Logo size="lg" />
         <LangSwitch />
       </div>
       <h1 className="page-title text-balance">{t("common.tagline")}</h1>

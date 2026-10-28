@@ -5,6 +5,7 @@ import { LINK_STATUS, type LinkStatus } from "@/lib/project";
 import { fmtAmount } from "@/lib/money";
 import { getI18n } from "@/lib/i18n/server";
 import LangSwitch from "@/components/LangSwitch";
+import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -53,7 +54,10 @@ export default async function ReportPage({ params }: { params: Params }) {
     <main className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-10">
       <div>
         <div className="flex items-center justify-between gap-2">
-          <p className="lbl">{t("rep.title")}</p>
+          <span className="flex items-center gap-3">
+            <Logo />
+            <span className="lbl">{t("rep.title")}</span>
+          </span>
           <LangSwitch />
         </div>
         <h1 className="font-display text-2xl font-medium">{report.project}</h1>

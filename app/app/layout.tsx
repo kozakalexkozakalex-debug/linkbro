@@ -13,6 +13,7 @@ import { projectDot } from "@/lib/projectColor";
 import { ACCOUNT_NAV, PROJECT_NAV, TEAM_NAV } from "@/lib/nav";
 import { SCOPE_COOKIE } from "@/lib/scope";
 import { getI18n } from "@/lib/i18n/server";
+import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="app-shell">
       <nav className="side" aria-label={t("nav.menu")}>
-        <Link href="/app" className="side-logo">
-          Link<span className="text-accent">Bro</span>
+        <Link href="/app" className="side-logo" aria-label="LinkBro">
+          <Logo />
         </Link>
 
         {teams.length > 1 && (
