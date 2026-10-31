@@ -404,4 +404,10 @@ body {
   .side-tl-dot { width: 8px; height: 8px; border-radius: 4px; margin-top: 5px; flex-shrink: 0; position: relative; z-index: 1; }
   .side-tl-body { display: block; width: 100%; margin-top: 2px; padding: 0; background: none; border: 0; text-align: left; color: var(--ink-2); font-size: 12px; line-height: 1.45; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
   .side-tl-body:disabled { cursor: default; }
+  .side-tl-msg { border-radius: 4px; }
+  .side-tl-msg:hover { color: var(--ink); text-decoration: underline; text-decoration-style: dotted; }
+  .bubble { max-width: 88%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-strong); }
+  .bubble-in { align-self: flex-start; background: var(--elev); border-bottom-left-radius: 3px; }
+  .bubble-out { align-self: flex-end; background: var(--accent-tint); border-color: #4a2a0c; border-bottom-right-radius: 3px; }
+  .bubble-focus { box-shadow: 0 0 0 2px var(--accent); }
 }

@@ -1155,4 +1155,12 @@ export const uk = {
   "side.noSeq": "не запущено",
   "side.history": "Що відбувалось",
   "side.write": "Написати",
+  "side.openDialog": "Відкрити діалог",
+  "side.dialog": "Діалог",
+  "side.back": "Огляд",
+  "side.noMessages": "Листів ще немає — напишіть перший.",
+  "side.you": "Ви",
+  "side.noEmail": "У посередника немає email — відкрийте картку, щоб додати або написати в Telegram/WhatsApp.",
+  "side.replyPh": "Ваша відповідь… (Ctrl+Enter — надіслати)",
+  "side.send": "Надіслати",
 };

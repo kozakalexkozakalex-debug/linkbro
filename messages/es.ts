@@ -1157,4 +1157,12 @@ export const es: Messages = {
   "side.noSeq": "no activa",
   "side.history": "Historial",
   "side.write": "Escribir",
+  "side.openDialog": "Abrir conversación",
+  "side.dialog": "Conversación",
+  "side.back": "Resumen",
+  "side.noMessages": "Aún no hay mensajes.",
+  "side.you": "Usted",
+  "side.noEmail": "El contacto no tiene email.",
+  "side.replyPh": "Su respuesta…",
+  "side.send": "Enviar",
 };

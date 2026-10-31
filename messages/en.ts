@@ -1157,4 +1157,12 @@ export const en: Messages = {
   "side.noSeq": "not running",
   "side.history": "What happened",
   "side.write": "Write",
+  "side.openDialog": "Open conversation",
+  "side.dialog": "Conversation",
+  "side.back": "Overview",
+  "side.noMessages": "No messages yet — write the first one.",
+  "side.you": "You",
+  "side.noEmail": "No email for this contact — open the card to add one or use Telegram/WhatsApp.",
+  "side.replyPh": "Your reply… (Ctrl+Enter to send)",
+  "side.send": "Send",
 };

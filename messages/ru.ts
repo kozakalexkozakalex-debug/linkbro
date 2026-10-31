@@ -1157,4 +1157,12 @@ export const ru: Messages = {
   "side.noSeq": "не запущена",
   "side.history": "Что происходило",
   "side.write": "Написать",
+  "side.openDialog": "Открыть диалог",
+  "side.dialog": "Диалог",
+  "side.back": "Обзор",
+  "side.noMessages": "Писем ещё нет — напишите первое.",
+  "side.you": "Вы",
+  "side.noEmail": "У посредника нет email — откройте карточку, чтобы добавить или написать в Telegram/WhatsApp.",
+  "side.replyPh": "Ваш ответ… (Ctrl+Enter — отправить)",
+  "side.send": "Отправить",
 };
