@@ -405,6 +405,8 @@ body {
   .side-tl-body { display: block; width: 100%; margin-top: 2px; padding: 0; background: none; border: 0; text-align: left; color: var(--ink-2); font-size: 12px; line-height: 1.45; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
   .side-tl-body:disabled { cursor: default; }
   .side-tl-msg { border-radius: 4px; }
+  .side-mini { display: inline-grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 4px; border: 1px solid var(--line-strong); color: var(--mute); background: none; cursor: pointer; }
+  .side-mini:hover { color: var(--ink); border-color: #3a3a3a; }
   .side-tl-msg:hover { color: var(--ink); text-decoration: underline; text-decoration-style: dotted; }
   .bubble { max-width: 88%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-strong); }
   .bubble-in { align-self: flex-start; background: var(--elev); border-bottom-left-radius: 3px; }

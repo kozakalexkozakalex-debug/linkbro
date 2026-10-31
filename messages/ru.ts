@@ -1165,4 +1165,5 @@ export const ru: Messages = {
   "side.noEmail": "У посредника нет email — откройте карточку, чтобы добавить или написать в Telegram/WhatsApp.",
   "side.replyPh": "Ваш ответ… (Ctrl+Enter — отправить)",
   "side.send": "Отправить",
+  "side.openGmail": "Открыть в Gmail",
 };

@@ -16,10 +16,15 @@ import { fmtAmount } from "@/lib/money";
 import type { ProjectDonor } from "@/lib/project";
 import type { MsgKey } from "@/lib/i18n/config";
 
-type Item = { at: string; kind: "out" | "in" | "log" | "note" | "price" | "pay" | "mile"; title: string; body?: string; tone?: string; actId?: string };
+type Item = { at: string; kind: "out" | "in" | "log" | "note" | "price" | "pay" | "mile"; title: string; body?: string; tone?: string; actId?: string; msgId?: string };
 
 const CH: Record<string, string> = { email: "Email", telegram: "Telegram", whatsapp: "WhatsApp", exchange: "Біржа", call: "Дзвінок", note: "" };
 const DAY = 86_400_000;
+
+// Ссылки в настоящий Gmail: письмо по его Message-ID или вся переписка с человеком
+const gmailBase = (box: string) => `https://mail.google.com/mail/?authuser=${encodeURIComponent(box)}`;
+export const gmailMsg = (box: string, msgId: string) => `${gmailBase(box)}#search/${encodeURIComponent(`rfc822msgid:${msgId.replace(/^<|>$/g, "")}`)}`;
+export const gmailWith = (box: string, who: string) => `${gmailBase(box)}#search/${encodeURIComponent(`from:${who} OR to:${who}`)}`;
 
 export default function DealSide({ donor, onClose, onOpenCard }: { donor: ProjectDonor; onClose: () => void; onOpenCard: (tab: "chat" | "prices" | "article") => void }) {
   const { t, intl } = useI18n();
@@ -93,8 +98,8 @@ export default function DealSide({ donor, onClose, onOpenCard }: { donor: Projec
     for (const a of panel.activities) {
       const snippet = (a.body || "").replace(/\s+/g, " ").trim();
       if (a.channel === "note") out.push({ at: a.created_at, kind: "note", title: t("side.note"), body: snippet });
-      else if (a.direction === "in") out.push({ at: a.created_at, kind: "in", actId: a.id, title: `${t("side.theyWrote")}${CH[a.channel] ? ` · ${CH[a.channel]}` : ""}`, body: a.subject ? `${a.subject} — ${snippet}` : snippet });
-      else if (a.channel === "email") out.push({ at: a.created_at, kind: "out", actId: a.id, title: t("side.weWrote"), body: a.subject ? `${a.subject} — ${snippet}` : snippet });
+      else if (a.direction === "in") out.push({ at: a.created_at, kind: "in", actId: a.id, msgId: a.message_id, title: `${t("side.theyWrote")}${CH[a.channel] ? ` · ${CH[a.channel]}` : ""}`, body: a.subject ? `${a.subject} — ${snippet}` : snippet });
+      else if (a.channel === "email") out.push({ at: a.created_at, kind: "out", actId: a.id, msgId: a.message_id, title: t("side.weWrote"), body: a.subject ? `${a.subject} — ${snippet}` : snippet });
       else out.push({ at: a.created_at, kind: "log", actId: a.id, title: `${t("side.weWrote")} · ${CH[a.channel] || a.channel}`, body: snippet });
     }
     const KIND: Record<string, MsgKey> = { quote: "side.pQuote", counter: "side.pCounter", agreed: "side.pAgreed", extra: "side.pExtra" };
@@ -130,6 +135,11 @@ export default function DealSide({ donor, onClose, onOpenCard }: { donor: Projec
         <div className="flex items-center gap-2 border-b border-line px-3 py-2">
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("overview")}>← {t("side.back")}</button>
           <span className="min-w-0 flex-1 truncate text-xs text-mute">{email || donor.med_base}</span>
+          {panel?.gmail && panel.mail && email && (
+            <a href={gmailWith(panel.mail, email)} target="_blank" rel="noopener noreferrer" className="btn btn-sm">
+              Gmail ↗
+            </a>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
           {!panel ? (
@@ -146,6 +156,11 @@ export default function DealSide({ donor, onClose, onOpenCard }: { donor: Projec
                     <span className="font-mono" suppressHydrationWarning>{dt(m.created_at)}</span>
                   </div>
                   {m.subject && <p className="mb-1 text-xs font-semibold">{m.subject}</p>}
+                  {panel?.gmail && panel.mail && m.message_id ? (
+                    <a href={gmailMsg(panel.mail, m.message_id)} target="_blank" rel="noopener noreferrer" className="float-right ml-2 text-[11px] text-mute underline hover:text-accent">
+                      Gmail ↗
+                    </a>
+                  ) : null}
                   <p className="whitespace-pre-wrap text-[13px] leading-relaxed [overflow-wrap:anywhere]">{m.body}</p>
                 </div>
               );
@@ -256,7 +271,16 @@ export default function DealSide({ donor, onClose, onOpenCard }: { donor: Projec
                         <span className={`text-[13px] font-semibold ${it.kind === "in" ? "text-accent" : ""}`}>{it.title}</span>
                         <span className="shrink-0 font-mono text-[11px] text-mute" suppressHydrationWarning>{dt(it.at)}</span>
                       </div>
-                      {it.actId ? (
+                      {it.actId && it.msgId && panel?.gmail && panel.mail ? (
+                        <span className="flex items-start gap-2">
+                          <a href={gmailMsg(panel.mail, it.msgId)} target="_blank" rel="noopener noreferrer" className="side-tl-body side-tl-msg line-clamp-2 min-w-0 flex-1" title={t("side.openGmail")}>
+                            {it.body || t("side.openGmail")}
+                          </a>
+                          <button type="button" className="side-mini" onClick={() => toDialog(it.actId)} title={t("side.openDialog")} aria-label={t("side.openDialog")}>
+                            <Icon name="chat" size={12} />
+                          </button>
+                        </span>
+                      ) : it.actId ? (
                         <button type="button" className="side-tl-body side-tl-msg line-clamp-2" onClick={() => toDialog(it.actId)} title={t("side.openDialog")}>
                           {it.body || t("side.openDialog")}
                         </button>
@@ -278,6 +302,11 @@ export default function DealSide({ donor, onClose, onOpenCard }: { donor: Projec
       )}
 
       {mode === "overview" && <footer className="flex gap-2 border-t border-line px-4 py-3">
+        {panel?.gmail && panel.mail && (panel.contact?.email || /@/.test(donor.med_base)) && (
+          <a href={gmailWith(panel.mail, panel.contact?.email || donor.med_base.trim())} target="_blank" rel="noopener noreferrer" className="btn" title={t("side.openGmail")}>
+            Gmail ↗
+          </a>
+        )}
         <button type="button" className="btn btn-pri flex-1" onClick={() => toDialog()}>
           <Icon name="chat" size={14} />
           {t("side.dialog")}

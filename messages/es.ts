@@ -1165,4 +1165,5 @@ export const es: Messages = {
   "side.noEmail": "El contacto no tiene email.",
   "side.replyPh": "Su respuesta…",
   "side.send": "Enviar",
+  "side.openGmail": "Abrir en Gmail",
 };

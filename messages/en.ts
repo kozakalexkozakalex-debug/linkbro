@@ -1165,4 +1165,5 @@ export const en: Messages = {
   "side.noEmail": "No email for this contact — open the card to add one or use Telegram/WhatsApp.",
   "side.replyPh": "Your reply… (Ctrl+Enter to send)",
   "side.send": "Send",
+  "side.openGmail": "Open in Gmail",
 };

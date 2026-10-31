@@ -1163,4 +1163,5 @@ export const uk = {
   "side.noEmail": "У посередника немає email — відкрийте картку, щоб додати або написати в Telegram/WhatsApp.",
   "side.replyPh": "Ваша відповідь… (Ctrl+Enter — надіслати)",
   "side.send": "Надіслати",
+  "side.openGmail": "Відкрити в Gmail",
 };

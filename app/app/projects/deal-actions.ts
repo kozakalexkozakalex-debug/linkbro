@@ -15,7 +15,7 @@ export type Channel = "email" | "telegram" | "whatsapp" | "exchange" | "call" | 
 const CHANNELS: Channel[] = ["email", "telegram", "whatsapp", "exchange", "call", "note"];
 
 export type Contact = { handle: string; kind: string; name: string; email: string; telegram: string; whatsapp: string; other: string; notes: string; do_not_contact?: boolean };
-export type Activity = { donor_ids?: string[]; id: string; channel: Channel; direction?: string; subject?: string; is_read?: boolean; body: string; handle: string; created_at: string; created_by: string | null; project_id: string | null; donor_id: string | null };
+export type Activity = { donor_ids?: string[]; message_id?: string; id: string; channel: Channel; direction?: string; subject?: string; is_read?: boolean; body: string; handle: string; created_at: string; created_by: string | null; project_id: string | null; donor_id: string | null };
 export type OfferKind = "quote" | "counter" | "agreed" | "extra";
 export type Offer = { id: string; domain: string; handle: string; price: number; currency: string; note: string; created_at: string; kind: OfferKind; donor_id: string | null };
 export type WriterLite = { id: string; name: string; contact: string; rate: number | null; rate_unit: string; currency: string };
@@ -23,6 +23,7 @@ export type Payment = { id: string; payee_kind: string; payee: string; amount: n
 export type TemplateLite = { id: string; kind: "message" | "brief"; name: string; body: string };
 export type DealPanel = {
   mail: string | null; // подключённый ящик текущего пользователя
+  gmail?: boolean; // ящик в Gmail / Google Workspace — письма можно открыть прямо в Gmail
   templates: TemplateLite[];
   writers: WriterLite[];
   payments: Payment[];
@@ -48,7 +49,7 @@ export async function getDealPanel(donorId: string, domain: string, handle: stri
   const { supabase, team } = await getTeamContext();
   const h = handle.trim();
   const [acts, contact, offers, same, writers, pays, tpls, mail, proj] = await Promise.all([
-    supabase.from("activities").select("id, channel, direction, subject, is_read, body, handle, created_at, created_by, project_id, donor_id, donor_ids").eq("team_id", team.id).or(`donor_id.eq.${donorId},donor_ids.cs.{${donorId}}`).order("created_at", { ascending: false }).limit(100),
+    supabase.from("activities").select("id, channel, direction, subject, is_read, body, handle, created_at, created_by, project_id, donor_id, donor_ids, message_id").eq("team_id", team.id).or(`donor_id.eq.${donorId},donor_ids.cs.{${donorId}}`).order("created_at", { ascending: false }).limit(100),
     h ? supabase.from("contacts").select("handle, kind, name, email, telegram, whatsapp, other, notes, do_not_contact").eq("team_id", team.id).eq("handle", h).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("offers").select("id, domain, handle, price, currency, note, created_at, kind, donor_id").eq("team_id", team.id).eq("domain", domain).order("created_at", { ascending: false }).limit(80),
     h
@@ -57,7 +58,7 @@ export async function getDealPanel(donorId: string, domain: string, handle: stri
     supabase.from("writers").select("id, name, contact, rate, rate_unit, currency").eq("team_id", team.id).order("name"),
     supabase.from("payments").select("id, payee_kind, payee, amount, currency, status, paid_at, note, created_at, project_id, donor_id").eq("team_id", team.id).eq("donor_id", donorId).order("created_at", { ascending: false }),
     supabase.from("templates").select("id, kind, name, body").eq("team_id", team.id).order("name"),
-    supabase.from("mail_accounts").select("email").maybeSingle(),
+    supabase.from("mail_accounts").select("email, imap_host").maybeSingle(),
     supabase.from("project_donors").select("projects(link_budget, budget_currency)").eq("id", donorId).eq("team_id", team.id).maybeSingle(),
   ]);
   const pj = (proj.data as unknown as { projects: { link_budget: number | null; budget_currency: string } | { link_budget: number | null; budget_currency: string }[] | null } | null)?.projects;
@@ -65,6 +66,7 @@ export async function getDealPanel(donorId: string, domain: string, handle: stri
   return {
     budget: { limit: pjOne?.link_budget ?? null, currency: pjOne?.budget_currency || "USD" },
     mail: (mail.data as { email: string } | null)?.email ?? null,
+    gmail: /gmail|google/i.test((mail.data as { imap_host?: string } | null)?.imap_host ?? ""),
     templates: (tpls.data ?? []) as TemplateLite[],
     writers: (writers.data ?? []) as WriterLite[],
     payments: (pays.data ?? []) as Payment[],
