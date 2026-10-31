@@ -13,6 +13,7 @@ import LinkCheck from "@/components/LinkCheck";
 import { metricCols } from "@/components/MetricCols";
 import { fmtDate } from "@/lib/global";
 import StepPath from "@/components/StepPath";
+import DealSide from "@/components/DealSide";
 import { DEAL_STEP_KEY, DEAL_STEP_SHORT, dealNext, dealPath } from "@/lib/deal";
 import { STAGES, STAGE_KEY } from "@/lib/stages";
 import { GP_STATUSES, INDICATORS, ageLabel, hoursSince, type CustomStatuses, type Member, type ProjectDonor } from "@/lib/project";
@@ -69,6 +70,10 @@ export default function Work({
   const [shown, setShown] = useState<Group[]>(["med", "prices", "pub"]);
   const [view, setView] = useState<"table" | "kanban">("table");
   const [card, setCard] = useState<ProjectDonor | null>(null);
+  const [cardTab, setCardTab] = useState<"chat" | "prices" | "article">("chat");
+  // Панель сбоку: что произошло по сделке. Большая карточка — по кнопке из панели.
+  const [side, setSide] = useState<ProjectDonor | null>(null);
+  const [sideKey, setSideKey] = useState(0);
   const [groupIds, setGroupIds] = useState<string[] | null>(null);
   // «Потребує уваги»: ціна вища за ліміт, без посередника, дедлайн статті ≤ 2 дн. — клік фільтрує таблицю
   const [attn, setAttn] = useState<"" | "over" | "nomed" | "due">("");
@@ -149,7 +154,7 @@ export default function Work({
           const sq = seqText(d, t);
           return (
             <span className="flex flex-col gap-0.5">
-              <StepPath compact steps={p.steps.map((x) => ({ label: t(DEAL_STEP_SHORT[x.key]), mark: x.mark, title: t(DEAL_STEP_KEY[x.key]) }))} onClick={() => setCard(d)} title={t("dp.open")} />
+              <StepPath compact steps={p.steps.map((x) => ({ label: t(DEAL_STEP_SHORT[x.key]), mark: x.mark, title: t(DEAL_STEP_KEY[x.key]) }))} onClick={() => setSide(d)} title={t("dp.open")} />
               {nx && <span className={`truncate text-[11px] ${p.lost ? "text-bad" : "text-accent"}`}>→ {t(nx.key)}</span>}
               {sq && <span className={`truncate text-[11px] ${SEQ_TONE[sq.tone]}`}>{sq.text}</span>}
             </span>
@@ -441,12 +446,23 @@ export default function Work({
 
       {msg && <p className={`note ${msg.bad ? "note-bad" : "note-ok"}`} role="status">{msg.text}</p>}
 
-      {view === "kanban" && <Kanban projectId={projectId} rows={rows} customNeg={custom.core_neg} onOpen={setCard} />}
-      {card && <DonorCard projectId={projectId} donor={card} statusOpts={statusOpts} onClose={() => setCard(null)} />}
+      {view === "kanban" && <Kanban projectId={projectId} rows={rows} customNeg={custom.core_neg} onOpen={setSide} />}
+      {side && (
+        <DealSide
+          key={`${side.id}-${sideKey}`}
+          donor={rows.find((r) => r.id === side.id) ?? side}
+          onClose={() => setSide(null)}
+          onOpenCard={(tab) => {
+            setCardTab(tab);
+            setCard(rows.find((r) => r.id === side.id) ?? side);
+          }}
+        />
+      )}
+      {card && <DonorCard projectId={projectId} donor={card} statusOpts={statusOpts} initialTab={cardTab} onClose={() => { setCard(null); setSideKey((k) => k + 1); }} />}
 
       {view === "table" && <Sheet
         key={shown.join(",")}
-        onOpen={setCard}
+        onOpen={setSide}
         rows={rows}
         columns={columns}
         onSave={(changes) => updateDonorsBatch(projectId, changes)}

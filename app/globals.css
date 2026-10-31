@@ -388,3 +388,20 @@ body {
   .path-wide .path-label { font-size: 11px; white-space: normal; text-align: center; line-height: 1.15; }
   .path-now { box-shadow: 0 0 0 4px var(--accent-soft); }
 }
+
+/* Панель сделки сбоку от «Угод»: на широком экране таблица отодвигается, на телефоне — во весь экран */
+@layer components {
+  .deal-side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; width: 420px; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #0008; animation: drawer-in .16s ease-out; }
+  @media (min-width: 1280px) { html[data-side-open] .app-content { padding-right: 444px; } }
+  @media (max-width: 800px) { .deal-side { width: 100vw; z-index: 47; } }
+  .side-facts { display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; margin: 0; font-size: 13px; }
+  .side-facts dt { color: var(--mute); }
+  .side-facts dd { margin: 0; min-width: 0; }
+  .side-tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .side-tl > li { position: relative; display: flex; gap: 10px; padding: 0 0 14px; }
+  .side-tl > li::before { content: ""; position: absolute; left: 3.5px; top: 12px; bottom: 0; width: 1px; background: var(--line-strong); }
+  .side-tl > li:last-child::before { display: none; }
+  .side-tl-dot { width: 8px; height: 8px; border-radius: 4px; margin-top: 5px; flex-shrink: 0; position: relative; z-index: 1; }
+  .side-tl-body { display: block; width: 100%; margin-top: 2px; padding: 0; background: none; border: 0; text-align: left; color: var(--ink-2); font-size: 12px; line-height: 1.45; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .side-tl-body:disabled { cursor: default; }
+}
